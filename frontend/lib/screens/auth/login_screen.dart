@@ -315,8 +315,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-
-
   // ========================================
   // MOBILE LAYOUT
   // ========================================
@@ -329,16 +327,12 @@ class _LoginScreenState extends State<LoginScreen> {
           // MOBILE GREEN WAVE BACKGROUND
           // ========================================
 
-          // Display the green waves across the entire bottom
+          // Keep the wave across the full width at the bottom
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-
-            // Set the height of the wave background
-            height: 250,
-
-            // Draw the green waves
+            height: 190,
             child: IgnorePointer(
               child: CustomPaint(
                 painter: _MobileBottomWavePainter(),
@@ -347,89 +341,44 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
 
           // ========================================
-          // MOBILE LOGIN FORM
+          // MOBILE TOP-RIGHT CURVE
           // ========================================
 
-          // Display the login form above the background
-          Positioned.fill(
-            child: SingleChildScrollView(
-              // Add spacing around the login form
-              // Bottom padding keeps the footer from covering the form
-              padding: const EdgeInsets.fromLTRB(
-                24,
-                30,
-                24,
-                130,
-              ),
-
-              // Keep the login form at a readable width
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 420,
-                  ),
-
-                  // Display the mobile login form
-                  child: _buildLoginForm(isMobile: true),
-                ),
+          // Add a soft green decoration above the AidTrack logo
+          Positioned(
+            top: 0,
+            right: 0,
+            width: 185,
+            height: 95,
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _TopWavePainter(),
               ),
             ),
           ),
 
           // ========================================
-          // MOBILE LGU FOOTER
+          // MOBILE LOGIN FORM
           // ========================================
 
-          // Keep the LGU information above the green waves
-          Positioned(
-            bottom: 155,
-            left: 0,
-            right: 0,
+          // Allow the form and footer to scroll together
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                24,
+                30,
+                24,
+                40,
+              ),
 
-            child: IgnorePointer(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-
-                children: [
-                  // Government building icon and LGU name
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-                      Icon(
-                        Icons.account_balance_outlined,
-                        color: AppColors.primaryGreen,
-                        size: 18,
-                      ),
-
-                      SizedBox(width: 8),
-
-                      Text(
-                        'Local Government Unit',
-
-                        style: TextStyle(
-                          color: AppColors.primaryGreen,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+              // Keep the form at a readable width
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 420,
                   ),
-
-                  const SizedBox(height: 5),
-
-                  // Authorized LGU personnel message
-                  const Text(
-                    'For authorized LGU personnel only.',
-
-                    textAlign: TextAlign.center,
-
-                    style: TextStyle(
-                      color: AppColors.greyText,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+                  child: _buildLoginForm(isMobile: true),
+                ),
               ),
             ),
           ),
@@ -437,6 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
 
   // ========================================
   // LOGIN FORM
@@ -625,13 +575,61 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
+          // ========================================
+          // MOBILE LGU FOOTER
+          // ========================================
+
+          // Keep the mobile footer below the administrator text
+          // so they do not overlap on different phone sizes
+          if (isMobile) ...[
+            const SizedBox(height: 95),
+
+            // Government building icon and LGU name
+            const Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.account_balance_outlined,
+                    color: AppColors.primaryGreen,
+                    size: 18,
+                  ),
+
+                  SizedBox(width: 8),
+
+                  Text(
+                    'Local Government Unit',
+                    style: TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 5),
+
+            // Authorized LGU personnel message
+            const Center(
+              child: Text(
+                'For authorized LGU personnel only.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.greyText,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
 
           // ========================================
           // DESKTOP / WEB LGU FOOTER
           // ========================================
 
           // Display the LGU footer only on desktop
-          // The mobile footer is already in _buildMobileLayout()
+          // The mobile footer is already in _buildLoginForm()
           if (!isMobile) ...[
             // Add spacing before the desktop footer
             const SizedBox(height: 24),
