@@ -1,11 +1,9 @@
-
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
-
-// Import our new dashboard screen
-import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/staff/staff_dashboard.dart';
+import 'screens/admin/admin_dashboard.dart';
 
 void main() {
   runApp(const AidTrackApp());
@@ -24,13 +22,11 @@ class AidTrackApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
 
       // ========================================
-      // DASHBOARD UI PREVIEW
+      // ADMIN DASHBOARD UI PREVIEW
       // ========================================
 
       // Temporarily display the LGU Administrator Dashboard
-      home: const DashboardScreen(
-        role: UserRole.administrator,
-      ),
+      home: const StaffDashboard(),
 
       // ========================================
       // ORIGINAL LOGIN PAGE

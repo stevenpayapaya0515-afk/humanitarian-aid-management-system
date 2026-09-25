@@ -1,49 +1,34 @@
-
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../auth/login_screen.dart';
 
 // ========================================
-// USER ROLES
+// STAFF DASHBOARD
 // ========================================
 
-enum UserRole {
-  administrator,
-  staff,
-}
-
-// ========================================
-// DASHBOARD SCREEN
-// ========================================
-
-class DashboardScreen extends StatefulWidget {
-  final UserRole role;
+class StaffDashboard extends StatefulWidget {
   final VoidCallback? onLogout;
 
-  const DashboardScreen({
+  const StaffDashboard({
     super.key,
-    required this.role,
     this.onLogout,
   });
 
   @override
-  State<DashboardScreen> createState() =>
-      _DashboardScreenState();
+  State<StaffDashboard> createState() =>
+      _StaffDashboardState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _StaffDashboardState extends State<StaffDashboard> {
 
-  // Currently selected sidebar page
+  // Currently selected staff page
   String selectedPage = 'Dashboard';
 
-  // Check if the logged-in user is an administrator
-  bool get isAdmin =>
-      widget.role == UserRole.administrator;
-
   // ========================================
-  // SIDEBAR MENU ITEMS
+  // STAFF SIDEBAR MENU ITEMS
   // ========================================
 
-  List<Map<String, dynamic>> get menuItems => [
+  final List<Map<String, dynamic>> menuItems = [
     {
       'title': 'Dashboard',
       'icon': Icons.dashboard_outlined,
@@ -72,17 +57,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'title': 'Reports',
       'icon': Icons.bar_chart_outlined,
     },
-
-    // Only the LGU Administrator can see this menu.
-    if (isAdmin)
-      {
-        'title': 'User Management',
-        'icon': Icons.manage_accounts_outlined,
-      },
   ];
 
   // ========================================
-  // RESPONSIVE DASHBOARD
+  // RESPONSIVE STAFF DASHBOARD
   // ========================================
 
   @override
@@ -90,16 +68,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
 
-        // Use a mobile layout below 900 pixels
+        // Use mobile layout below 900 pixels
         final isMobile = constraints.maxWidth < 900;
 
         return Scaffold(
           backgroundColor: AppColors.primaryGreen,
 
-          // Mobile navigation drawer
+          // Mobile sidebar drawer
           drawer: isMobile
               ? Drawer(
-                  child: _buildSidebar(isMobile: true),
+                  child: _buildSidebar(
+                    isMobile: true,
+                  ),
                 )
               : null,
 
@@ -108,8 +88,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ? AppBar(
                   backgroundColor: AppColors.white,
                   foregroundColor: AppColors.primaryGreen,
-                  title: const Text(
-                    'AidTrack',
+
+                  title: const Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Aid',
+                          style: TextStyle(
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'Track',
+                          style: TextStyle(
+                            color: AppColors.accentYellow,
+                          ),
+                        ),
+                      ],
+                    ),
+
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
@@ -126,14 +123,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               // Desktop sidebar
               if (!isMobile)
-                _buildSidebar(isMobile: false),
+                _buildSidebar(
+                  isMobile: false,
+                ),
 
               // ========================================
-              // RIGHT DASHBOARD PANEL
+              // RIGHT STAFF PANEL
               // ========================================
 
               Expanded(
                 child: ClipRRect(
+
+                  // Keep only the top-left corner curved
                   borderRadius: isMobile
                       ? BorderRadius.zero
                       : const BorderRadius.only(
@@ -147,10 +148,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: const Color(0xFFF5F8F5),
 
                     child: _buildMainContent(),
-                  ), // Closes Container
-                ), // Closes ClipRRect
-              ), // Closes Expanded
-
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -159,7 +159,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ========================================
-  // LEFT SIDEBAR
+  // STAFF SIDEBAR
   // ========================================
 
   Widget _buildSidebar({
@@ -174,7 +174,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
 
             // ========================================
-            // SYSTEM LOGO
+            // AIDTRACK LOGO AND NAME
             // ========================================
 
             Padding(
@@ -183,10 +183,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Row(
                 children: [
 
-                  // White rounded container for the original AidTrack logo
+                  // White rounded logo container
                   Container(
-                    width: 64,
-                    height: 64,
+                    width: 70,
+                    height: 70,
 
                     padding: const EdgeInsets.all(6),
 
@@ -196,51 +196,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
 
                     child: Image.asset(
-                      'assets/images/aidtrack_logo.png',
+                      'assets/images/aidtrack_symbol.png',
                       fit: BoxFit.contain,
                     ),
                   ),
 
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
 
+                  // AidTrack text beside logo
                   const Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
 
-                      children: [
-
-                        const Text.rich(
+                          // Aid stays white
                           TextSpan(
-                            children: [
-                              TextSpan(
-                                text: 'Aid',
-                                style: TextStyle(
-                                  color: AppColors.white,
-                                ),
-                              ),
-                              TextSpan(
-                                text: 'Track',
-                                style: TextStyle(
-                                  color: AppColors.accentYellow,
-                                ),
-                              ),
-                            ],
+                            text: 'Aid',
+                            style: TextStyle(
+                              color: AppColors.white,
+                            ),
                           ),
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
 
-                        Text(
-                          'LGU Management System',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 10,
+                          // Track stays yellow
+                          TextSpan(
+                            text: 'Track',
+                            style: TextStyle(
+                              color: AppColors.accentYellow,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -254,7 +244,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 15),
 
             // ========================================
-            // NAVIGATION MENU
+            // STAFF NAVIGATION MENU
             // ========================================
 
             Expanded(
@@ -266,9 +256,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 itemCount: menuItems.length,
 
                 itemBuilder: (context, index) {
+
                   final item = menuItems[index];
 
-                  final String title = item['title'];
+                  final String title =
+                      item['title'];
 
                   final bool isSelected =
                       selectedPage == title;
@@ -280,6 +272,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     child: Container(
                       decoration: BoxDecoration(
+
+                        // Yellow highlight for selected menu
                         color: isSelected
                             ? AppColors.accentYellow
                             : Colors.transparent,
@@ -316,12 +310,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
 
+                        // Change selected staff page
                         onTap: () {
 
                           setState(() {
                             selectedPage = title;
                           });
 
+                          // Close drawer on mobile
                           if (isMobile) {
                             Navigator.pop(context);
                           }
@@ -334,7 +330,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
 
             // ========================================
-            // LOGGED-IN USER INFORMATION
+            // STAFF ACCOUNT INFORMATION
             // ========================================
 
             const Divider(
@@ -347,10 +343,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 children: [
 
-                  Row(
+                  const Row(
                     children: [
 
-                      const CircleAvatar(
+                      // Staff profile icon
+                      CircleAvatar(
                         backgroundColor: Colors.white,
 
                         child: Icon(
@@ -359,7 +356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
 
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
 
                       Expanded(
                         child: Column(
@@ -369,18 +366,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
 
                             Text(
-                              isAdmin
-                                  ? 'LGU Administrator'
-                                  : 'LGU Staff',
+                              'LGU Staff',
 
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
                             ),
 
-                            const Text(
+                            Text(
                               'Authorized Personnel',
 
                               style: TextStyle(
@@ -394,25 +389,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
 
-                  if (widget.onLogout != null) ...[
-                    const SizedBox(height: 15),
+                  const SizedBox(height: 15),
 
-                    ListTile(
-                      leading: const Icon(
+                  // ========================================
+                  // LOG OUT BUTTON
+                  // ========================================
+
+                  SizedBox(
+                    width: double.infinity,
+
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+
+                        // Use custom logout function if provided
+                        if (widget.onLogout != null) {
+                          widget.onLogout!();
+                          return;
+                        }
+
+                        // Return to Login Screen
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const LoginScreen(),
+                          ),
+                        );
+                      },
+
+                      icon: const Icon(
                         Icons.logout,
-                        color: Colors.white70,
+                        size: 18,
                       ),
 
-                      title: const Text(
+                      label: const Text(
                         'Log Out',
+
                         style: TextStyle(
-                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
 
-                      onTap: widget.onLogout,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.white,
+
+                        side: const BorderSide(
+                          color: Colors.white54,
+                        ),
+
+                        padding:
+                            const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -423,7 +458,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ========================================
-  // MAIN DASHBOARD CONTENT
+  // MAIN STAFF CONTENT
   // ========================================
 
   Widget _buildMainContent() {
@@ -431,12 +466,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.all(25),
 
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
 
         children: [
 
           // ========================================
-          // DASHBOARD HEADER
+          // PAGE HEADER
           // ========================================
 
           Row(
@@ -462,7 +498,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 5),
 
                     const Text(
-                      'Humanitarian Aid Distribution Management System',
+                      'Aid Distribution Management System',
 
                       style: TextStyle(
                         color: AppColors.greyText,
@@ -484,34 +520,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 30),
 
           // ========================================
-          // DISPLAY SELECTED PAGE
+          // DISPLAY SELECTED STAFF PAGE
           // ========================================
 
           if (selectedPage == 'Dashboard')
             _buildDashboardOverview()
-          else
-            _buildModulePlaceholder(),
+
+          else if (selectedPage ==
+              'Household Registration')
+            _buildModulePlaceholder(
+              title: 'Household Registration',
+              icon: Icons.home_outlined,
+              message:
+                  'Household registration form and records will be developed in this module.',
+            )
+
+          else if (selectedPage ==
+              'Household Assessment')
+            _buildModulePlaceholder(
+              title: 'Household Assessment',
+              icon: Icons.assignment_outlined,
+              message:
+                  'Household assessment form and records will be developed in this module.',
+            )
+
+          else if (selectedPage ==
+              'Vulnerability Classification')
+            _buildModulePlaceholder(
+              title: 'Vulnerability Classification',
+              icon: Icons.analytics_outlined,
+              message:
+                  'Machine learning vulnerability results will be displayed in this module.',
+            )
+
+          else if (selectedPage ==
+              'Beneficiary Management')
+            _buildModulePlaceholder(
+              title: 'Beneficiary Management',
+              icon: Icons.people_outline,
+              message:
+                  'Beneficiary records and management will be developed in this module.',
+            )
+
+          else if (selectedPage ==
+              'Aid Distribution')
+            _buildModulePlaceholder(
+              title: 'Aid Distribution',
+              icon: Icons.inventory_2_outlined,
+              message:
+                  'Aid distribution recording and history will be developed in this module.',
+            )
+
+          else if (selectedPage == 'Reports')
+            _buildModulePlaceholder(
+              title: 'Reports',
+              icon: Icons.bar_chart_outlined,
+              message:
+                  'Staff reports will be developed in this module.',
+            ),
         ],
       ),
     );
   }
 
   // ========================================
-  // DASHBOARD OVERVIEW
+  // STAFF DASHBOARD OVERVIEW
   // ========================================
 
   Widget _buildDashboardOverview() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
 
       children: [
 
-        Text(
-          isAdmin
-              ? 'Welcome, LGU Administrator'
-              : 'Welcome, LGU Staff',
+        const Text(
+          'Welcome, LGU Staff',
 
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 19,
             fontWeight: FontWeight.w600,
             color: AppColors.darkText,
@@ -521,7 +607,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 5),
 
         const Text(
-          'Overview of household assessments and aid distribution.',
+          'Manage household registration, assessments, beneficiaries, and aid distribution.',
 
           style: TextStyle(
             fontSize: 13,
@@ -532,26 +618,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 25),
 
         // ========================================
-        // SUMMARY CARDS
+        // STAFF SUMMARY CARDS
         // ========================================
 
         LayoutBuilder(
           builder: (context, constraints) {
 
-            final double width = constraints.maxWidth;
+            final double width =
+                constraints.maxWidth;
 
-            // Four cards on wide screens
-            // Two cards on medium screens
-            // One card on small screens
-
-            final int columns = width >= 1050
-                ? 4
-                : width >= 550
-                    ? 2
-                    : 1;
+            // 4 cards on large desktop
+            // 2 cards on medium screens
+            // 1 card on small screens
+            final int columns =
+                width >= 1050
+                    ? 4
+                    : width >= 550
+                        ? 2
+                        : 1;
 
             final double cardWidth =
-                (width - (columns - 1) * 16) / columns;
+                (width -
+                    (columns - 1) * 16) /
+                    columns;
 
             return Wrap(
               spacing: 16,
@@ -559,28 +648,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               children: [
 
+                // Total registered households
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Total Households',
                   icon: Icons.home_outlined,
                 ),
 
+                // Completed assessments
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Assessed Households',
-                  icon: Icons.assignment_turned_in_outlined,
+                  icon:
+                      Icons.assignment_turned_in_outlined,
                 ),
 
+                // High vulnerability households
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'High Vulnerability',
-                  icon: Icons.warning_amber_outlined,
+                  icon:
+                      Icons.warning_amber_outlined,
                 ),
 
+                // Aid distributions recorded
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Aid Distributions',
-                  icon: Icons.inventory_2_outlined,
+                  icon:
+                      Icons.inventory_2_outlined,
                 ),
               ],
             );
@@ -594,8 +690,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // ========================================
 
         _buildDashboardPanel(
-          title: 'Household Vulnerability Overview',
-          icon: Icons.analytics_outlined,
+          title:
+              'Household Vulnerability Overview',
+
+          icon:
+              Icons.analytics_outlined,
 
           child: const Column(
             children: [
@@ -629,7 +728,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 20),
 
         // ========================================
-        // RECENT ACTIVITY
+        // RECENT STAFF ACTIVITY
         // ========================================
 
         _buildDashboardPanel(
@@ -656,6 +755,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         const SizedBox(height: 25),
 
+        // ========================================
+        // FOOTER
+        // ========================================
+
         const Center(
           child: Text(
             'Local Government Unit • Authorized Personnel Only',
@@ -669,6 +772,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ========================================
+  // STAFF MODULE PLACEHOLDER
+  // ========================================
+
+  Widget _buildModulePlaceholder({
+    required String title,
+    required IconData icon,
+    required String message,
+  }) {
+    return _buildDashboardPanel(
+      title: title,
+      icon: icon,
+
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: 40,
+        ),
+
+        child: Center(
+          child: Text(
+            message,
+
+            textAlign: TextAlign.center,
+
+            style: const TextStyle(
+              color: AppColors.greyText,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -690,15 +827,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
 
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
 
         border: Border.all(
-          color: const Color(0xFFE4EBE5),
+          color:
+              const Color(0xFFE4EBE5),
         ),
       ),
 
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
 
         children: [
 
@@ -710,6 +850,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const Spacer(),
 
+          // Real data will come from backend later
           const Text(
             '—',
 
@@ -752,15 +893,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
 
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
 
         border: Border.all(
-          color: const Color(0xFFE4EBE5),
+          color:
+              const Color(0xFFE4EBE5),
         ),
       ),
 
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
 
         children: [
 
@@ -792,36 +936,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           child,
         ],
-      ),
-    );
-  }
-
-  // ========================================
-  // OTHER MODULES
-  // ========================================
-
-  Widget _buildModulePlaceholder() {
-    return _buildDashboardPanel(
-      title: selectedPage,
-      icon: Icons.construction_outlined,
-
-      child: const Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 40,
-        ),
-
-        child: Center(
-          child: Text(
-            'This module will be developed in the next stage.',
-
-            textAlign: TextAlign.center,
-
-            style: TextStyle(
-              color: AppColors.greyText,
-              fontSize: 14,
-            ),
-          ),
-        ),
       ),
     );
   }

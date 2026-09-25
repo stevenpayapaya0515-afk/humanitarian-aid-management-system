@@ -188,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         // First part of the system title
                         TextSpan(
-                          text: 'Humanitarian Aid\n'
+                          text: 'Aid\n'
                               'Distribution\n'
                               'Management\n',
                           style: TextStyle(
