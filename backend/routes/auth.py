@@ -9,6 +9,7 @@ from core.security import (
     create_access_token,
     hash_password,
     verify_password,
+    password_error,
 )
 from database import get_connection
 from schemas.auth import (
@@ -185,7 +186,7 @@ def change_password(
             # Lock the account row while checking and updating it.
             cursor.execute(
                 """
-                SELECT user_id, password_hash, is_active,
+                SELECT user_id, full_name, email, password_hash, is_active,
                        failed_login_attempts, locked_until
                 FROM public.users
                 WHERE user_id = %s
@@ -260,14 +261,20 @@ def change_password(
                         """,
                         (user["user_id"],),
                     )
+                    
+                    new_password_error = password_error(
+                        data.new_password,
+                        user["full_name"],
+                        user["email"],
+                    )
 
                     if data.new_password == data.current_password:
                         error_message = (
                             "Choose a different password from your current one."
                         )
 
-                    elif not data.new_password.strip():
-                        error_message = "New password cannot be only spaces."
+                    elif new_password_error is not None:
+                         error_message = new_password_error
 
                     else:
                         # Store a hash, never the actual password.

@@ -398,6 +398,15 @@ class _AdminSettingsState extends State<AdminSettings> {
       onFieldSubmitted: submitOnEnter ? (_) => _changePassword() : null,
       decoration: InputDecoration(
         labelText: label,
+        helperText: controller == _newPassword
+            ? '• 12 to 64 characters\n'
+                '• At least 1 uppercase letter (A–Z)\n'
+                '• At least 1 lowercase letter (a–z)\n'
+                '• At least 1 number (0–9)\n'
+                '• At least 1 symbol (! @ #)\n'
+                '• Avoid common passwords, your name, and email'
+            : null,
+        helperMaxLines: 8,
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           onPressed: onToggle,
@@ -520,8 +529,8 @@ class _AdminSettingsState extends State<AdminSettings> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Enter your new password.';
                     }
-                    if (value.length < 12 || value.length > 1024) {
-                      return 'Use 12 to 1024 characters.';
+                    if (value.runes.length < 12 || value.runes.length > 64) {
+                      return 'Use 12 to 64 characters.';
                     }
                     if (value == _currentPassword.text) {
                       return 'Choose a different password.';

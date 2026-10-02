@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg.errors import UniqueViolation, ForeignKeyViolation
 from psycopg.rows import dict_row
+from core.security import password_error
 
 from core.dependencies import require_admin
 from core.security import hash_password
@@ -141,6 +142,15 @@ def list_users():
 # Create a Staff account
 @router.post("", response_model=UserListResponse, status_code=201)
 def create_staff(data: StaffCreate):
+    error = password_error(
+        data.password,
+        data.full_name,
+        data.email,
+    )
+
+    if error is not None:
+        raise HTTPException(status_code=400, detail=error)
+
     hashed_password = hash_password(data.password)
 
     try:

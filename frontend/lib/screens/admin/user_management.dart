@@ -679,7 +679,13 @@ class _UserManagementState extends State<UserManagement> {
 
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      helperText: 'At least 12 characters',
+                      helperText: '• 12 to 64 characters\n'
+                          '• At least 1 uppercase letter (A–Z)\n'
+                          '• At least 1 lowercase letter (a–z)\n'
+                          '• At least 1 number (0–9)\n'
+                          '• At least 1 symbol (! @ #)\n'
+                          '• Avoid common passwords, your name, and email',
+                      helperMaxLines: 8,
                       prefixIcon: const Icon(Icons.lock_outline),
                       border: const OutlineInputBorder(),
 
