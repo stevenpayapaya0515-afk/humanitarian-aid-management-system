@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/login_screen.dart';
+import '../../services/auth_service.dart';
+import 'user_management.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../households/household_registration.dart';
+import 'admin_reports.dart';
+import 'admin_settings.dart';
 
 // ========================================
 // ADMIN DASHBOARD
@@ -24,6 +32,183 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // Currently selected administrator page
   String selectedPage = 'Dashboard';
 
+  // Profile details of the currently logged-in administrator.
+  String _adminName = 'Loading...';
+  String _adminRole = 'LGU Administrator';
+
+  // Household totals fetched from the backend.
+  int? _totalHouseholds;
+  int? _totalPopulation;
+
+  // Loading and error messages for the dashboard.
+  bool _dashboardLoading = false;
+  String? _dashboardError;
+
+  // Prevent an older request from replacing newer results.
+  int _dashboardRequestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Load dashboard totals and the current account's profile.
+    _loadDashboard();
+    _loadAdminProfile();
+  }
+
+  // Fetch the account identified by the current login token.
+  Future<void> _loadAdminProfile() async {
+    final token = AuthService.accessToken;
+
+    if (token == null || token.isEmpty) {
+      setState(() {
+        _adminName = 'Profile unavailable';
+      });
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('${AuthService.baseUrl}/auth/me'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode != 200) {
+        throw const FormatException('Unable to load profile.');
+      }
+
+      final data = jsonDecode(response.body);
+
+      // Check the profile before displaying it.
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('Invalid profile response.');
+      }
+
+      final name = data['full_name'];
+      final role = data['role'];
+
+      if (name is! String ||
+          name.trim().isEmpty ||
+          role is! String ||
+          role.trim().isEmpty) {
+        throw const FormatException('Missing profile details.');
+      }
+
+      // Ignore the response if the user has left or changed sessions.
+      if (!mounted || AuthService.accessToken != token) return;
+
+      setState(() {
+        _adminName = name.trim();
+        _adminRole = role == 'Admin' ? 'LGU Administrator' : role;
+      });
+    } catch (_) {
+      if (!mounted || AuthService.accessToken != token) return;
+
+      setState(() {
+        _adminName = 'Profile unavailable';
+      });
+    }
+  }
+
+  // Read the household totals using the Admin's login token.
+  Future<void> _loadDashboard() async {
+    final requestId = ++_dashboardRequestId;
+
+    setState(() {
+      _dashboardLoading = true;
+      _dashboardError = null;
+      _totalHouseholds = null;
+      _totalPopulation = null;
+    });
+
+    try {
+      final token = AuthService.accessToken;
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException('Please log in again.');
+      }
+
+      final response = await http.get(
+        Uri.parse('${AuthService.baseUrl}/dashboard/summary'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 401) {
+        throw const AuthException(
+          'Your session has expired. Please log out and log in again.',
+        );
+      }
+
+      if (response.statusCode == 403) {
+        throw const AuthException(
+          'Your account cannot access dashboard totals.',
+        );
+      }
+
+      if (response.statusCode != 200) {
+        throw const AuthException(
+          'Unable to load dashboard totals. Please try again.',
+        );
+      }
+
+      final data = jsonDecode(response.body);
+
+      // Validate the response before displaying the totals.
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('Invalid dashboard response.');
+      }
+
+      final households = data['total_households'];
+      final population = data['total_population'];
+
+      if (households is! int || population is! int) {
+        throw const FormatException('Invalid dashboard totals.');
+      }
+
+      if (households < 0 || population < 0) {
+        throw const FormatException('Invalid dashboard totals.');
+      }
+
+      // Ignore results if the screen closed or a newer request started.
+      if (!mounted || requestId != _dashboardRequestId) return;
+
+      setState(() {
+        _totalHouseholds = households;
+        _totalPopulation = population;
+      });
+    } catch (error) {
+      if (!mounted || requestId != _dashboardRequestId) return;
+
+      final String message;
+
+      if (error is AuthException) {
+        message = error.message;
+      } else if (error is TimeoutException) {
+        message = 'The server took too long. Please try again.';
+      } else if (error is http.ClientException) {
+        message = 'Cannot connect to the server. Check your connection.';
+      } else {
+        message = 'Unable to read dashboard totals. Please try again.';
+      }
+
+      setState(() {
+        _dashboardError = message;
+      });
+    } finally {
+      if (mounted && requestId == _dashboardRequestId) {
+        setState(() {
+          _dashboardLoading = false;
+        });
+      }
+    }
+  }
+
   // ========================================
   // ADMIN SIDEBAR MENU ITEMS
   // ========================================
@@ -34,12 +219,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
       'icon': Icons.dashboard_outlined,
     },
     {
+      'title': 'Household Records',
+      'icon': Icons.home_outlined,
+    },
+    {
       'title': 'Reports',
       'icon': Icons.bar_chart_outlined,
     },
     {
       'title': 'User Management',
       'icon': Icons.manage_accounts_outlined,
+    },
+    {
+      'title': 'Settings',
+      'icon': Icons.settings_outlined,
     },
   ];
 
@@ -233,79 +426,85 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                ),
-
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: menuItems.length,
 
                 itemBuilder: (context, index) {
-
                   final item = menuItems[index];
-
-                  final String title =
-                      item['title'];
-
-                  final bool isSelected =
-                      selectedPage == title;
+                  final String title = item['title'];
+                  final bool isSelected = selectedPage == title;
 
                   return Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 5,
-                    ),
+                    padding: const EdgeInsets.only(bottom: 5),
 
-                    child: Container(
-                      decoration: BoxDecoration(
+                    // Paint the selected yellow background on the Material itself.
+                    child: Material(
+                      color: isSelected
+                          ? AppColors.accentYellow
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      clipBehavior: Clip.antiAlias,
 
-                        // Yellow highlight for selected menu
-                        color: isSelected
-                            ? AppColors.accentYellow
-                            : Colors.transparent,
+                      child: InkWell(
+                        // Keep the default hover shadow, just like Staff.
+                        // Remove only the click splash and pressed highlight.
+                        splashFactory: NoSplash.splashFactory,
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
 
-                        borderRadius:
-                            BorderRadius.circular(12),
-                      ),
-
-                      child: ListTile(
-                        dense: true,
-
-                        leading: Icon(
-                          item['icon'],
-                          size: 21,
-
-                          color: isSelected
-                              ? AppColors.primaryGreen
-                              : Colors.white70,
-                        ),
-
-                        title: Text(
-                          title,
-
-                          style: TextStyle(
-                            fontSize: 13,
-
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-
-                            color: isSelected
-                                ? AppColors.primaryGreen
-                                : Colors.white,
-                          ),
-                        ),
-
-                        // Change selected admin page
                         onTap: () {
-
                           setState(() {
                             selectedPage = title;
                           });
 
-                          // Close drawer on mobile
+                          // Close the sidebar drawer on mobile.
                           if (isMobile) {
                             Navigator.pop(context);
                           }
+
+                          // Refresh dashboard totals.
+                          if (title == 'Dashboard') {
+                            _loadDashboard();
+                          }
                         },
+
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+
+                          child: Row(
+                            children: [
+                              // Module icon.
+                              Icon(
+                                item['icon'],
+                                size: 21,
+                                color: isSelected
+                                    ? AppColors.primaryGreen
+                                    : Colors.white70,
+                              ),
+
+                              const SizedBox(width: 12),
+
+                              // Module name stays visible when selected.
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? AppColors.primaryGreen
+                                        : Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   );
@@ -327,42 +526,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: Column(
                 children: [
 
-                  const Row(
+                  Row(
                     children: [
-
-                      // Admin profile icon
-                      CircleAvatar(
+                      // Account profile icon.
+                      const CircleAvatar(
                         backgroundColor: Colors.white,
-
                         child: Icon(
                           Icons.person_outline,
                           color: AppColors.primaryGreen,
                         ),
                       ),
 
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
 
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-
-                            Text(
-                              'LGU Administrator',
-
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                            // Display the actual name saved in the database.
+                            // Hover over it to see the full name if it is long.
+                            Tooltip(
+                              message: _adminName,
+                              child: Text(
+                                _adminName,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
 
-                            Text(
-                              'Authorized Personnel',
+                            const SizedBox(height: 3),
 
-                              style: TextStyle(
+                            // Display the account's role below the name.
+                            Text(
+                              _adminRole,
+                              style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
                               ),
@@ -384,6 +586,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                     child: OutlinedButton.icon(
                       onPressed: () {
+                        // Clear the token stored in Flutter
+                        AuthService.logout();
 
                         // Use custom logout function if provided
                         if (widget.onLogout != null) {
@@ -392,10 +596,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         }
 
                         // Return to Login Screen
-                        Navigator.of(context).pushReplacement(
+                        Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
                             builder: (context) => const LoginScreen(),
                           ),
+                          (route) => false,
                         );
                       },
 
@@ -505,10 +710,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           if (selectedPage == 'Dashboard')
             _buildDashboardOverview()
+          else if (selectedPage == 'Household Records')
+            // Display the existing household screen in view-only mode.
+            const HouseholdRegistration(readOnly: true)
           else if (selectedPage == 'Reports')
-            _buildReportsPlaceholder()
+            const AdminReports()
           else if (selectedPage == 'User Management')
-            _buildUserManagementPlaceholder(),
+            const UserManagement()
+          else if (selectedPage == 'Settings')
+            const AdminSettings(),
         ],
       ),
     );
@@ -552,6 +762,36 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // ADMIN MONITORING SUMMARY CARDS
         // ========================================
 
+        // Reload totals after staff register, edit, or delete households.
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _dashboardLoading ? null : _loadDashboard,
+            icon: const Icon(Icons.refresh),
+            label: Text(
+              _dashboardLoading ? 'Loading...' : 'Refresh totals',
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primaryGreen,
+            ),
+          ),
+        ),
+
+        // Display errors above the summary cards.
+        if (_dashboardError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              _dashboardError!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 13,
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 8),
+
         LayoutBuilder(
           builder: (context, constraints) {
 
@@ -579,11 +819,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
               children: [
 
-                // Total registered households
+                // Total household records registered in AidTrack.
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Total Households',
                   icon: Icons.home_outlined,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_totalHouseholds?.toString() ?? '—'),
+                ),
+
+                // Total people in registered households, including the heads.
+                _buildSummaryCard(
+                  width: cardWidth,
+                  title: 'Total Household Population',
+                  icon: Icons.people_outline,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_totalPopulation?.toString() ?? '—'),
                 ),
 
                 // Completed household assessments
@@ -775,6 +1028,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     required double width,
     required String title,
     required IconData icon,
+    String value = '—',
   }) {
     return Container(
       width: width,
@@ -808,11 +1062,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           const Spacer(),
 
-          // Real values will come from backend later
-          const Text(
-            '—',
-
-            style: TextStyle(
+          // Display the fetched total or a placeholder.
+          Text(
+            value,
+            style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
               color: AppColors.primaryGreen,

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/staff/staff_dashboard.dart';
-import 'screens/admin/admin_dashboard.dart';
 
 void main() {
   runApp(const AidTrackApp());
@@ -18,22 +16,11 @@ class AidTrackApp extends StatelessWidget {
       title: 'AidTrack',
       debugShowCheckedModeBanner: false,
 
-      // Apply our existing green, yellow, and white theme
+      // Apply the existing AidTrack theme
       theme: AppTheme.lightTheme,
 
-      // ========================================
-      // ADMIN DASHBOARD UI PREVIEW
-      // ========================================
-
-      // Temporarily display the LGU Administrator Dashboard
-      home: const StaffDashboard(),
-
-      // ========================================
-      // ORIGINAL LOGIN PAGE
-      // ========================================
-
-      // Restore this after testing the dashboard:
-      // home: const LoginScreen(),
+      // Open the login page first
+      home: const LoginScreen(),
     );
   }
 }

@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/login_screen.dart';
+import '../../services/auth_service.dart';
+// Household Registration form and records.
+import '../households/household_registration.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'staff_settings.dart';
 
 // ========================================
 // STAFF DASHBOARD
@@ -23,6 +30,160 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
   // Currently selected staff page
   String selectedPage = 'Dashboard';
+
+  // Account name shown in the sidebar.
+  String _staffName = 'LGU Staff';
+
+  // Read the currently logged-in account.
+  Future<void> _loadStaffProfile() async {
+    try {
+      final token = AuthService.accessToken;
+
+      if (token == null || token.isEmpty) return;
+
+      final response = await http.get(
+        Uri.parse('${AuthService.baseUrl}/auth/me'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (!mounted || response.statusCode != 200) return;
+
+      // Ignore the response if the app session has changed.
+      if (AuthService.accessToken != token) return;
+
+      final data = jsonDecode(response.body);
+
+      if (data is! Map<String, dynamic>) return;
+
+      final name = data['full_name'];
+
+      if (name is! String || name.trim().isEmpty) return;
+
+      setState(() {
+        _staffName = name.trim();
+      });
+    } catch (_) {
+      // Keep the role label if the profile request fails.
+      // The Settings page provides profile errors and a Refresh button.
+    }
+  }
+
+  // Dashboard totals loaded from the backend.
+  int? _totalHouseholds;
+  int? _totalPopulation;
+
+  bool _dashboardLoading = false;
+  String? _dashboardError;
+
+  // Only the latest request may update the dashboard.
+  int _dashboardRequestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Load household totals and the logged-in user's name.
+    _loadDashboard();
+    _loadStaffProfile();
+  }
+
+  // Fetch the totals using the currently signed-in user's token.
+  Future<void> _loadDashboard() async {
+    final requestId = ++_dashboardRequestId;
+
+    setState(() {
+      _dashboardLoading = true;
+      _dashboardError = null;
+      _totalHouseholds = null;
+      _totalPopulation = null;
+    });
+
+    try {
+      final token = AuthService.accessToken;
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException('Please log in again.');
+      }
+
+      final response = await http.get(
+        Uri.parse('${AuthService.baseUrl}/dashboard/summary'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 401) {
+        throw const AuthException(
+          'Your session has expired. Please log out and log in again.',
+        );
+      }
+
+      if (response.statusCode == 403) {
+        throw const AuthException(
+          'Your account cannot access the dashboard.',
+        );
+      }
+
+      if (response.statusCode != 200) {
+        throw const AuthException(
+          'Unable to load dashboard totals. Please try again.',
+        );
+      }
+
+      final data = jsonDecode(response.body);
+
+      // Check the response instead of displaying incorrect zero totals.
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('Invalid dashboard response.');
+      }
+
+      final households = data['total_households'];
+      final population = data['total_population'];
+
+      if (households is! int || population is! int) {
+        throw const FormatException('Invalid dashboard totals.');
+      }
+
+      if (households < 0 || population < 0) {
+        throw const FormatException('Invalid dashboard totals.');
+      }
+
+      if (!mounted || requestId != _dashboardRequestId) return;
+
+      setState(() {
+        _totalHouseholds = households;
+        _totalPopulation = population;
+      });
+    } catch (error) {
+      if (!mounted || requestId != _dashboardRequestId) return;
+
+      final String message;
+
+      if (error is AuthException) {
+        message = error.message;
+      } else if (error is TimeoutException) {
+        message = 'The server took too long. Please try again.';
+      } else if (error is http.ClientException) {
+        message = 'Cannot connect to the server. Check your connection.';
+      } else {
+        message = 'Unable to read dashboard totals. Please try again.';
+      }
+
+      setState(() {
+        _dashboardError = message;
+      });
+    } finally {
+      if (mounted && requestId == _dashboardRequestId) {
+        setState(() {
+          _dashboardLoading = false;
+        });
+      }
+    }
+  }
 
   // ========================================
   // STAFF SIDEBAR MENU ITEMS
@@ -56,6 +217,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
     {
       'title': 'Reports',
       'icon': Icons.bar_chart_outlined,
+    },
+    {
+      'title': 'Settings',
+      'icon': Icons.settings_outlined,
     },
   ];
 
@@ -241,89 +406,99 @@ class _StaffDashboardState extends State<StaffDashboard> {
               color: Colors.white24,
             ),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 4),
 
             // ========================================
             // STAFF NAVIGATION MENU
             // ========================================
 
+            // Fill the available menu height with evenly sized items.
+            // On shorter screens, allow scrolling instead of cutting off Settings.
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableHeight = constraints.maxHeight;
 
-                itemCount: menuItems.length,
+                  // Each item gets an equal share, with enough room for long labels.
+                  final itemHeight =
+                      (availableHeight / menuItems.length).clamp(48.0, double.infinity);
 
-                itemBuilder: (context, index) {
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: menuItems.length,
+                    itemExtent: itemHeight,
+                    itemBuilder: (context, index) {
+                      final item = menuItems[index];
+                      final title = item['title'] as String;
+                      final isSelected = selectedPage == title;
 
-                  final item = menuItems[index];
-
-                  final String title =
-                      item['title'];
-
-                  final bool isSelected =
-                      selectedPage == title;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 5,
-                    ),
-
-                    child: Container(
-                      decoration: BoxDecoration(
-
-                        // Yellow highlight for selected menu
-                        color: isSelected
-                            ? AppColors.accentYellow
-                            : Colors.transparent,
-
-                        borderRadius:
-                            BorderRadius.circular(12),
-                      ),
-
-                      child: ListTile(
-                        dense: true,
-
-                        leading: Icon(
-                          item['icon'],
-                          size: 21,
-
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Material(
                           color: isSelected
-                              ? AppColors.primaryGreen
-                              : Colors.white70,
-                        ),
+                              ? AppColors.accentYellow
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            // Remove the gray click effect; preserve the default hover shadow.
+                            splashFactory: NoSplash.splashFactory,
+                            splashColor: Colors.transparent,
+                            highlightColor: Colors.transparent,
 
-                        title: Text(
-                          title,
+                            onTap: () {
+                              setState(() {
+                                selectedPage = title;
+                              });
 
-                          style: TextStyle(
-                            fontSize: 13,
+                              // Close the drawer when using the mobile layout.
+                              if (isMobile) {
+                                Navigator.pop(context);
+                              }
 
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                              // Reload dashboard totals and account name.
+                              if (title == 'Dashboard') {
+                                _loadDashboard();
+                                _loadStaffProfile();
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    item['icon'] as IconData,
+                                    size: 21,
+                                    color: isSelected
+                                        ? AppColors.primaryGreen
+                                        : Colors.white70,
+                                  ),
 
-                            color: isSelected
-                                ? AppColors.primaryGreen
-                                : Colors.white,
+                                  const SizedBox(width: 10),
+
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        color: isSelected
+                                            ? AppColors.primaryGreen
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-
-                        // Change selected staff page
-                        onTap: () {
-
-                          setState(() {
-                            selectedPage = title;
-                          });
-
-                          // Close drawer on mobile
-                          if (isMobile) {
-                            Navigator.pop(context);
-                          }
-                        },
-                      ),
-                    ),
+                      );
+                    },
                   );
                 },
               ),
@@ -338,46 +513,50 @@ class _StaffDashboardState extends State<StaffDashboard> {
             ),
 
             Padding(
-              padding: const EdgeInsets.all(15),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 10,
+              ),
 
               child: Column(
                 children: [
 
-                  const Row(
+                  // Display the logged-in Staff's name and role.
+                  Row(
                     children: [
-
-                      // Staff profile icon
-                      CircleAvatar(
+                      const CircleAvatar(
                         backgroundColor: Colors.white,
-
                         child: Icon(
                           Icons.person_outline,
                           color: AppColors.primaryGreen,
                         ),
                       ),
 
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
 
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-
-                            Text(
-                              'LGU Staff',
-
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                            // Hover to read the complete name when it is long.
+                            Tooltip(
+                              message: _staffName,
+                              child: Text(
+                                _staffName,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
 
-                            Text(
-                              'Authorized Personnel',
+                            const SizedBox(height: 3),
 
+                            const Text(
+                              'LGU Staff',
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
@@ -389,7 +568,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     ],
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 8),
 
                   // ========================================
                   // LOG OUT BUTTON
@@ -401,18 +580,22 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     child: OutlinedButton.icon(
                       onPressed: () {
 
+                        // Clear the saved token
+                        AuthService.logout();
+
                         // Use custom logout function if provided
                         if (widget.onLogout != null) {
                           widget.onLogout!();
                           return;
                         }
 
-                        // Return to Login Screen
-                        Navigator.of(context).pushReplacement(
+                        // Return to login and remove previous screens
+                        Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
                             builder: (context) =>
                                 const LoginScreen(),
                           ),
+                          (route) => false,
                         );
                       },
 
@@ -526,14 +709,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
           if (selectedPage == 'Dashboard')
             _buildDashboardOverview()
 
-          else if (selectedPage ==
-              'Household Registration')
-            _buildModulePlaceholder(
-              title: 'Household Registration',
-              icon: Icons.home_outlined,
-              message:
-                  'Household registration form and records will be developed in this module.',
-            )
+          // Display the connected Household Registration screen.
+          else if (selectedPage == 'Household Registration')
+            const HouseholdRegistration()
 
           else if (selectedPage ==
               'Household Assessment')
@@ -577,7 +755,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
               icon: Icons.bar_chart_outlined,
               message:
                   'Staff reports will be developed in this module.',
-            ),
+            )
+          else if (selectedPage == 'Settings')
+            const StaffSettings(),
         ],
       ),
     );
@@ -620,6 +800,35 @@ class _StaffDashboardState extends State<StaffDashboard> {
         // ========================================
         // STAFF SUMMARY CARDS
         // ========================================
+        // Manually reload the latest household totals.
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _dashboardLoading ? null : _loadDashboard,
+            icon: const Icon(Icons.refresh),
+            label: Text(
+              _dashboardLoading ? 'Loading...' : 'Refresh totals',
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primaryGreen,
+            ),
+          ),
+        ),
+
+        // Show request errors above the cards.
+        if (_dashboardError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              _dashboardError!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 13,
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 8),
 
         LayoutBuilder(
           builder: (context, constraints) {
@@ -647,12 +856,25 @@ class _StaffDashboardState extends State<StaffDashboard> {
               runSpacing: 16,
 
               children: [
-
-                // Total registered households
+                
+                // Number of household records registered in AidTrack.
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Total Households',
                   icon: Icons.home_outlined,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_totalHouseholds?.toString() ?? '—'),
+                ),
+
+                // Total people in registered households, including household heads.
+                _buildSummaryCard(
+                  width: cardWidth,
+                  title: 'Total Household Population',
+                  icon: Icons.people_outline,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_totalPopulation?.toString() ?? '—'),
                 ),
 
                 // Completed assessments
@@ -817,12 +1039,16 @@ class _StaffDashboardState extends State<StaffDashboard> {
     required double width,
     required String title,
     required IconData icon,
+    String value = '—',
   }) {
     return Container(
       width: width,
       height: 155,
 
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 12,
+      ),
 
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -850,11 +1076,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
           const Spacer(),
 
-          // Real data will come from backend later
-          const Text(
-            '—',
-
-            style: TextStyle(
+          // Display the supplied total or a placeholder for pending modules.
+          Text(
+            value,
+            style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
               color: AppColors.primaryGreen,

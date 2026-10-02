@@ -1,6 +1,9 @@
-
+import '../../services/auth_service.dart';
+import '../admin/admin_dashboard.dart';
+import '../staff/staff_dashboard.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import 'dart:async';
 
 // ========================================
 // LOGIN SCREEN
@@ -24,9 +27,65 @@ class _LoginScreenState extends State<LoginScreen> {
   // Hide the password when the screen first opens
   bool _hidePassword = true;
 
+  // Prevent repeated clicks while signing in
+  bool _isLoading = false;
+
+  // Error displayed below the password field
+  String? _loginError;
+
+  // Timer for the live login-lock countdown.
+Timer? _lockTimer;
+DateTime? _lockEndsAt;
+int _remainingLockSeconds = 0;
+
+// Start the countdown using the backend's remaining seconds.
+void _startLockCountdown(int seconds) {
+  _lockTimer?.cancel();
+
+  if (seconds <= 0) return;
+
+  _lockEndsAt = DateTime.now().add(Duration(seconds: seconds));
+
+  setState(() {
+    _remainingLockSeconds = seconds;
+    _loginError = null;
+  });
+
+  _lockTimer = Timer.periodic(
+    const Duration(seconds: 1),
+    (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      // Calculate from the end time to avoid timer drift.
+      final milliseconds = _lockEndsAt!
+          .difference(DateTime.now())
+          .inMilliseconds;
+
+      final remaining = milliseconds > 0
+          ? (milliseconds / 1000).ceil()
+          : 0;
+
+      setState(() {
+        _remainingLockSeconds = remaining;
+      });
+
+      if (remaining == 0) {
+        timer.cancel();
+        _lockEndsAt = null;
+      }
+    },
+  );
+}
+
   // Dispose controllers when leaving the screen
   @override
   void dispose() {
+    // Stop the countdown when leaving the login screen.
+    _lockTimer?.cancel();
+
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -36,16 +95,72 @@ class _LoginScreenState extends State<LoginScreen> {
   // LOGIN VALIDATION
   // ========================================
 
-  void _signIn() {
-    // Check if the input fields are valid
-    if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Login UI is ready. Backend connection will be added later.',
-          ),
-        ),
+
+  Future<void> _signIn() async {
+    // Block both button clicks and Enter during the cooldown.
+    if (_isLoading || _remainingLockSeconds > 0) return;
+
+    // Check the form before sending a request
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _loginError = null;
+    });
+
+    try {
+      final user = await AuthService.login(
+        email: _emailController.text,
+        password: _passwordController.text,
       );
+
+      // The screen might have closed while waiting
+      if (!mounted) return;
+
+      // Choose the dashboard using the role from the backend
+      final Widget dashboard;
+
+      if (user['role'] == 'Admin') {
+        dashboard = const AdminDashboard();
+      } else if (user['role'] == 'Staff') {
+        dashboard = const StaffDashboard();
+      } else {
+        AuthService.logout();
+        throw const AuthException('Account role is not supported.');
+      }
+
+      _passwordController.clear();
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => dashboard),
+        (route) => false,
+      );
+    } on AuthException catch (error) {
+      if (!mounted) return;
+
+      final seconds = error.retryAfterSeconds;
+
+      if (seconds != null && seconds > 0) {
+        _startLockCountdown(seconds);
+      } else {
+        setState(() {
+          _loginError = error.message;
+        });
+      }
+    } catch (_) {
+      AuthService.logout();
+
+      if (!mounted) return;
+
+      setState(() {
+        _loginError = 'Unable to sign in. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -451,6 +566,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           TextFormField(
             controller: _emailController,
+            textInputAction: TextInputAction.next,
 
             // Display the email keyboard on mobile
             keyboardType: TextInputType.emailAddress,
@@ -485,6 +601,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
           TextFormField(
             controller: _passwordController,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) {
+              _signIn();
+            },
 
             // Hide or show the password
             obscureText: _hidePassword,
@@ -522,6 +642,33 @@ class _LoginScreenState extends State<LoginScreen> {
             },
           ),
 
+          // Show a live countdown below the Password field.
+          if (_remainingLockSeconds > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Too many failed attempts. '
+                'Try again in $_remainingLockSeconds seconds.',
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          else if (_loginError != null)
+            // Show ordinary login errors when no countdown is active.
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _loginError!,
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+
           const SizedBox(height: 16),
 
           // ========================================
@@ -529,13 +676,14 @@ class _LoginScreenState extends State<LoginScreen> {
           // ========================================
 
           ElevatedButton(
-            // Run login validation when clicked
-            onPressed: _signIn,
+            // Disable Sign In while loading or temporarily locked.
+            onPressed: _isLoading || _remainingLockSeconds > 0
+                ? null
+                : _signIn,
 
-            child: const Text(
-              'Sign In',
-
-              style: TextStyle(
+            child: Text(
+              _isLoading ? 'Signing in...' : 'Sign In',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
