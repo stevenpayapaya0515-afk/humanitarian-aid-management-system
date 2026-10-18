@@ -291,7 +291,7 @@ void _startLockCountdown(int seconds) {
               crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-                const Spacer(),
+                const Spacer(flex: 1),
                 
                 // ========================================
                 // MAIN SYSTEM TITLE
@@ -303,7 +303,7 @@ void _startLockCountdown(int seconds) {
                       children: [
                         // First part of the system title
                         TextSpan(
-                          text: 'Aid\n'
+                          text: 'Humanitarian Aid\n'
                               'Distribution\n'
                               'Management\n',
                           style: TextStyle(

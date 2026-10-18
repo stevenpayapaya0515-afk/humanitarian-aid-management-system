@@ -683,7 +683,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const SizedBox(height: 5),
 
                     const Text(
-                      'Aid Distribution Management System',
+                      'Humanitarian Aid Distribution Management System',
 
                       style: TextStyle(
                         color: AppColors.greyText,

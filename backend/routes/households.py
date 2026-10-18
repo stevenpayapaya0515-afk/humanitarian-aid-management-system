@@ -60,7 +60,7 @@ def list_households(current_user: dict = Depends(require_household_access)):
 @router.post("", response_model=HouseholdResponse, status_code=201)
 def create_household(
     data: HouseholdCreate,
-    current_user: dict = Depends(require_household_access),
+    current_user: dict = Depends(require_household_write),
 ):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
