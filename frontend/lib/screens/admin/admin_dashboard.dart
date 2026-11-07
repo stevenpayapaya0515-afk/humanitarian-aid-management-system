@@ -960,67 +960,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // ========================================
-  // REPORTS PAGE PLACEHOLDER
-  // ========================================
-
-  Widget _buildReportsPlaceholder() {
-    return _buildDashboardPanel(
-      title: 'Reports',
-      icon: Icons.bar_chart_outlined,
-
-      child: const Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 40,
-        ),
-
-        child: Center(
-          child: Text(
-            'Administrator reports will be developed in this module.',
-
-            textAlign: TextAlign.center,
-
-            style: TextStyle(
-              color: AppColors.greyText,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ========================================
-  // USER MANAGEMENT PAGE PLACEHOLDER
-  // ========================================
-
-  Widget _buildUserManagementPlaceholder() {
-    return _buildDashboardPanel(
-      title: 'User Management',
-      icon:
-          Icons.manage_accounts_outlined,
-
-      child: const Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 40,
-        ),
-
-        child: Center(
-          child: Text(
-            'LGU user account management will be developed in this module.',
-
-            textAlign: TextAlign.center,
-
-            style: TextStyle(
-              color: AppColors.greyText,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ========================================
   // SUMMARY CARD DESIGN
   // ========================================
 

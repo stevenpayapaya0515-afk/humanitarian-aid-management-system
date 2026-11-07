@@ -7,7 +7,8 @@ from routes.users import router as users_router
 from routes.households import router as households_router
 # Import the dashboard endpoints.
 from routes.dashboard import router as dashboard_router
-
+from routes.assessments import router as assessments_router
+from routes.vulnerability import router as vulnerability_router
 
 app = FastAPI(title="AidTrack API")
 
@@ -31,6 +32,8 @@ app.include_router(users_router)
 app.include_router(households_router)
 # Enable the dashboard summary endpoint.
 app.include_router(dashboard_router)
+app.include_router(assessments_router)
+app.include_router(vulnerability_router)
 
 @app.get("/")
 def root():
