@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../auth/login_screen.dart';
 import '../../services/auth_service.dart';
 import 'user_management.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../households/household_registration.dart';
 import 'admin_reports.dart';
 import 'admin_settings.dart';
@@ -17,18 +21,13 @@ import 'admin_settings.dart';
 class AdminDashboard extends StatefulWidget {
   final VoidCallback? onLogout;
 
-  const AdminDashboard({
-    super.key,
-    this.onLogout,
-  });
+  const AdminDashboard({super.key, this.onLogout});
 
   @override
-  State<AdminDashboard> createState() =>
-      _AdminDashboardState();
+  State<AdminDashboard> createState() => _AdminDashboardState();
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-
   // Currently selected administrator page
   String selectedPage = 'Dashboard';
 
@@ -68,13 +67,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
 
     try {
-      final response = await http.get(
-        Uri.parse('${AuthService.baseUrl}/auth/me'),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('${AuthService.baseUrl}/auth/me'),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
         throw const FormatException('Unable to load profile.');
@@ -131,13 +132,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
         throw const AuthException('Please log in again.');
       }
 
-      final response = await http.get(
-        Uri.parse('${AuthService.baseUrl}/dashboard/summary'),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('${AuthService.baseUrl}/dashboard/summary'),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 401) {
         throw const AuthException(
@@ -214,26 +217,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ========================================
 
   final List<Map<String, dynamic>> menuItems = [
-    {
-      'title': 'Dashboard',
-      'icon': Icons.dashboard_outlined,
-    },
-    {
-      'title': 'Household Records',
-      'icon': Icons.home_outlined,
-    },
-    {
-      'title': 'Reports',
-      'icon': Icons.bar_chart_outlined,
-    },
-    {
-      'title': 'User Management',
-      'icon': Icons.manage_accounts_outlined,
-    },
-    {
-      'title': 'Settings',
-      'icon': Icons.settings_outlined,
-    },
+    {'title': 'Dashboard', 'icon': Icons.dashboard_outlined},
+    {'title': 'Household Records', 'icon': Icons.home_outlined},
+    {'title': 'Reports', 'icon': Icons.bar_chart_outlined},
+    {'title': 'User Management', 'icon': Icons.manage_accounts_outlined},
+    {'title': 'Settings', 'icon': Icons.settings_outlined},
   ];
 
   // ========================================
@@ -244,7 +232,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-
         // Use mobile layout below 900 pixels
         final isMobile = constraints.maxWidth < 900;
 
@@ -253,11 +240,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           // Mobile sidebar drawer
           drawer: isMobile
-              ? Drawer(
-                  child: _buildSidebar(
-                    isMobile: true,
-                  ),
-                )
+              ? Drawer(child: _buildSidebar(isMobile: true))
               : null,
 
           // Mobile top navigation bar
@@ -271,22 +254,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       children: [
                         TextSpan(
                           text: 'Aid',
-                          style: TextStyle(
-                            color: AppColors.primaryGreen,
-                          ),
+                          style: TextStyle(color: AppColors.primaryGreen),
                         ),
                         TextSpan(
                           text: 'Track',
-                          style: TextStyle(
-                            color: AppColors.accentYellow,
-                          ),
+                          style: TextStyle(color: AppColors.accentYellow),
                         ),
                       ],
                     ),
 
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 )
               : null,
@@ -294,29 +271,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
           // ========================================
           // MAIN DASHBOARD LAYOUT
           // ========================================
-
           body: Row(
             children: [
-
               // Desktop sidebar
-              if (!isMobile)
-                _buildSidebar(
-                  isMobile: false,
-                ),
+              if (!isMobile) _buildSidebar(isMobile: false),
 
               // ========================================
               // RIGHT ADMIN PANEL
               // ========================================
-
               Expanded(
                 child: ClipRRect(
-
                   // Keep only the top-left corner curved
                   borderRadius: isMobile
                       ? BorderRadius.zero
-                      : const BorderRadius.only(
-                          topLeft: Radius.circular(28),
-                        ),
+                      : const BorderRadius.only(topLeft: Radius.circular(28)),
 
                   child: Container(
                     width: double.infinity,
@@ -339,9 +307,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ADMIN SIDEBAR
   // ========================================
 
-  Widget _buildSidebar({
-    required bool isMobile,
-  }) {
+  Widget _buildSidebar({required bool isMobile}) {
     return Container(
       width: 250,
       color: AppColors.primaryGreen,
@@ -349,7 +315,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       child: SafeArea(
         child: Column(
           children: [
-
             // ========================================
             // AIDTRACK LOGO AND NAME
             // ========================================
@@ -359,7 +324,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
               child: Row(
                 children: [
-
                   Container(
                     width: 70,
                     height: 70,
@@ -382,24 +346,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   // ========================================
                   // AIDTRACK TEXT BESIDE THE LOGO
                   // ========================================
-
                   const Expanded(
                     child: Text.rich(
                       TextSpan(
                         children: [
-
                           TextSpan(
                             text: 'Aid',
-                            style: TextStyle(
-                              color: AppColors.white,
-                            ),
+                            style: TextStyle(color: AppColors.white),
                           ),
 
                           TextSpan(
                             text: 'Track',
-                            style: TextStyle(
-                              color: AppColors.accentYellow,
-                            ),
+                            style: TextStyle(color: AppColors.accentYellow),
                           ),
                         ],
                       ),
@@ -414,16 +372,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
 
-            const Divider(
-              color: Colors.white24,
-            ),
+            const Divider(color: Colors.white24),
 
             const SizedBox(height: 15),
 
             // ========================================
             // ADMIN NAVIGATION MENU
             // ========================================
-
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -515,17 +470,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // ========================================
             // ADMIN ACCOUNT INFORMATION
             // ========================================
-
-            const Divider(
-              color: Colors.white24,
-            ),
+            const Divider(color: Colors.white24),
 
             Padding(
               padding: const EdgeInsets.all(15),
 
               child: Column(
                 children: [
-
                   Row(
                     children: [
                       // Account profile icon.
@@ -580,7 +531,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   // ========================================
                   // LOG OUT BUTTON
                   // ========================================
-
                   SizedBox(
                     width: double.infinity,
 
@@ -604,28 +554,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         );
                       },
 
-                      icon: const Icon(
-                        Icons.logout,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.logout, size: 18),
 
                       label: const Text(
                         'Log Out',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
 
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.white,
 
-                        side: const BorderSide(
-                          color: Colors.white54,
-                        ),
+                        side: const BorderSide(color: Colors.white54),
 
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
 
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -648,77 +589,89 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildMainContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(25),
-
+      padding: EdgeInsets.zero,
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Shared yellow page header design.
+          _buildPageHeader(),
 
-          // ========================================
-          // PAGE HEADER
-          // ========================================
+          // Main page content.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(25, 22, 25, 25),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Display selected administrator page.
+                if (selectedPage == 'Dashboard')
+                  _buildDashboardOverview()
+                else if (selectedPage == 'Household Records')
+                  const HouseholdRegistration(readOnly: true)
+                else if (selectedPage == 'Reports')
+                  const AdminReports()
+                else if (selectedPage == 'User Management')
+                  const UserManagement()
+                else if (selectedPage == 'Settings')
+                  const AdminSettings(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-          Row(
-            children: [
+  // ========================================
+  // AIDTRACK PAGE HEADER
+  // ========================================
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+  Widget _buildPageHeader() {
+    final bool isCompact = MediaQuery.of(context).size.width < 600;
 
-                  children: [
-
-                    Text(
-                      selectedPage,
-
-                      style: const TextStyle(
-                        fontSize: 27,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryGreen,
-                      ),
-                    ),
-
-                    const SizedBox(height: 5),
-
-                    const Text(
-                      'Humanitarian Aid Distribution Management System',
-
-                      style: TextStyle(
-                        color: AppColors.greyText,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+    return Container(
+      width: double.infinity,
+      height: 118,
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      decoration: const BoxDecoration(
+        color: AppColors.accentYellow,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  selectedPage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isCompact ? 22 : 27,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryGreen,
+                  ),
                 ),
-              ),
 
-              const Icon(
-                Icons.account_balance_outlined,
-                color: AppColors.primaryGreen,
-                size: 30,
-              ),
-            ],
+                const SizedBox(height: 5),
+
+                const Text(
+                  'Humanitarian Aid Distribution Management System',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppColors.greyText, fontSize: 13),
+                ),
+              ],
+            ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(width: 16),
 
-          // ========================================
-          // DISPLAY SELECTED ADMIN PAGE
-          // ========================================
-
-          if (selectedPage == 'Dashboard')
-            _buildDashboardOverview()
-          else if (selectedPage == 'Household Records')
-            // Display the existing household screen in view-only mode.
-            const HouseholdRegistration(readOnly: true)
-          else if (selectedPage == 'Reports')
-            const AdminReports()
-          else if (selectedPage == 'User Management')
-            const UserManagement()
-          else if (selectedPage == 'Settings')
-            const AdminSettings(),
+          const Icon(
+            Icons.account_balance_outlined,
+            color: AppColors.primaryGreen,
+            size: 30,
+          ),
         ],
       ),
     );
@@ -730,11 +683,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildDashboardOverview() {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
-
         const Text(
           'Welcome, LGU Administrator',
 
@@ -750,10 +701,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const Text(
           'Monitor household records, vulnerability classifications, and aid distribution.',
 
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.greyText,
-          ),
+          style: TextStyle(fontSize: 13, color: AppColors.greyText),
         ),
 
         const SizedBox(height: 25),
@@ -768,9 +716,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: TextButton.icon(
             onPressed: _dashboardLoading ? null : _loadDashboard,
             icon: const Icon(Icons.refresh),
-            label: Text(
-              _dashboardLoading ? 'Loading...' : 'Refresh totals',
-            ),
+            label: Text(_dashboardLoading ? 'Loading...' : 'Refresh totals'),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.primaryGreen,
             ),
@@ -783,10 +729,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               _dashboardError!,
-              style: const TextStyle(
-                color: Colors.red,
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: Colors.red, fontSize: 13),
             ),
           ),
 
@@ -794,31 +737,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
         LayoutBuilder(
           builder: (context, constraints) {
-
-            final double width =
-                constraints.maxWidth;
+            final double width = constraints.maxWidth;
 
             // 4 cards for large desktop
             // 2 cards for medium screens
             // 1 card for small screens
-            final int columns =
-                width >= 1050
-                    ? 4
-                    : width >= 550
-                        ? 2
-                        : 1;
+            final int columns = width >= 1050
+                ? 4
+                : width >= 550
+                ? 2
+                : 1;
 
-            final double cardWidth =
-                (width -
-                    (columns - 1) * 16) /
-                    columns;
+            final double cardWidth = (width - (columns - 1) * 16) / columns;
 
             return Wrap(
               spacing: 16,
               runSpacing: 16,
 
               children: [
-
                 // Total household records registered in AidTrack.
                 _buildSummaryCard(
                   width: cardWidth,
@@ -843,24 +779,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Assessed Households',
-                  icon:
-                      Icons.assignment_turned_in_outlined,
+                  icon: Icons.assignment_turned_in_outlined,
                 ),
 
                 // Households classified as high vulnerability
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'High Vulnerability',
-                  icon:
-                      Icons.warning_amber_outlined,
+                  icon: Icons.warning_amber_outlined,
                 ),
 
                 // Recorded aid distribution transactions
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Aid Distributions',
-                  icon:
-                      Icons.inventory_2_outlined,
+                  icon: Icons.inventory_2_outlined,
                 ),
               ],
             );
@@ -872,17 +805,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // ========================================
         // VULNERABILITY MONITORING
         // ========================================
-
         _buildDashboardPanel(
-          title:
-              'Household Vulnerability Overview',
+          title: 'Household Vulnerability Overview',
 
-          icon:
-              Icons.analytics_outlined,
+          icon: Icons.analytics_outlined,
 
           child: const Column(
             children: [
-
               SizedBox(height: 35),
 
               Icon(
@@ -898,10 +827,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                 textAlign: TextAlign.center,
 
-                style: TextStyle(
-                  color: AppColors.greyText,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: AppColors.greyText, fontSize: 13),
               ),
 
               SizedBox(height: 35),
@@ -914,24 +840,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // ========================================
         // RECENT SYSTEM ACTIVITY
         // ========================================
-
         _buildDashboardPanel(
           title: 'Recent Activity',
           icon: Icons.history,
 
           child: const Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: 35,
-            ),
+            padding: EdgeInsets.symmetric(vertical: 35),
 
             child: Center(
               child: Text(
                 'No recent activity available yet.',
 
-                style: TextStyle(
-                  color: AppColors.greyText,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: AppColors.greyText, fontSize: 13),
               ),
             ),
           ),
@@ -942,17 +862,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // ========================================
         // FOOTER
         // ========================================
-
         const Center(
           child: Text(
             'Local Government Unit • Authorized Personnel Only',
 
             textAlign: TextAlign.center,
 
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.greyText,
-            ),
+            style: TextStyle(fontSize: 11, color: AppColors.greyText),
           ),
         ),
       ],
@@ -978,26 +894,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       decoration: BoxDecoration(
         color: AppColors.white,
 
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
 
-        border: Border.all(
-          color:
-              const Color(0xFFE4EBE5),
-        ),
+        border: Border.all(color: const Color(0xFFE4EBE5)),
       ),
 
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-
-          Icon(
-            icon,
-            color: AppColors.primaryGreen,
-            size: 25,
-          ),
+          Icon(icon, color: AppColors.primaryGreen, size: 25),
 
           const Spacer(),
 
@@ -1016,10 +922,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Text(
             title,
 
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.greyText,
-            ),
+            style: const TextStyle(fontSize: 13, color: AppColors.greyText),
           ),
         ],
       ),
@@ -1043,28 +946,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
       decoration: BoxDecoration(
         color: AppColors.white,
 
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
 
-        border: Border.all(
-          color:
-              const Color(0xFFE4EBE5),
-        ),
+        border: Border.all(color: const Color(0xFFE4EBE5)),
       ),
 
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-
           Row(
             children: [
-
-              Icon(
-                icon,
-                color: AppColors.primaryGreen,
-              ),
+              Icon(icon, color: AppColors.primaryGreen),
 
               const SizedBox(width: 10),
 

@@ -76,8 +76,10 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isRefreshingAssessments = false;
 
   String? _loadError;
+  String? _assessmentRefreshError;
   String? _formError;
 
   @override
@@ -226,6 +228,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     setState(() {
       _isLoading = true;
       _loadError = null;
+      _assessmentRefreshError = null;
     });
 
     try {
@@ -255,7 +258,15 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   }
 
   Future<void> _refreshAssessments() async {
+    if (_isLoading || _isRefreshingAssessments) return;
+
+    setState(() {
+      _isRefreshingAssessments = true;
+      _assessmentRefreshError = null;
+    });
+
     try {
+      // Fetch the latest assessment records from the backend.
       final records = await VulnerabilityService.fetchAssessments();
 
       if (!mounted) return;
@@ -263,8 +274,19 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       setState(() {
         _assessments = records;
       });
-    } catch (_) {
-      // Keep the existing records visible if refresh fails.
+    } catch (error) {
+      if (!mounted) return;
+
+      // Keep the existing records visible and show why refresh failed.
+      setState(() {
+        _assessmentRefreshError = _errorMessage(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshingAssessments = false;
+        });
+      }
     }
   }
 
@@ -476,6 +498,68 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   }
 
   // ==========================================
+  // REUSABLE REFRESH BUTTON
+  // ==========================================
+
+  Widget _refreshButton({
+    required String label,
+    required VoidCallback? onPressed,
+    bool isLoading = false,
+  }) {
+    final isDisabled = onPressed == null || isLoading;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: isDisabled ? null : onPressed,
+        borderRadius: BorderRadius.circular(24),
+
+        // This grey pill is visible only while the mouse is over the button.
+        hoverColor: const Color(0xFFE5E7EB),
+        splashColor: AppColors.lightGreen.withValues(alpha: 0.75),
+        highlightColor: AppColors.lightGreen.withValues(alpha: 0.45),
+
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primaryGreen,
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.refresh,
+                  size: 18,
+                  color: AppColors.primaryGreen,
+                ),
+              const SizedBox(width: 8),
+              Text(
+                isLoading ? 'Refreshing...' : label,
+                style: const TextStyle(
+                  color: AppColors.primaryGreen,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
   // REUSABLE UI COMPONENTS
   // ==========================================
 
@@ -484,6 +568,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     required String subtitle,
     required IconData icon,
     required Widget child,
+    Widget? trailing,
   }) {
     return Container(
       width: double.infinity,
@@ -493,10 +578,12 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderColor),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 520;
+
+          final header = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -506,7 +593,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                 ),
                 child: Icon(icon, color: AppColors.primaryGreen, size: 22),
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,11 +619,32 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   ],
                 ),
               ),
+
+              // Show beside the heading on desktop.
+              if (trailing != null && !isMobile) ...[
+                const SizedBox(width: 10),
+                trailing,
+              ],
             ],
-          ),
-          const SizedBox(height: 22),
-          child,
-        ],
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              header,
+
+              // Move the button below the heading on mobile.
+              if (trailing != null && isMobile) ...[
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerRight, child: trailing),
+              ],
+
+              const SizedBox(height: 22),
+
+              child,
+            ],
+          );
+        },
       ),
     );
   }
@@ -811,8 +921,21 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       title: 'Assessment Records',
       subtitle: 'Saved household assessment records.',
       icon: Icons.history,
+
+      // Refresh button beside Assessment Records.
+      trailing: _refreshButton(
+        label: 'Refresh records',
+        onPressed: (_isLoading || _isRefreshingAssessments)
+            ? null
+            : _refreshAssessments,
+        isLoading: _isRefreshingAssessments,
+      ),
+
       child: Column(
         children: [
+          if (_assessmentRefreshError != null)
+            _buildErrorMessage(_assessmentRefreshError!),
+
           if (_assessments.isEmpty)
             const Padding(
               padding: EdgeInsets.all(20),
@@ -862,17 +985,6 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                 ),
               );
             }),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _isLoading ? null : _loadData,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh records'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primaryGreen,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -899,34 +1011,57 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Screen heading.
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const heading = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Household Assessment',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'Record household information for vulnerability assessment.',
+                    style: TextStyle(fontSize: 12, color: AppColors.greyText),
+                  ),
+                ],
+              );
+
+              final refreshButton = _refreshButton(
+                label: 'Refresh assessments',
+                onPressed: _loadData,
+              );
+
+              // Mobile layout.
+              if (constraints.maxWidth < 520) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Household Assessment',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Record household information for vulnerability assessment.',
-                      style: TextStyle(fontSize: 12, color: AppColors.greyText),
+                    heading,
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: refreshButton,
                     ),
                   ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _loadData,
-                icon: const Icon(Icons.refresh, color: AppColors.primaryGreen),
-              ),
-            ],
+                );
+              }
+
+              // Desktop layout.
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(child: heading),
+                  const SizedBox(width: 12),
+                  refreshButton,
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 22),
