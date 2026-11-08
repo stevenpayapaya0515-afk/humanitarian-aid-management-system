@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/login_screen.dart';
 import '../../services/auth_service.dart';
+
 // Household Registration form and records.
 import '../households/household_registration.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'staff_settings.dart';
+import '../assessment/household_assessment.dart';
+import '../vulnerability_classification/vulnerability_classification.dart';
 
 // ========================================
 // STAFF DASHBOARD
@@ -713,23 +716,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
           else if (selectedPage == 'Household Registration')
             const HouseholdRegistration()
 
-          else if (selectedPage ==
-              'Household Assessment')
-            _buildModulePlaceholder(
-              title: 'Household Assessment',
-              icon: Icons.assignment_outlined,
-              message:
-                  'Household assessment form and records will be developed in this module.',
-            )
+          else if (selectedPage == 'Household Assessment')
+            const HouseholdAssessmentScreen()
 
-          else if (selectedPage ==
-              'Vulnerability Classification')
-            _buildModulePlaceholder(
-              title: 'Vulnerability Classification',
-              icon: Icons.analytics_outlined,
-              message:
-                  'Machine learning vulnerability results will be displayed in this module.',
-            )
+          else if (selectedPage == 'Vulnerability Classification')
+            const VulnerabilityClassificationScreen()
 
           else if (selectedPage ==
               'Beneficiary Management')
