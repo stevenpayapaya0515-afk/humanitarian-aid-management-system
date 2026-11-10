@@ -11,6 +11,9 @@ import '../households/household_registration.dart';
 import '../assessment/household_assessment.dart';
 import '../vulnerability_classification/vulnerability_classification.dart';
 import 'staff_settings.dart';
+import '../beneficiaries/beneficiary_management.dart';
+import '../distribution/aid_distribution.dart';
+import '../reports/staff_report.dart';
 
 // ========================================
 // STAFF DASHBOARD
@@ -165,7 +168,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       final medium = data['medium_vulnerability'];
       final high = data['high_vulnerability'];
 
-      final distributions = data['aid_distributions'];
+      final distributions = data['simulated_distributions'];
 
       // Validate required numeric values.
       if (households is! int ||
@@ -274,6 +277,73 @@ class _StaffDashboardState extends State<StaffDashboard> {
           _dashboardLoading = false;
         });
       }
+    }
+  }
+
+  // ========================================
+  // DASHBOARD ERROR MODAL
+  // ========================================
+
+  Future<void> _showDashboardErrorDialog(String message) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: Color(0xFFC62828), size: 58),
+            const SizedBox(height: 14),
+            const Text(
+              'Dashboard Refresh Failed',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.greyText),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: AppColors.white,
+              minimumSize: const Size(120, 44),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ========================================
+  // REFRESH DASHBOARD WITH ERROR FEEDBACK
+  // ========================================
+
+  Future<void> _refreshDashboardWithFeedback() async {
+    if (_dashboardLoading) return;
+
+    await _loadDashboard();
+
+    if (!mounted) return;
+
+    if (_dashboardError != null) {
+      await _showDashboardErrorDialog(_dashboardError!);
     }
   }
 
@@ -609,14 +679,119 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     width: double.infinity,
 
                     child: OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
+                        // Ask for confirmation before logging out.
+                        final shouldLogout = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (dialogContext) {
+                            return AlertDialog(
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              title: const Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.logout_rounded,
+                                    color: AppColors.primaryGreen,
+                                    size: 52,
+                                  ),
+                                  SizedBox(height: 14),
+                                  Text(
+                                    'Confirm Logout',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.darkText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              content: const Text(
+                                'Are you sure you want to log out of your account?',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.greyText,
+                                ),
+                              ),
+                              actionsAlignment: MainAxisAlignment.center,
+                              actions: [
+                                SizedBox(
+                                  width: 260,
+                                  child: Row(
+                                    children: [
+                                      // CANCEL: Stay logged in.
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () {
+                                            Navigator.of(dialogContext)
+                                                .pop(false);
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.primaryGreen,
+                                            side: const BorderSide(
+                                              color: AppColors.primaryGreen,
+                                            ),
+                                            minimumSize: const Size(0, 45),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text('Cancel'),
+                                        ),
+                                      ),
+
+                                      const SizedBox(width: 12),
+
+                                      // LOG OUT: Confirm logout.
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.of(dialogContext)
+                                                .pop(true);
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xFFB71C1C,
+                                            ),
+                                            foregroundColor: Colors.white,
+                                            minimumSize: const Size(0, 45),
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text('Log Out'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        // Do nothing when the user cancels.
+                        if (!mounted || shouldLogout != true) return;
+
+                        // Clear the existing authentication session.
                         AuthService.logout();
 
+                        // Preserve the existing optional logout callback.
                         if (widget.onLogout != null) {
                           widget.onLogout!();
                           return;
                         }
 
+                        // Return to Login and remove the previous page history.
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
                             builder: (context) => const LoginScreen(),
@@ -684,23 +859,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 else if (selectedPage == 'Vulnerability Classification')
                   const VulnerabilityClassificationScreen()
                 else if (selectedPage == 'Beneficiary Management')
-                  _buildModulePlaceholder(
-                    title: 'Beneficiary Management',
-                    icon: Icons.people_outline,
-                    message: 'Beneficiary records and management will be developed in this module.',
-                  )
+                  const BeneficiaryManagementScreen()
                 else if (selectedPage == 'Aid Distribution')
-                  _buildModulePlaceholder(
-                    title: 'Aid Distribution',
-                    icon: Icons.inventory_2_outlined,
-                    message: 'Aid distribution recording and history will be developed in this module.',
-                  )
+                  const AidDistributionScreen()
                 else if (selectedPage == 'Reports')
-                  _buildModulePlaceholder(
-                    title: 'Reports',
-                    icon: Icons.bar_chart_outlined,
-                    message: 'Staff reports will be developed in this module.',
-                  )
+                  const StaffReportScreen()
                 else if (selectedPage == 'Settings')
                   const StaffSettings(),
               ],
@@ -722,9 +885,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       width: double.infinity,
       height: 118,
       padding: const EdgeInsets.symmetric(horizontal: 25),
-      decoration: const BoxDecoration(
-        color: AppColors.accentYellow,
-      ),
+      decoration: const BoxDecoration(color: AppColors.accentYellow),
       child: Row(
         children: [
           Expanded(
@@ -801,16 +962,59 @@ class _StaffDashboardState extends State<StaffDashboard> {
         // ========================================
         Align(
           alignment: Alignment.centerRight,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+            child: InkWell(
+              onTap: _dashboardLoading ? null : _refreshDashboardWithFeedback,
 
-          child: TextButton.icon(
-            onPressed: _dashboardLoading ? null : _loadDashboard,
+              borderRadius: BorderRadius.circular(24),
 
-            icon: const Icon(Icons.refresh),
+              // Light gray background ONLY on hover.
+              hoverColor: const Color(0xFFE5E7EB),
 
-            label: Text(_dashboardLoading ? 'Loading...' : 'Refresh totals'),
+              // Remove unwanted black/dark effects.
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              focusColor: Colors.transparent,
 
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primaryGreen,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_dashboardLoading)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primaryGreen,
+                        ),
+                      )
+                    else
+                      const Icon(
+                        Icons.refresh,
+                        size: 18,
+                        color: AppColors.primaryGreen,
+                      ),
+
+                    const SizedBox(width: 8),
+
+                    Text(
+                      _dashboardLoading ? 'Refreshing...' : 'Refresh totals',
+                      style: const TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -900,7 +1104,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 // AID DISTRIBUTIONS
                 _buildSummaryCard(
                   width: cardWidth,
-                  title: 'Aid Distributions',
+                  title: 'Distribution Simulations',
                   icon: Icons.inventory_2_outlined,
                   value: display(_aidDistributions),
                 ),
@@ -1251,35 +1455,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
     return '${months[date.month - 1]} ${date.day}, '
         '${date.year} • $hour:$minute $period';
-  }
-
-  // ========================================
-  // STAFF MODULE PLACEHOLDER
-  // ========================================
-
-  Widget _buildModulePlaceholder({
-    required String title,
-    required IconData icon,
-    required String message,
-  }) {
-    return _buildDashboardPanel(
-      title: title,
-      icon: icon,
-
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-
-        child: Center(
-          child: Text(
-            message,
-
-            textAlign: TextAlign.center,
-
-            style: const TextStyle(color: AppColors.greyText, fontSize: 14),
-          ),
-        ),
-      ),
-    );
   }
 
   // ========================================

@@ -23,5 +23,5 @@ class DashboardSummary(BaseModel):
 
     # None until the Aid Distribution database module is implemented.
     aid_distributions: int | None = None
-
+    simulated_distributions: int
     recent_activity: list[RecentActivity] = Field(default_factory=list)

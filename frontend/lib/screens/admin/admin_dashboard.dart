@@ -11,7 +11,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../households/household_registration.dart';
-import 'admin_reports.dart';
+import '../reports/staff_report.dart';
 import 'admin_settings.dart';
 
 // ========================================
@@ -38,6 +38,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // Household totals fetched from the backend.
   int? _totalHouseholds;
   int? _totalPopulation;
+
+  int? _assessedHouseholds;
+  int? _classifiedHouseholds;
+  int? _highVulnerability;
+  int? _simulatedDistributions;
+  int? _lowVulnerability;
+  int? _mediumVulnerability;
+
+  List<Map<String, dynamic>> _recentActivity = [];
 
   // Loading and error messages for the dashboard.
   bool _dashboardLoading = false;
@@ -167,16 +176,58 @@ class _AdminDashboardState extends State<AdminDashboard> {
         throw const FormatException('Invalid dashboard response.');
       }
 
-      final households = data['total_households'];
-      final population = data['total_population'];
+      // Validate the dashboard statistics.
+      const requiredFields = [
+        'total_households',
+        'total_population',
+        'assessed_households',
+        'classified_households',
+        'high_vulnerability',
+        'simulated_distributions',
+      ];
 
-      if (households is! int || population is! int) {
-        throw const FormatException('Invalid dashboard totals.');
+      for (final field in requiredFields) {
+        final value = data[field];
+
+        if (value is! int || value < 0) {
+          throw const FormatException('Invalid dashboard statistics.');
+        }
       }
 
-      if (households < 0 || population < 0) {
-        throw const FormatException('Invalid dashboard totals.');
+      final households = data['total_households'] as int;
+      final population = data['total_population'] as int;
+      final assessed = data['assessed_households'] as int;
+      final classified = data['classified_households'] as int;
+      final high = data['high_vulnerability'] as int;
+      final low = data['low_vulnerability'];
+      final medium = data['medium_vulnerability'];
+      final recent = data['recent_activity'];
+
+      if (low is! int ||
+          low < 0 ||
+          medium is! int ||
+          medium < 0 ||
+          recent is! List) {
+        throw const FormatException('Invalid dashboard overview data.');
       }
+
+      final activities = recent.map<Map<String, dynamic>>((item) {
+        if (item is! Map) {
+          throw const FormatException('Invalid recent activity.');
+        }
+
+        final activity = Map<String, dynamic>.from(item);
+
+        if (activity['activity_type'] is! String ||
+            activity['description'] is! String ||
+            activity['occurred_at'] is! String) {
+          throw const FormatException('Incomplete activity record.');
+        }
+
+        return activity;
+      }).toList();
+
+      final simulated = data['simulated_distributions'] as int;
 
       // Ignore results if the screen closed or a newer request started.
       if (!mounted || requestId != _dashboardRequestId) return;
@@ -184,6 +235,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
       setState(() {
         _totalHouseholds = households;
         _totalPopulation = population;
+        _assessedHouseholds = assessed;
+        _classifiedHouseholds = classified;
+        _highVulnerability = high;
+        _simulatedDistributions = simulated;
+        _lowVulnerability = low;
+        _mediumVulnerability = medium;
+        _recentActivity = activities;
       });
     } catch (error) {
       if (!mounted || requestId != _dashboardRequestId) return;
@@ -535,17 +593,119 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     width: double.infinity,
 
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Clear the token stored in Flutter
+                      onPressed: () async {
+                        // Ask for confirmation before logging out.
+                        final shouldLogout = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (dialogContext) {
+                            return AlertDialog(
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              title: const Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.logout_rounded,
+                                    color: AppColors.primaryGreen,
+                                    size: 52,
+                                  ),
+                                  SizedBox(height: 14),
+                                  Text(
+                                    'Confirm Logout',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.darkText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              content: const Text(
+                                'Are you sure you want to log out of your account?',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.greyText,
+                                ),
+                              ),
+                              actionsAlignment: MainAxisAlignment.center,
+                              actions: [
+                                SizedBox(
+                                  width: 260,
+                                  child: Row(
+                                    children: [
+                                      // Cancel: stay logged in.
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () {
+                                            Navigator.of(dialogContext)
+                                                .pop(false);
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.primaryGreen,
+                                            side: const BorderSide(
+                                              color: AppColors.primaryGreen,
+                                            ),
+                                            minimumSize: const Size(0, 45),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text('Cancel'),
+                                        ),
+                                      ),
+
+                                      const SizedBox(width: 12),
+
+                                      // Confirm: proceed with logout.
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.of(dialogContext)
+                                                .pop(true);
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xFFB71C1C,
+                                            ),
+                                            foregroundColor: Colors.white,
+                                            minimumSize: const Size(0, 45),
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text('Log Out'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        // Cancel means no logout.
+                        if (!mounted || shouldLogout != true) return;
+
+                        // Clear the session only after confirmation.
                         AuthService.logout();
 
-                        // Use custom logout function if provided
+                        // Preserve your existing custom logout behavior.
                         if (widget.onLogout != null) {
                           widget.onLogout!();
                           return;
                         }
 
-                        // Return to Login Screen
+                        // Return to Login Screen and clear navigation history.
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
                             builder: (context) => const LoginScreen(),
@@ -608,7 +768,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 else if (selectedPage == 'Household Records')
                   const HouseholdRegistration(readOnly: true)
                 else if (selectedPage == 'Reports')
-                  const AdminReports()
+                  const StaffReportScreen(heading: 'Admin Reports')
                 else if (selectedPage == 'User Management')
                   const UserManagement()
                 else if (selectedPage == 'Settings')
@@ -632,9 +792,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       width: double.infinity,
       height: 118,
       padding: const EdgeInsets.symmetric(horizontal: 25),
-      decoration: const BoxDecoration(
-        color: AppColors.accentYellow,
-      ),
+      decoration: const BoxDecoration(color: AppColors.accentYellow),
       child: Row(
         children: [
           Expanded(
@@ -775,25 +933,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       : (_totalPopulation?.toString() ?? '—'),
                 ),
 
-                // Completed household assessments
+                // ASSESSED HOUSEHOLDS
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'Assessed Households',
                   icon: Icons.assignment_turned_in_outlined,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_assessedHouseholds?.toString() ?? '—'),
                 ),
 
-                // Households classified as high vulnerability
+                // CLASSIFIED HOUSEHOLDS
+                _buildSummaryCard(
+                  width: cardWidth,
+                  title: 'Classified Households',
+                  icon: Icons.analytics_outlined,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_classifiedHouseholds?.toString() ?? '—'),
+                ),
+
+                // HIGH VULNERABILITY
                 _buildSummaryCard(
                   width: cardWidth,
                   title: 'High Vulnerability',
                   icon: Icons.warning_amber_outlined,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_highVulnerability?.toString() ?? '—'),
                 ),
 
-                // Recorded aid distribution transactions
+                // DISTRIBUTION SIMULATIONS
                 _buildSummaryCard(
                   width: cardWidth,
-                  title: 'Aid Distributions',
+                  title: 'Distribution Simulations',
                   icon: Icons.inventory_2_outlined,
+                  value: _dashboardLoading
+                      ? '…'
+                      : (_simulatedDistributions?.toString() ?? '—'),
                 ),
               ],
             );
@@ -807,32 +984,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // ========================================
         _buildDashboardPanel(
           title: 'Household Vulnerability Overview',
-
           icon: Icons.analytics_outlined,
-
-          child: const Column(
-            children: [
-              SizedBox(height: 35),
-
-              Icon(
-                Icons.bar_chart_outlined,
-                size: 48,
-                color: AppColors.primaryGreen,
-              ),
-
-              SizedBox(height: 15),
-
-              Text(
-                'No classification data available yet.',
-
-                textAlign: TextAlign.center,
-
-                style: TextStyle(color: AppColors.greyText, fontSize: 13),
-              ),
-
-              SizedBox(height: 35),
-            ],
-          ),
+          child: _buildAdminVulnerabilityOverview(),
         ),
 
         const SizedBox(height: 20),
@@ -843,18 +996,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _buildDashboardPanel(
           title: 'Recent Activity',
           icon: Icons.history,
-
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 35),
-
-            child: Center(
-              child: Text(
-                'No recent activity available yet.',
-
-                style: TextStyle(color: AppColors.greyText, fontSize: 13),
-              ),
-            ),
-          ),
+          child: _buildAdminRecentActivity(),
         ),
 
         const SizedBox(height: 25),
@@ -873,6 +1015,246 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
       ],
     );
+  }
+
+  // ========================================
+  // ADMIN HOUSEHOLD VULNERABILITY OVERVIEW
+  // ========================================
+
+  Widget _buildAdminVulnerabilityOverview() {
+    if (_dashboardLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(35),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
+        ),
+      );
+    }
+
+    final total = _classifiedHouseholds ?? 0;
+
+    if (total == 0) {
+      return const Padding(
+        padding: EdgeInsets.all(35),
+        child: Center(
+          child: Text(
+            'No classification data available yet.',
+            style: TextStyle(color: AppColors.greyText, fontSize: 13),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Latest vulnerability classification per household ($total households)',
+          style: const TextStyle(color: AppColors.greyText, fontSize: 12),
+        ),
+
+        const SizedBox(height: 25),
+
+        _adminVulnerabilityBar(
+          label: 'Low Vulnerability',
+          count: _lowVulnerability ?? 0,
+          total: total,
+          color: AppColors.primaryGreen,
+        ),
+
+        const SizedBox(height: 22),
+
+        _adminVulnerabilityBar(
+          label: 'Medium Vulnerability',
+          count: _mediumVulnerability ?? 0,
+          total: total,
+          color: const Color(0xFFD69A19),
+        ),
+
+        const SizedBox(height: 22),
+
+        _adminVulnerabilityBar(
+          label: 'High Vulnerability',
+          count: _highVulnerability ?? 0,
+          total: total,
+          color: const Color(0xFFC62828),
+        ),
+
+        const SizedBox(height: 18),
+
+        const Text(
+          'Predictions use synthetic training data and require validation before official LGU decisions.',
+          style: TextStyle(fontSize: 11, color: AppColors.greyText),
+        ),
+      ],
+    );
+  }
+
+  // ========================================
+  // VULNERABILITY PROGRESS BAR
+  // ========================================
+
+  Widget _adminVulnerabilityBar({
+    required String label,
+    required int count,
+    required int total,
+    required Color color,
+  }) {
+    final percentage = total == 0
+        ? 0.0
+        : (count / total).clamp(0.0, 1.0).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.darkText,
+                ),
+              ),
+            ),
+            Text(
+              '$count (${(percentage * 100).toStringAsFixed(1)}%)',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 9),
+
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: LinearProgressIndicator(
+            value: percentage,
+            minHeight: 11,
+            backgroundColor: const Color(0xFFE8EEE9),
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ========================================
+  // ADMIN RECENT ACTIVITY
+  // ========================================
+
+  Widget _buildAdminRecentActivity() {
+    if (_dashboardLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(30),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
+        ),
+      );
+    }
+
+    if (_recentActivity.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(35),
+        child: Center(
+          child: Text(
+            'No recent activity available yet.',
+            style: TextStyle(fontSize: 13, color: AppColors.greyText),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: List.generate(_recentActivity.length, (index) {
+        final activity = _recentActivity[index];
+        final type = activity['activity_type'] as String;
+        final description = activity['description'] as String;
+        final occurredAt = activity['occurred_at'] as String;
+
+        return Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: AppColors.lightGreen,
+                child: Icon(
+                  _adminActivityIcon(type),
+                  color: AppColors.primaryGreen,
+                ),
+              ),
+              title: Text(
+                type,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.darkText,
+                ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(description, style: const TextStyle(fontSize: 12)),
+                    const SizedBox(height: 5),
+                    Text(
+                      _adminActivityDate(occurredAt),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.greyText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (index < _recentActivity.length - 1)
+              const Divider(height: 1, color: Color(0xFFE4EBE5)),
+          ],
+        );
+      }),
+    );
+  }
+
+  // ========================================
+  // ADMIN ACTIVITY ICON
+  // ========================================
+
+  IconData _adminActivityIcon(String type) {
+    switch (type) {
+      case 'Household Registration':
+        return Icons.home_outlined;
+      case 'Household Assessment':
+        return Icons.assignment_outlined;
+      case 'Vulnerability Classification':
+        return Icons.analytics_outlined;
+      case 'Aid Distribution':
+        return Icons.inventory_2_outlined;
+      default:
+        return Icons.history;
+    }
+  }
+
+  // ========================================
+  // ADMIN ACTIVITY DATE
+  // ========================================
+
+  String _adminActivityDate(String value) {
+    final date = DateTime.tryParse(value)?.toLocal();
+    if (date == null) return value;
+
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+
+    return '${date.year}-${twoDigits(date.month)}-'
+        '${twoDigits(date.day)} '
+        '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
   }
 
   // ========================================

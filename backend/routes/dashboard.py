@@ -109,6 +109,21 @@ def get_dashboard_summary(
 
             vulnerability_summary = cursor.fetchone()
 
+
+            # ==========================================
+            # AID DISTRIBUTION SIMULATION TOTAL
+            # ==========================================
+
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS simulated_distributions
+                FROM public.aid_distributions
+                WHERE is_simulation = TRUE;
+                """
+            )
+
+            distribution_summary = cursor.fetchone()
+
             # ==========================================
             # 4. RECENT HOUSEHOLD ACTIVITIES
             # ==========================================
@@ -200,6 +215,7 @@ def get_dashboard_summary(
 
         # Not connected until the Aid Distribution table exists.
         "aid_distributions": None,
+        "simulated_distributions": distribution_summary["simulated_distributions"],
 
         "recent_activity": recent_activity,
     }

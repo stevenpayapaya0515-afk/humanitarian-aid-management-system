@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -13,14 +12,10 @@ class HouseholdRegistration extends StatefulWidget {
   // Admin uses view-only mode; Staff keeps registration and editing.
   final bool readOnly;
 
-  const HouseholdRegistration({
-    super.key,
-    this.readOnly = false,
-  });
+  const HouseholdRegistration({super.key, this.readOnly = false});
 
   @override
-  State<HouseholdRegistration> createState() =>
-      _HouseholdRegistrationState();
+  State<HouseholdRegistration> createState() => _HouseholdRegistrationState();
 }
 
 class _HouseholdRegistrationState extends State<HouseholdRegistration> {
@@ -46,18 +41,13 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF175C3A),
-                    side: const BorderSide(
-                      color: Color(0xFF175C3A),
-                    ),
+                    side: const BorderSide(color: Color(0xFF175C3A)),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: Text(
-                    cancelLabel,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(cancelLabel, textAlign: TextAlign.center),
                 ),
               ),
             ),
@@ -79,10 +69,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: Text(
-                    actionLabel,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(actionLabel, textAlign: TextAlign.center),
                 ),
               ),
             ),
@@ -221,10 +208,12 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('${AuthService.baseUrl}/households'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('${AuthService.baseUrl}/households'),
+            headers: _headers(),
+          )
+          .timeout(const Duration(seconds: 15));
 
       _checkResponse(response, 200);
 
@@ -285,8 +274,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     // Keep an old record's size; do not silently shrink it to one person.
     _sizeController.text = '${household['household_size']}';
 
-    _membersController.text =
-        household['household_member'] as String;
+    _membersController.text = household['household_member'] as String;
 
     setState(() {
       _editingHouseholdId = household['household_id'] as int;
@@ -304,14 +292,24 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     }
   }
 
-  // ========================================
-  // REGISTER OR UPDATE
-  // ========================================
+  // ==========================================
+  // REGISTER OR UPDATE HOUSEHOLD
+  // ==========================================
 
   Future<void> _saveHousehold() async {
     if (_isSaving || _isLoading) return;
 
-    if (!_formKey.currentState!.validate()) return;
+    // Validate the registration form first.
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Invalid Household Information',
+        message:
+            'Please complete the required fields and '
+            'correct the highlighted errors.',
+      );
+      return;
+    }
 
     FocusScope.of(context).unfocus();
 
@@ -321,6 +319,14 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       _isSaving = true;
       _formError = null;
     });
+
+    // Display the loading modal.
+    _showSavingDialog(
+      editingId == null ? 'Registering Household...' : 'Updating Household...',
+    );
+
+    bool savedSuccessfully = false;
+    String? failureMessage;
 
     try {
       final purok = _purokController.text.trim();
@@ -337,77 +343,185 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       final http.Response response;
 
       if (editingId == null) {
-        response = await http.post(
-          Uri.parse('${AuthService.baseUrl}/households'),
-          headers: _headers(),
-          body: body,
-        ).timeout(const Duration(seconds: 15));
+        // REGISTER HOUSEHOLD
+        response = await http
+            .post(
+              Uri.parse('${AuthService.baseUrl}/households'),
+              headers: _headers(),
+              body: body,
+            )
+            .timeout(const Duration(seconds: 15));
       } else {
-        response = await http.patch(
-          Uri.parse('${AuthService.baseUrl}/households/$editingId'),
-          headers: _headers(),
-          body: body,
-        ).timeout(const Duration(seconds: 15));
+        // UPDATE HOUSEHOLD
+        response = await http
+            .patch(
+              Uri.parse('${AuthService.baseUrl}/households/$editingId'),
+              headers: _headers(),
+              body: body,
+            )
+            .timeout(const Duration(seconds: 15));
       }
 
       _checkResponse(response, editingId == null ? 201 : 200);
+
+      savedSuccessfully = true;
 
       if (!mounted) return;
 
       _clearForm();
 
-      await _showSuccessDialog(
-        editingId == null ? 'Household Registered' : 'Household Updated',
-      );
+      // Refresh the registered household records.
+      await _loadHouseholds();
+    } catch (error) {
+      failureMessage = _errorMessage(error, saving: true);
 
       if (mounted) {
-        await _loadHouseholds();
-      }
-    } catch (error) {
-      if (mounted) {
-        setState(() => _formError = _errorMessage(error, saving: true));
+        setState(() {
+          _formError = failureMessage;
+        });
       }
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        // Close the loading modal.
+        Navigator.of(context, rootNavigator: true).pop();
+
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
+
+    if (!mounted) return;
+
+    if (!savedSuccessfully) {
+      await _showFeedbackDialog(
+        success: false,
+        title: editingId == null
+            ? 'Household Registration Failed'
+            : 'Household Update Failed',
+        message: failureMessage ?? 'Unable to save the household record.',
+      );
+      return;
+    }
+
+    // Show the success modal.
+    await _showFeedbackDialog(
+      success: true,
+      title: editingId == null ? 'Household Registered' : 'Household Updated',
+      message: _listError == null
+          ? 'The household and member information '
+                'have been successfully saved.'
+          : 'The household was saved, but the records '
+                'could not be refreshed. Please click Refresh.',
+    );
   }
 
-  Future<void> _showSuccessDialog(String title) async {
+  // ==========================================
+  // SUCCESS AND ERROR FEEDBACK MODAL
+  // ==========================================
+
+  Future<void> _showFeedbackDialog({
+    required bool success,
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) return;
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Column(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.check_circle_outline,
-              color: AppColors.primaryGreen,
-              size: 60,
+            Icon(
+              success ? Icons.check_circle_outline : Icons.error_outline,
+              color: success ? AppColors.primaryGreen : const Color(0xFFC62828),
+              size: 58,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Text(
               title,
               textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.greyText),
             ),
           ],
-        ),
-        content: const Text(
-          'The household and member names were saved.',
-          textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: AppColors.white,
+              minimumSize: const Size(120, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('OK'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // LOADING MODAL
+  // ==========================================
+
+  void _showSavingDialog(String title) {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (dialogContext) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            backgroundColor: AppColors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  color: AppColors.primaryGreen,
+                  strokeWidth: 3,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please wait while the request is processed.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: AppColors.greyText),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -427,13 +541,8 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.white,
         scrollable: true,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Text(
-          'Household Members',
-          textAlign: TextAlign.center,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Household Members', textAlign: TextAlign.center),
         content: SizedBox(
           width: 420,
           child: Column(
@@ -449,12 +558,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                 Text(
                   widget.readOnly
                       ? 'Member list incomplete. Ask authorized Staff to verify '
-                          'the names and household size.'
+                            'the names and household size.'
                       : 'Member list incomplete. Use Edit to enter the missing '
-                          'names and verify the household size.',
-                  style: const TextStyle(
-                    color: Color(0xFF9C5700),
-                  ),
+                            'names and verify the household size.',
+                  style: const TextStyle(color: Color(0xFF9C5700)),
                 ),
               ],
 
@@ -469,9 +576,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                     child: Text('${index + 1}'),
                   ),
                   title: Text(names[index]),
-                  subtitle: Text(
-                    index == 0 ? 'Household head' : 'Member',
-                  ),
+                  subtitle: Text(index == 0 ? 'Household head' : 'Member'),
                 ),
             ],
           ),
@@ -497,58 +602,69 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     );
   }
 
-  // ========================================
-  // DELETE WITH CONFIRMATION
-  // ========================================
+  // ==========================================
+  // DELETE HOUSEHOLD
+  // ==========================================
 
   Future<void> _deleteHousehold(Map<String, dynamic> household) async {
     if (_isSaving || _isLoading) return;
 
+    // Ask for confirmation before deleting.
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Text(
-          'Delete Household?',
-          textAlign: TextAlign.center,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Household?', textAlign: TextAlign.center),
         content: Text(
-          'Delete the household of ${household['household_head']} and its '
+          'Delete the household of '
+          '${household['household_head']} and its '
           'member list?\n\nThis cannot be undone.',
           textAlign: TextAlign.center,
         ),
-
-        // Cancel on the left; Delete on the right.
         actions: [
           _buildActionButtons(
             actionLabel: 'Delete Household',
             actionColor: const Color(0xFFB71C1C),
-            onCancel: () => Navigator.pop(dialogContext, false),
-            onConfirm: () => Navigator.pop(dialogContext, true),
+            onCancel: () {
+              Navigator.pop(dialogContext, false);
+            },
+            onConfirm: () {
+              Navigator.pop(dialogContext, true);
+            },
           ),
         ],
       ),
     );
 
-    if (confirmed != true || !mounted || _isSaving || _isLoading) return;
+    if (confirmed != true || !mounted || _isSaving || _isLoading) {
+      return;
+    }
 
     setState(() {
       _isSaving = true;
       _listError = null;
     });
 
+    // Show loading modal.
+    _showSavingDialog('Deleting Household...');
+
+    bool deletedSuccessfully = false;
+    String? failureMessage;
+
     try {
       final id = household['household_id'];
 
-      final response = await http.delete(
-        Uri.parse('${AuthService.baseUrl}/households/$id'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .delete(
+            Uri.parse('${AuthService.baseUrl}/households/$id'),
+            headers: _headers(),
+          )
+          .timeout(const Duration(seconds: 15));
 
       _checkResponse(response, 200);
+
+      deletedSuccessfully = true;
 
       if (!mounted) return;
 
@@ -556,16 +672,43 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
         _clearForm();
       }
 
+      // Refresh records after successful deletion.
       await _loadHouseholds();
     } catch (error) {
-      if (mounted) {
-        setState(() => _listError = _errorMessage(error, saving: true));
-      }
+      failureMessage = _errorMessage(error, saving: true);
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        // Close the loading modal.
+        Navigator.of(context, rootNavigator: true).pop();
+
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
+
+    if (!mounted) return;
+
+    // Show error if the deletion failed.
+    if (!deletedSuccessfully) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Household Deletion Failed',
+        message: failureMessage ?? 'Unable to delete the household.',
+      );
+      return;
+    }
+
+    // Show successful deletion.
+    await _showFeedbackDialog(
+      success: true,
+      title: 'Household Deleted',
+      message: _listError == null
+          ? 'The household record has been '
+                'successfully deleted.'
+          : 'The household was deleted, but the '
+                'records could not be refreshed.',
+    );
   }
 
   // ========================================
@@ -573,15 +716,15 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
   // ========================================
 
   Widget _card(Widget child) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0E7E2)),
-        ),
-        child: child,
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xFFE0E7E2)),
+    ),
+    child: child,
+  );
 
   // Match the section heading and description used in Household Assessment.
   Widget _buildSectionIntro({
@@ -604,10 +747,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
           const SizedBox(height: 6),
           Text(
             description,
-            style: const TextStyle(
-              color: AppColors.greyText,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: AppColors.greyText, fontSize: 13),
           ),
         ],
       ),
@@ -621,224 +761,207 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     int? maxLength,
     bool optional = false,
     int maxLines = 1,
-  }) =>
-      TextFormField(
-        controller: controller,
-        enabled: !_isSaving,
-        maxLength: maxLength,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon),
-          counterText: '',
-        ),
-        validator: (value) {
-          if (!optional && (value == null || value.trim().isEmpty)) {
-            return 'Please complete this field.';
-          }
-          return null;
-        },
-      );
+  }) => TextFormField(
+    controller: controller,
+    enabled: !_isSaving,
+    maxLength: maxLength,
+    maxLines: maxLines,
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      counterText: '',
+    ),
+    validator: (value) {
+      if (!optional && (value == null || value.trim().isEmpty)) {
+        return 'Please complete this field.';
+      }
+      return null;
+    },
+  );
 
   Widget _buildRegistrationForm() => _card(
-        Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                _editingHouseholdId == null
-                    ? 'Register Household'
-                    : 'Edit Household',
-                style: const TextStyle(
-                  color: Color(0xFF263238),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Enter the household head, location, and member details. '
-                'Household size includes the household head.',
-                style: TextStyle(
-                  color: AppColors.greyText,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth >= 650
-                      ? (constraints.maxWidth - 16) / 2
-                      : constraints.maxWidth;
-
-                  final fields = <Widget>[
-                    _textField(
-                      controller: _headController,
-                      label: 'Household head',
-                      icon: Icons.person_outline,
-                      maxLength: 100,
-                    ),
-                    _textField(
-                      controller: _barangayController,
-                      label: 'Barangay',
-                      icon: Icons.location_city_outlined,
-                      maxLength: 100,
-                    ),
-                    _textField(
-                      controller: _purokController,
-                      label: 'Purok (optional)',
-                      icon: Icons.place_outlined,
-                      maxLength: 100,
-                      optional: true,
-                    ),
-                    TextFormField(
-                      controller: _sizeController,
-                      enabled: !_isSaving,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Household size',
-                        prefixIcon: Icon(Icons.groups_outlined),
-                      ),
-                      validator: (value) {
-                        final size = int.tryParse(value?.trim() ?? '');
-
-                        if (size == null ||
-                            size < 1 ||
-                            size > 2147483647) {
-                          return 'Enter a valid whole number of at least 1.';
-                        }
-
-                        return null;
-                      },
-                    ),
-                  ];
-
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: fields
-                        .map(
-                          (field) => SizedBox(
-                            width: width,
-                            child: field,
-                          ),
-                        )
-                        .toList(),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              _textField(
-                controller: _addressController,
-                label: 'Address',
-                icon: Icons.home_outlined,
-                maxLines: 2,
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                'Household Members',
-                style: TextStyle(
-                  color: Color(0xFF263238),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 6),
-
-              const Text(
-                'Enter one full name per line. Do not repeat the household head. '
-                'For a one-person household, leave this blank.',
-                style: TextStyle(color: AppColors.greyText),
-              ),
-
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: _membersController,
-                enabled: !_isSaving,
-                minLines: 3,
-                maxLines: 8,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Member full names',
-                  alignLabelWithHint: true,
-                  hintText: 'Example Member One\nExample Member Two',
-                ),
-                validator: (_) {
-                  final names = _enteredMembers();
-
-                  if (names.any((name) => name.length > 100)) {
-                    return 'Each full name must be at most 100 characters.';
-                  }
-
-                  final size = int.tryParse(_sizeController.text.trim());
-
-                  if (size != null && size != names.length + 1) {
-                    return 'You listed ${names.length} other members plus 1 head. '
-                        'The names must match the household size.';
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                '1 household head + ${_enteredMembers().length} other members '
-                '= ${_enteredMembers().length + 1} people',
-                style: const TextStyle(color: AppColors.greyText),
-              ),
-
-              if (_formError != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _formError!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ],
-
-              const SizedBox(height: 20),
-
-              // Editing: Cancel on the left and Update on the right.
-              if (_editingHouseholdId != null)
-                _buildActionButtons(
-                  cancelLabel: 'Cancel Editing',
-                  actionLabel: _isSaving ? 'Saving...' : 'Update Household',
-                  onCancel: _isSaving || _isLoading ? null : _clearForm,
-                  onConfirm: _isSaving || _isLoading ? null : _saveHousehold,
-                )
-              else
-                // Creating: keep the single Register Household button.
-                ElevatedButton.icon(
-                  onPressed:
-                      _isSaving || _isLoading ? null : _saveHousehold,
-                  icon: const Icon(Icons.add_home_outlined),
-                  label: Text(
-                    _isSaving ? 'Saving...' : 'Register Household',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryGreen,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(0, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-            ],
+    Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            _editingHouseholdId == null
+                ? 'Register Household'
+                : 'Edit Household',
+            style: const TextStyle(
+              color: Color(0xFF263238),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-      );
+          const SizedBox(height: 6),
+          const Text(
+            'Enter the household head, location, and member details. '
+            'Household size includes the household head.',
+            style: TextStyle(color: AppColors.greyText, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth >= 650
+                  ? (constraints.maxWidth - 16) / 2
+                  : constraints.maxWidth;
+
+              final fields = <Widget>[
+                _textField(
+                  controller: _headController,
+                  label: 'Household head',
+                  icon: Icons.person_outline,
+                  maxLength: 100,
+                ),
+                _textField(
+                  controller: _barangayController,
+                  label: 'Barangay',
+                  icon: Icons.location_city_outlined,
+                  maxLength: 100,
+                ),
+                _textField(
+                  controller: _purokController,
+                  label: 'Purok (optional)',
+                  icon: Icons.place_outlined,
+                  maxLength: 100,
+                  optional: true,
+                ),
+                TextFormField(
+                  controller: _sizeController,
+                  enabled: !_isSaving,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Household size',
+                    prefixIcon: Icon(Icons.groups_outlined),
+                  ),
+                  validator: (value) {
+                    final size = int.tryParse(value?.trim() ?? '');
+
+                    if (size == null || size < 1 || size > 2147483647) {
+                      return 'Enter a valid whole number of at least 1.';
+                    }
+
+                    return null;
+                  },
+                ),
+              ];
+
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: fields
+                    .map((field) => SizedBox(width: width, child: field))
+                    .toList(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          _textField(
+            controller: _addressController,
+            label: 'Address',
+            icon: Icons.home_outlined,
+            maxLines: 2,
+          ),
+
+          const SizedBox(height: 20),
+
+          const Text(
+            'Household Members',
+            style: TextStyle(
+              color: Color(0xFF263238),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          const Text(
+            'Enter one full name per line. Do not repeat the household head. '
+            'For a one-person household, leave this blank.',
+            style: TextStyle(color: AppColors.greyText),
+          ),
+
+          const SizedBox(height: 12),
+
+          TextFormField(
+            controller: _membersController,
+            enabled: !_isSaving,
+            minLines: 3,
+            maxLines: 8,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Member full names',
+              alignLabelWithHint: true,
+              hintText: 'Example Member One\nExample Member Two',
+            ),
+            validator: (_) {
+              final names = _enteredMembers();
+
+              if (names.any((name) => name.length > 100)) {
+                return 'Each full name must be at most 100 characters.';
+              }
+
+              final size = int.tryParse(_sizeController.text.trim());
+
+              if (size != null && size != names.length + 1) {
+                return 'You listed ${names.length} other members plus 1 head. '
+                    'The names must match the household size.';
+              }
+
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            '1 household head + ${_enteredMembers().length} other members '
+            '= ${_enteredMembers().length + 1} people',
+            style: const TextStyle(color: AppColors.greyText),
+          ),
+
+          if (_formError != null) ...[
+            const SizedBox(height: 12),
+            Text(_formError!, style: const TextStyle(color: Colors.red)),
+          ],
+
+          const SizedBox(height: 20),
+
+          // Editing: Cancel on the left and Update on the right.
+          if (_editingHouseholdId != null)
+            _buildActionButtons(
+              cancelLabel: 'Cancel Editing',
+              actionLabel: _isSaving ? 'Saving...' : 'Update Household',
+              onCancel: _isSaving || _isLoading ? null : _clearForm,
+              onConfirm: _isSaving || _isLoading ? null : _saveHousehold,
+            )
+          else
+            // Creating: keep the single Register Household button.
+            ElevatedButton.icon(
+              onPressed: _isSaving || _isLoading ? null : _saveHousehold,
+              icon: const Icon(Icons.add_home_outlined),
+              label: Text(_isSaving ? 'Saving...' : 'Register Household'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 
   // ========================================
   // SEARCH AND HOUSEHOLD TABLE
@@ -884,10 +1007,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                     SizedBox(height: 6),
                     Text(
                       'Search, view, and manage registered household information.',
-                      style: TextStyle(
-                        color: AppColors.greyText,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: AppColors.greyText, fontSize: 13),
                     ),
                   ],
                 ),
@@ -915,22 +1035,20 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                   backgroundColor: const WidgetStatePropertyAll(
                     Colors.transparent,
                   ),
-                  overlayColor: WidgetStateProperty.resolveWith<Color?>(
-                    (states) {
-                      if (states.contains(WidgetState.hovered) ||
-                          states.contains(WidgetState.pressed)) {
-                        return AppColors.lightGreen;
-                      }
+                  overlayColor: WidgetStateProperty.resolveWith<Color?>((
+                    states,
+                  ) {
+                    if (states.contains(WidgetState.hovered) ||
+                        states.contains(WidgetState.pressed)) {
+                      return AppColors.lightGreen;
+                    }
 
-                      return Colors.transparent;
-                    },
-                  ),
+                    return Colors.transparent;
+                  }),
                   padding: const WidgetStatePropertyAll(
                     EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   ),
-                  minimumSize: const WidgetStatePropertyAll(
-                    Size(0, 40),
-                  ),
+                  minimumSize: const WidgetStatePropertyAll(Size(0, 40)),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: WidgetStatePropertyAll(
                     RoundedRectangleBorder(
@@ -962,15 +1080,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.all(24),
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: Center(child: CircularProgressIndicator()),
             )
           else if (_listError != null)
-            Text(
-              _listError!,
-              style: const TextStyle(color: Colors.red),
-            )
+            Text(_listError!, style: const TextStyle(color: Colors.red))
           else if (_households.isEmpty)
             const Text('No households registered yet.')
           else if (filtered.isEmpty)
@@ -987,9 +1100,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
               builder: (context, constraints) => SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth: constraints.maxWidth,
-                  ),
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
                     // Reduce spacing so the Actions column has more room.
                     columnSpacing: 12,
@@ -1021,18 +1132,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                     rows: filtered.map((household) {
                       return DataRow(
                         cells: [
-                          DataCell(
-                            Text('${household['household_id']}'),
-                          ),
-                          DataCell(
-                            Text('${household['household_head']}'),
-                          ),
-                          DataCell(
-                            Text('${household['barangay']}'),
-                          ),
-                          DataCell(
-                            Text('${household['purok'] ?? '—'}'),
-                          ),
+                          DataCell(Text('${household['household_id']}')),
+                          DataCell(Text('${household['household_head']}')),
+                          DataCell(Text('${household['barangay']}')),
+                          DataCell(Text('${household['purok'] ?? '—'}')),
                           DataCell(
                             Center(
                               child: Text('${household['household_size']}'),
@@ -1088,8 +1191,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                                       ),
                                       label: const Text('Edit'),
                                       style: TextButton.styleFrom(
-                                        foregroundColor:
-                                            AppColors.primaryGreen,
+                                        foregroundColor: AppColors.primaryGreen,
                                       ),
                                     ),
                                     TextButton.icon(
@@ -1102,8 +1204,9 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                                       ),
                                       label: const Text('Delete'),
                                       style: TextButton.styleFrom(
-                                        foregroundColor:
-                                            const Color(0xFFB71C1C),
+                                        foregroundColor: const Color(
+                                          0xFFB71C1C,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -1137,7 +1240,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
           description: widget.readOnly
               ? 'View registered household information and member records.'
               : 'Record household information for registration and future '
-                  'vulnerability assessment.',
+                    'vulnerability assessment.',
         ),
 
         // Show the registration form only in Staff mode.

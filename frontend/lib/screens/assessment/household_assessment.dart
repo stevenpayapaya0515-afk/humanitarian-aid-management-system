@@ -216,6 +216,55 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     );
   }
 
+  // ==========================================
+  // ASSESSMENT LOADING MODAL
+  // ==========================================
+
+  void _showSavingDialog() {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (dialogContext) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: AppColors.primaryGreen,
+                  strokeWidth: 3,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Saving Household Assessment...',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkText,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Please wait while the household assessment '
+                  'is saved to the database.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: AppColors.greyText),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _clearFormError() {
     _formError = null;
   }
@@ -409,6 +458,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       _formError = null;
     });
 
+    // Show the loading modal while saving.
+    _showSavingDialog();
+
     String feedbackTitle = '';
     String feedbackMessage = '';
     bool saveSucceeded = false;
@@ -481,6 +533,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       feedbackMessage = message;
     } finally {
       if (mounted) {
+        // Close the loading modal.
+        Navigator.of(context, rootNavigator: true).pop();
+
         setState(() {
           _isSaving = false;
         });
@@ -521,10 +576,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         highlightColor: AppColors.lightGreen.withValues(alpha: 0.45),
 
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -712,46 +764,104 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   // HOUSEHOLD SELECTOR
   // ==========================================
 
+  // ==========================================
+  // SEARCHABLE REGISTERED HOUSEHOLD SELECTOR
+  // ==========================================
+
   Widget _buildHouseholdSelector() {
-    return DropdownButtonFormField<int>(
-      initialValue: _selectedHousehold == null
-          ? null
-          : (_selectedHousehold!['household_id'] as num).toInt(),
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Select Registered Household',
-        prefixIcon: Icon(Icons.home_work_outlined),
-      ),
-      items: _households.map((household) {
-        final id = (household['household_id'] as num).toInt();
+    final selectedId = (_selectedHousehold?['household_id'] as num?)?.toInt();
 
-        return DropdownMenuItem<int>(
-          value: id,
-          child: Text(
-            'HH-$id | ${household['household_head']}',
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-      onChanged: _households.isEmpty
-          ? null
-          : (id) {
-              if (id == null) return;
+    return FormField<int>(
+      initialValue: selectedId,
 
-              final household = _households.firstWhere(
-                (item) => (item['household_id'] as num).toInt() == id,
-              );
-
-              setState(() {
-                _selectedHousehold = household;
-                _clearFormError();
-              });
-            },
       validator: (value) {
         if (value == null) {
           return 'Please select a registered household.';
         }
         return null;
+      },
+
+      builder: (field) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownMenu<int>(
+                  key: ValueKey(field.value),
+
+                  width: constraints.maxWidth,
+
+                  // Enable typing and filtering.
+                  enableFilter: true,
+                  enableSearch: true,
+                  requestFocusOnTap: true,
+
+                  // Keep the dropdown scrollable.
+                  menuHeight: 300,
+
+                  // Display the currently selected household.
+                  initialSelection: field.value,
+
+                  label: const Text('Select Registered Household'),
+
+                  hintText: 'Search by ID, household head, or barangay',
+
+                  leadingIcon: const Icon(Icons.home_work_outlined),
+
+                  trailingIcon: const Icon(Icons.arrow_drop_down),
+
+                  enabled: !_isLoading && !_isSaving && _households.isNotEmpty,
+
+                  // Populate using registered households from FastAPI.
+                  dropdownMenuEntries: _households.map((household) {
+                    final id = (household['household_id'] as num).toInt();
+
+                    final householdHead = '${household['household_head']}';
+
+                    final barangay = '${household['barangay']}';
+
+                    return DropdownMenuEntry<int>(
+                      value: id,
+                      label: 'HH-$id | $householdHead | $barangay',
+                    );
+                  }).toList(),
+
+                  // Update the selected household.
+                  onSelected: (id) {
+                    if (id == null) return;
+
+                    final household = _households.firstWhere(
+                      (item) => (item['household_id'] as num).toInt() == id,
+                    );
+
+                    field.didChange(id);
+
+                    setState(() {
+                      _selectedHousehold = household;
+                      _clearFormError();
+                    });
+                  },
+                ),
+
+                // Preserve form validation feedback.
+                if (field.hasError) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Text(
+                      field.errorText!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        );
       },
     );
   }

@@ -1,9 +1,15 @@
 import '../../services/auth_service.dart';
 import '../admin/admin_dashboard.dart';
 import '../staff/staff_dashboard.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../core/theme/app_theme.dart';
+
 import 'dart:async';
+
+import '../public/home_page_screen.dart';
+import '../public/about_page_screen.dart';
 
 // ========================================
 // LOGIN SCREEN
@@ -34,26 +40,24 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _loginError;
 
   // Timer for the live login-lock countdown.
-Timer? _lockTimer;
-DateTime? _lockEndsAt;
-int _remainingLockSeconds = 0;
+  Timer? _lockTimer;
+  DateTime? _lockEndsAt;
+  int _remainingLockSeconds = 0;
 
-// Start the countdown using the backend's remaining seconds.
-void _startLockCountdown(int seconds) {
-  _lockTimer?.cancel();
+  // Start the countdown using the backend's remaining seconds.
+  void _startLockCountdown(int seconds) {
+    _lockTimer?.cancel();
 
-  if (seconds <= 0) return;
+    if (seconds <= 0) return;
 
-  _lockEndsAt = DateTime.now().add(Duration(seconds: seconds));
+    _lockEndsAt = DateTime.now().add(Duration(seconds: seconds));
 
-  setState(() {
-    _remainingLockSeconds = seconds;
-    _loginError = null;
-  });
+    setState(() {
+      _remainingLockSeconds = seconds;
+      _loginError = null;
+    });
 
-  _lockTimer = Timer.periodic(
-    const Duration(seconds: 1),
-    (timer) {
+    _lockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -64,9 +68,7 @@ void _startLockCountdown(int seconds) {
           .difference(DateTime.now())
           .inMilliseconds;
 
-      final remaining = milliseconds > 0
-          ? (milliseconds / 1000).ceil()
-          : 0;
+      final remaining = milliseconds > 0 ? (milliseconds / 1000).ceil() : 0;
 
       setState(() {
         _remainingLockSeconds = remaining;
@@ -76,9 +78,8 @@ void _startLockCountdown(int seconds) {
         timer.cancel();
         _lockEndsAt = null;
       }
-    },
-  );
-}
+    });
+  }
 
   // Dispose controllers when leaving the screen
   @override
@@ -94,7 +95,6 @@ void _startLockCountdown(int seconds) {
   // ========================================
   // LOGIN VALIDATION
   // ========================================
-
 
   Future<void> _signIn() async {
     // Block both button clicks and Enter during the cooldown.
@@ -196,20 +196,14 @@ void _startLockCountdown(int seconds) {
     return Row(
       children: [
         // LEFT SIDE: Green branding panel
-        Expanded(
-          child: _buildBrandingPanel(),
-        ),
+        Expanded(child: _buildBrandingPanel()),
 
         // RIGHT SIDE: Login form and wave decoration
         Expanded(
           child: Stack(
             children: [
               // Top-right light green wave decoration
-              Positioned(
-                top: 0,
-                right: 0,
-                child: _buildTopDecoration(),
-              ),
+              Positioned(top: 0, right: 0, child: _buildTopDecoration()),
 
               // Center the complete login form
               Center(
@@ -221,9 +215,7 @@ void _startLockCountdown(int seconds) {
 
                   // Keep the login form at a readable width
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 420,
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 420),
 
                     // Display the login form
                     child: _buildLoginForm(),
@@ -234,6 +226,85 @@ void _startLockCountdown(int seconds) {
           ),
         ),
       ],
+    );
+  }
+
+  // ========================================
+  // PUBLIC NAVIGATION MENU
+  // ========================================
+
+  Widget _buildPublicMenu({bool isMobile = false}) {
+    return PopupMenuButton<String>(
+      tooltip: 'Open navigation menu',
+      enabled: !_isLoading,
+      offset: const Offset(0, 48),
+      color: AppColors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+      onSelected: (page) {
+        if (!mounted) return;
+
+        final Widget destination;
+
+        if (page == 'Home') {
+          destination = const HomePageScreen();
+        } else if (page == 'About') {
+          destination = const AboutPageScreen();
+        } else {
+          return;
+        }
+
+        Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => destination));
+      },
+
+      itemBuilder: (context) => const [
+        PopupMenuItem<String>(
+          value: 'Home',
+          child: Row(
+            children: [
+              Icon(
+                Icons.home_outlined,
+                color: AppColors.primaryGreen,
+                size: 20,
+              ),
+              SizedBox(width: 12),
+              Text('Home'),
+            ],
+          ),
+        ),
+
+        PopupMenuItem<String>(
+          value: 'About',
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: AppColors.primaryGreen, size: 20),
+              SizedBox(width: 12),
+              Text('About'),
+            ],
+          ),
+        ),
+      ],
+
+      // The three-line menu icon.
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: isMobile
+              ? AppColors.white
+              : Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isMobile ? AppColors.borderColor : Colors.white54,
+          ),
+        ),
+        child: Icon(
+          Icons.menu_rounded,
+          color: isMobile ? AppColors.primaryGreen : AppColors.white,
+          size: 27,
+        ),
+      ),
     );
   }
 
@@ -254,15 +325,10 @@ void _startLockCountdown(int seconds) {
           // BACKGROUND IMAGE
           // ========================================
 
-          // Fill the green panel with the helping-hands image
           Positioned.fill(
             child: Image.asset(
               'assets/images/left_panel_bg.png',
-
-              // Fill the panel without leaving empty spaces
               fit: BoxFit.cover,
-
-              // Keep the center of the image visible
               alignment: const Alignment(0.5, -0.5),
             ),
           ),
@@ -270,71 +336,56 @@ void _startLockCountdown(int seconds) {
           // ========================================
           // DARK IMAGE OVERLAY
           // ========================================
-
-          // Add a subtle green overlay for readable text
           Positioned.fill(
             child: Container(
-              color: AppColors.primaryGreen.withValues(
-                alpha: 0.10,
-              ),
+              color: AppColors.primaryGreen.withValues(alpha: 0.10),
             ),
           ),
 
           // ========================================
           // LEFT PANEL TEXT CONTENT
           // ========================================
-
           Padding(
             padding: const EdgeInsets.all(60),
 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
                 const Spacer(flex: 1),
-                
+
                 // ========================================
                 // MAIN SYSTEM TITLE
                 // ========================================
-            
-                // Display the system title at the center
                 Text.rich(
-                    const TextSpan(
-                      children: [
-                        // First part of the system title
-                        TextSpan(
-                          text: 'Humanitarian Aid\n'
-                              'Distribution\n'
-                              'Management\n',
-                          style: TextStyle(
-                            color: AppColors.white,
-                          ),
-                        ),
+                  const TextSpan(
+                    children: [
+                      TextSpan(
+                        text:
+                            'Humanitarian Aid\n'
+                            'Distribution\n'
+                            'Management\n',
+                        style: TextStyle(color: AppColors.white),
+                      ),
 
-                        // Highlight the last word in yellow
-                        TextSpan(
-                          text: 'System',
-                          style: TextStyle(
-                            color: AppColors.accentYellow,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Make the system title bigger and bold
-                    style: const TextStyle(
-                      fontSize: 46,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,  
-                    ),
-
-                    // Align the title text at the center
-                    textAlign: TextAlign.left,
+                      TextSpan(
+                        text: 'System',
+                        style: TextStyle(color: AppColors.accentYellow),
+                      ),
+                    ],
                   ),
+
+                  style: const TextStyle(
+                    fontSize: 46,
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
+                  ),
+
+                  textAlign: TextAlign.left,
+                ),
 
                 const Spacer(),
 
-                // Small yellow line above the tagline
+                // Yellow line above the tagline.
                 Container(
                   width: 36,
                   height: 4,
@@ -347,10 +398,8 @@ void _startLockCountdown(int seconds) {
 
                 const SizedBox(height: 20),
 
-                // Bottom tagline
                 const Text(
                   'People  •  Data  •  Better Tomorrow',
-
                   style: TextStyle(
                     color: AppColors.white,
                     fontSize: 13,
@@ -362,6 +411,11 @@ void _startLockCountdown(int seconds) {
               ],
             ),
           ),
+
+          // ========================================
+          // HAMBURGER MENU - TOP LEFT
+          // ========================================
+          Positioned(top: 24, left: 24, child: _buildPublicMenu()),
         ],
       ),
     );
@@ -381,11 +435,7 @@ void _startLockCountdown(int seconds) {
       child: Stack(
         children: [
           // Draw the light green curved wave background
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _TopWavePainter(),
-            ),
-          ),
+          Positioned.fill(child: CustomPaint(painter: _TopWavePainter())),
 
           // Display the heading on top of the wave
           Positioned(
@@ -449,9 +499,7 @@ void _startLockCountdown(int seconds) {
             right: 0,
             height: 190,
             child: IgnorePointer(
-              child: CustomPaint(
-                painter: _MobileBottomWavePainter(),
-              ),
+              child: CustomPaint(painter: _MobileBottomWavePainter()),
             ),
           ),
 
@@ -466,9 +514,7 @@ void _startLockCountdown(int seconds) {
             width: 185,
             height: 95,
             child: IgnorePointer(
-              child: CustomPaint(
-                painter: _TopWavePainter(),
-              ),
+              child: CustomPaint(painter: _TopWavePainter()),
             ),
           ),
 
@@ -479,29 +525,32 @@ void _startLockCountdown(int seconds) {
           // Allow the form and footer to scroll together
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                24,
-                30,
-                24,
-                40,
-              ),
+              padding: const EdgeInsets.fromLTRB(24, 85, 24, 40),
 
               // Keep the form at a readable width
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 420,
-                  ),
+                  constraints: const BoxConstraints(maxWidth: 420),
                   child: _buildLoginForm(isMobile: true),
                 ),
               ),
             ),
           ),
+
+          // ========================================
+          // MOBILE PUBLIC HAMBURGER MENU
+          // ========================================
+
+          // Keep this LAST so it appears above the login form.
+          Positioned(
+            top: 12,
+            left: 12,
+            child: _buildPublicMenu(isMobile: true),
+          ),
         ],
       ),
     );
   }
-
 
   // ========================================
   // LOGIN FORM
@@ -528,15 +577,13 @@ void _startLockCountdown(int seconds) {
               width: isMobile ? 185 : 170,
             ),
           ),
-          
+
           // Add spacing between the logo and Welcome Back heading
           SizedBox(height: isMobile ? 38 : 22),
-
 
           // ========================================
           // WELCOME MESSAGE
           // ========================================
-
           const Text(
             'Welcome Back',
 
@@ -552,10 +599,7 @@ void _startLockCountdown(int seconds) {
           const Text(
             'Sign in to access your account.',
 
-            style: TextStyle(
-              color: AppColors.greyText,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppColors.greyText, fontSize: 14),
           ),
 
           const SizedBox(height: 20),
@@ -563,7 +607,6 @@ void _startLockCountdown(int seconds) {
           // ========================================
           // EMAIL FIELD
           // ========================================
-
           TextFormField(
             controller: _emailController,
             textInputAction: TextInputAction.next,
@@ -583,9 +626,8 @@ void _startLockCountdown(int seconds) {
                 return 'Please enter your email.';
               }
 
-              if (!RegExp(
-                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-              ).hasMatch(value.trim())) {
+              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                  .hasMatch(value.trim())) {
                 return 'Please enter a valid email.';
               }
 
@@ -598,7 +640,6 @@ void _startLockCountdown(int seconds) {
           // ========================================
           // PASSWORD FIELD
           // ========================================
-
           TextFormField(
             controller: _passwordController,
             textInputAction: TextInputAction.done,
@@ -612,9 +653,7 @@ void _startLockCountdown(int seconds) {
             decoration: InputDecoration(
               hintText: 'Enter your password',
 
-              prefixIcon: const Icon(
-                Icons.lock_outline,
-              ),
+              prefixIcon: const Icon(Icons.lock_outline),
 
               // Password visibility button
               suffixIcon: IconButton(
@@ -662,10 +701,7 @@ void _startLockCountdown(int seconds) {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 _loginError!,
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.red, fontSize: 12),
               ),
             ),
 
@@ -674,19 +710,13 @@ void _startLockCountdown(int seconds) {
           // ========================================
           // SIGN IN BUTTON
           // ========================================
-
           ElevatedButton(
             // Disable Sign In while loading or temporarily locked.
-            onPressed: _isLoading || _remainingLockSeconds > 0
-                ? null
-                : _signIn,
+            onPressed: _isLoading || _remainingLockSeconds > 0 ? null : _signIn,
 
             child: Text(
               _isLoading ? 'Signing in...' : 'Sign In',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
 
@@ -695,7 +725,6 @@ void _startLockCountdown(int seconds) {
           // ========================================
           // ADMINISTRATOR INFORMATION
           // ========================================
-
           const Center(
             child: Text.rich(
               TextSpan(
@@ -703,9 +732,7 @@ void _startLockCountdown(int seconds) {
                   TextSpan(
                     text: "Don't have an account? ",
 
-                    style: TextStyle(
-                      color: AppColors.greyText,
-                    ),
+                    style: TextStyle(color: AppColors.greyText),
                   ),
 
                   TextSpan(
@@ -764,10 +791,7 @@ void _startLockCountdown(int seconds) {
               child: Text(
                 'For authorized LGU personnel only.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.greyText,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.greyText, fontSize: 12),
               ),
             ),
           ],
@@ -821,20 +845,15 @@ void _startLockCountdown(int seconds) {
               child: Text(
                 'For authorized LGU personnel only.',
 
-                style: TextStyle(
-                  color: AppColors.greyText,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.greyText, fontSize: 12),
               ),
             ),
           ],
-
-        ], 
-      ), 
-    ); 
-  } 
-} 
-
+        ],
+      ),
+    );
+  }
+}
 
 // ========================================
 // CUSTOM TOP-RIGHT WAVE DESIGN
@@ -844,21 +863,18 @@ void _startLockCountdown(int seconds) {
 class _TopWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-
     // ========================================
     // FIRST WAVE: LIGHT GREEN
     // ========================================
 
     // Set the main wave color
-    final lightGreenPaint = Paint()
-      ..color = const Color(0xFFF1F8F3);
+    final lightGreenPaint = Paint()..color = const Color(0xFFF1F8F3);
 
     // Create the main curved wave
     final mainWave = Path()
       ..moveTo(size.width * 0.25, 0)
       ..lineTo(size.width, 0)
       ..lineTo(size.width, size.height)
-
       ..cubicTo(
         size.width * 0.65,
         size.height * 0.90,
@@ -878,16 +894,13 @@ class _TopWavePainter extends CustomPainter {
 
     // Set the second wave color
     final secondWavePaint = Paint()
-      ..color = const Color(0xFFDDECE2).withValues(
-        alpha: 0.65,
-      );
+      ..color = const Color(0xFFDDECE2).withValues(alpha: 0.65);
 
     // Create the second curved wave
     final secondWave = Path()
       ..moveTo(size.width * 0.65, 0)
       ..lineTo(size.width, 0)
       ..lineTo(size.width, size.height * 0.80)
-
       ..cubicTo(
         size.width * 0.90,
         size.height * 0.70,
@@ -909,29 +922,24 @@ class _TopWavePainter extends CustomPainter {
   }
 }
 
-
 // ========================================
 // CUSTOM MOBILE BOTTOM WAVE DESIGN
 // ========================================
 
 // Draw the overlapping green waves behind the mobile LGU footer
 class _MobileBottomWavePainter extends CustomPainter {
-
   @override
   void paint(Canvas canvas, Size size) {
-
     // ========================================
     // FIRST WAVE: LIGHT GREEN BACKGROUND
     // ========================================
 
     // Set the first wave color
-    final firstWavePaint = Paint()
-      ..color = const Color(0xFFF1F8F3);
+    final firstWavePaint = Paint()..color = const Color(0xFFF1F8F3);
 
     // Create the first smooth wave
     final firstWave = Path()
       ..moveTo(0, size.height * 0.30)
-
       ..cubicTo(
         size.width * 0.25,
         size.height * 0.10,
@@ -940,7 +948,6 @@ class _MobileBottomWavePainter extends CustomPainter {
         size.width,
         size.height * 0.25,
       )
-
       // Fill the area below the wave
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
@@ -954,13 +961,11 @@ class _MobileBottomWavePainter extends CustomPainter {
     // ========================================
 
     // Set the second wave color
-    final secondWavePaint = Paint()
-      ..color = const Color(0xFFDDEEE2);
+    final secondWavePaint = Paint()..color = const Color(0xFFDDEEE2);
 
     // Create the second smooth wave
     final secondWave = Path()
       ..moveTo(0, size.height * 0.55)
-
       ..cubicTo(
         size.width * 0.30,
         size.height * 0.30,
@@ -969,7 +974,6 @@ class _MobileBottomWavePainter extends CustomPainter {
         size.width,
         size.height * 0.50,
       )
-
       // Fill the area below the wave
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
@@ -983,13 +987,11 @@ class _MobileBottomWavePainter extends CustomPainter {
     // ========================================
 
     // Set the third wave color
-    final thirdWavePaint = Paint()
-      ..color = const Color(0xFFEAF5EC);
+    final thirdWavePaint = Paint()..color = const Color(0xFFEAF5EC);
 
     // Create the third wave at the bottom
     final thirdWave = Path()
       ..moveTo(0, size.height * 0.80)
-
       ..cubicTo(
         size.width * 0.35,
         size.height * 0.55,
@@ -998,7 +1000,6 @@ class _MobileBottomWavePainter extends CustomPainter {
         size.width,
         size.height * 0.75,
       )
-
       // Fill the bottom area
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)

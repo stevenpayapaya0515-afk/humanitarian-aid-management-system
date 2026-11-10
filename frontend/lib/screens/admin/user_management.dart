@@ -41,18 +41,13 @@ class _UserManagementState extends State<UserManagement> {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF175C3A),
-                    side: const BorderSide(
-                      color: Color(0xFF175C3A),
-                    ),
+                    side: const BorderSide(color: Color(0xFF175C3A)),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: Text(
-                    cancelLabel,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(cancelLabel, textAlign: TextAlign.center),
                 ),
               ),
             ),
@@ -74,10 +69,7 @@ class _UserManagementState extends State<UserManagement> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: Text(
-                    actionLabel,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(actionLabel, textAlign: TextAlign.center),
                 ),
               ),
             ),
@@ -86,6 +78,7 @@ class _UserManagementState extends State<UserManagement> {
       ),
     );
   }
+
   // Form validation and input controllers
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -133,9 +126,7 @@ class _UserManagementState extends State<UserManagement> {
     final token = AuthService.accessToken;
 
     if (token == null || token.isEmpty) {
-      throw const AuthException(
-        'Please log out and log in again.',
-      );
+      throw const AuthException('Please log out and log in again.');
     }
 
     return {
@@ -149,10 +140,7 @@ class _UserManagementState extends State<UserManagement> {
   // Convert errors into readable messages.
   // ========================================
 
-  void _checkResponse(
-    http.Response response,
-    int expectedCode,
-  ) {
+  void _checkResponse(http.Response response, int expectedCode) {
     if (response.statusCode == expectedCode) return;
 
     if (response.statusCode == 401) {
@@ -162,17 +150,15 @@ class _UserManagementState extends State<UserManagement> {
     }
 
     if (response.statusCode == 403) {
-      throw const AuthException(
-        'Only administrators can access this feature.',
-      );
+      throw const AuthException('Only administrators can access this feature.');
     }
-  
+
     // Use the backend's specific message for these errors.
     if (response.statusCode == 404 || response.statusCode == 409) {
-       final data = jsonDecode(response.body);
-        
-        throw AuthException(
-          data['detail'] as String? ?? 'Refresh and try again.',
+      final data = jsonDecode(response.body);
+
+      throw AuthException(
+        data['detail'] as String? ?? 'Refresh and try again.',
       );
     }
 
@@ -183,9 +169,7 @@ class _UserManagementState extends State<UserManagement> {
       );
     }
 
-    throw const AuthException(
-      'The server could not complete the request.',
-    );
+    throw const AuthException('The server could not complete the request.');
   }
 
   // ========================================
@@ -203,10 +187,9 @@ class _UserManagementState extends State<UserManagement> {
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('${AuthService.baseUrl}/users'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(Uri.parse('${AuthService.baseUrl}/users'), headers: _headers())
+          .timeout(const Duration(seconds: 15));
 
       _checkResponse(response, 200);
 
@@ -277,11 +260,7 @@ class _UserManagementState extends State<UserManagement> {
           title: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.check_circle,
-                color: Color(0xFF175C3A),
-                size: 60,
-              ),
+              Icon(Icons.check_circle, color: Color(0xFF175C3A), size: 60),
               SizedBox(height: 16),
               Text(
                 'Account Created!',
@@ -334,7 +313,7 @@ class _UserManagementState extends State<UserManagement> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-             title: const Text(
+          title: const Text(
             'Delete Staff Account?',
             textAlign: TextAlign.center,
           ),
@@ -357,7 +336,7 @@ class _UserManagementState extends State<UserManagement> {
         );
       },
     );
-    
+
     if (!mounted || confirmed != true) return;
     if (_updatingUserId != null || _saving || _loading) return;
 
@@ -367,10 +346,12 @@ class _UserManagementState extends State<UserManagement> {
     });
 
     try {
-      final response = await http.delete(
-        Uri.parse('${AuthService.baseUrl}/users/$userId'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .delete(
+            Uri.parse('${AuthService.baseUrl}/users/$userId'),
+            headers: _headers(),
+          )
+          .timeout(const Duration(seconds: 15));
 
       _checkResponse(response, 200);
 
@@ -449,13 +430,13 @@ class _UserManagementState extends State<UserManagement> {
     });
 
     try {
-      final response = await http.patch(
-        Uri.parse('${AuthService.baseUrl}/users/$userId/status'),
-        headers: _headers(),
-        body: jsonEncode({
-          'is_active': !currentlyActive,
-        }),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .patch(
+            Uri.parse('${AuthService.baseUrl}/users/$userId/status'),
+            headers: _headers(),
+            body: jsonEncode({'is_active': !currentlyActive}),
+          )
+          .timeout(const Duration(seconds: 15));
 
       _checkResponse(response, 200);
 
@@ -492,7 +473,6 @@ class _UserManagementState extends State<UserManagement> {
   // ========================================
 
   Future<void> _createStaff() async {
-    
     // Prevent repeated clicks while saving.
     if (_saving) return;
 
@@ -505,15 +485,17 @@ class _UserManagementState extends State<UserManagement> {
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('${AuthService.baseUrl}/users'),
-        headers: _headers(),
-        body: jsonEncode({
-          'full_name': _nameController.text.trim(),
-          'email': _emailController.text.trim().toLowerCase(),
-          'password': _passwordController.text,
-        }),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            Uri.parse('${AuthService.baseUrl}/users'),
+            headers: _headers(),
+            body: jsonEncode({
+              'full_name': _nameController.text.trim(),
+              'email': _emailController.text.trim().toLowerCase(),
+              'password': _passwordController.text,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
       // Continue only if the backend created the account.
       _checkResponse(response, 201);
@@ -563,8 +545,7 @@ class _UserManagementState extends State<UserManagement> {
       if (!mounted) return;
 
       setState(() {
-        _formError =
-            'Could not confirm the result. Refresh the account list.';
+        _formError = 'Could not confirm the result. Refresh the account list.';
       });
     } finally {
       if (mounted) {
@@ -608,15 +589,10 @@ class _UserManagementState extends State<UserManagement> {
                 children: [
                   const Text(
                     'Add Staff Account',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'New accounts created here have the Staff role.',
-                  ),
+                  const Text('New accounts created here have the Staff role.'),
                   const SizedBox(height: 20),
 
                   // Full name input
@@ -679,7 +655,8 @@ class _UserManagementState extends State<UserManagement> {
 
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      helperText: '• 12 to 64 characters\n'
+                      helperText:
+                          '• 12 to 64 characters\n'
                           '• At least 1 uppercase letter (A–Z)\n'
                           '• At least 1 lowercase letter (a–z)\n'
                           '• At least 1 number (0–9)\n'
@@ -708,8 +685,8 @@ class _UserManagementState extends State<UserManagement> {
                         return 'Use at least 12 characters.';
                       }
 
-                      if (value.length > 1024) {
-                        return 'Use no more than 1024 characters.';
+                      if (value.length > 64) {
+                        return 'Use no more than 64 characters.';
                       }
 
                       return null;
@@ -721,9 +698,7 @@ class _UserManagementState extends State<UserManagement> {
                     const SizedBox(height: 12),
                     Text(
                       _formError!,
-                      style: const TextStyle(
-                        color: Colors.red,
-                      ),
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ],
 
@@ -748,7 +723,6 @@ class _UserManagementState extends State<UserManagement> {
         // ========================================
         // USER ACCOUNTS LIST
         // ========================================
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -795,16 +769,9 @@ class _UserManagementState extends State<UserManagement> {
 
                 // Display loading, error, empty state, or table.
                 if (_loading)
-                  const Center(
-                    child: CircularProgressIndicator(),
-                  )
+                  const Center(child: CircularProgressIndicator())
                 else if (_listError != null)
-                  Text(
-                    _listError!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                    ),
-                  )
+                  Text(_listError!, style: const TextStyle(color: Colors.red))
                 else if (filteredUsers.isEmpty)
                   Text(
                     _users.isEmpty
@@ -834,15 +801,9 @@ class _UserManagementState extends State<UserManagement> {
 
                               return DataRow(
                                 cells: [
-                                  DataCell(
-                                    Text(user['full_name'] as String),
-                                  ),
-                                  DataCell(
-                                    Text(user['email'] as String),
-                                  ),
-                                  DataCell(
-                                    Text(user['role'] as String),
-                                  ),
+                                  DataCell(Text(user['full_name'] as String)),
+                                  DataCell(Text(user['email'] as String)),
+                                  DataCell(Text(user['role'] as String)),
                                   DataCell(
                                     Text(
                                       active ? 'Active' : 'Inactive',
@@ -853,7 +814,7 @@ class _UserManagementState extends State<UserManagement> {
                                       ),
                                     ),
                                   ),
-                                
+
                                   // Staff accounts have status and delete actions.
                                   DataCell(
                                     user['role'] == 'Staff'
@@ -870,19 +831,27 @@ class _UserManagementState extends State<UserManagement> {
                                                       ? const Color(0xFFFFEBEE)
                                                       : const Color(0xFFE8F5E9),
                                                   shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(10),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
                                                   ),
                                                 ),
                                                 onPressed:
-                                                    _updatingUserId != null || _saving || _loading
-                                                        ? null
-                                                        : () => _changeUserStatus(user),
+                                                    _updatingUserId != null ||
+                                                        _saving ||
+                                                        _loading
+                                                    ? null
+                                                    : () => _changeUserStatus(
+                                                        user,
+                                                      ),
                                                 child: Text(
-                                                  _updatingUserId == user['user_id']
+                                                  _updatingUserId ==
+                                                          user['user_id']
                                                       ? 'Updating...'
                                                       : active
-                                                          ? 'Deactivate'
-                                                          : 'Activate',
+                                                      ? 'Deactivate'
+                                                      : 'Activate',
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
@@ -890,12 +859,16 @@ class _UserManagementState extends State<UserManagement> {
                                               // Permanently delete this Staff account.
                                               TextButton.icon(
                                                 style: TextButton.styleFrom(
-                                                  foregroundColor: const Color(0xFFB71C1C),
+                                                  foregroundColor: const Color(
+                                                    0xFFB71C1C,
+                                                  ),
                                                 ),
                                                 onPressed:
-                                                    _updatingUserId != null || _saving || _loading
-                                                        ? null
-                                                        : () => _deleteStaff(user),
+                                                    _updatingUserId != null ||
+                                                        _saving ||
+                                                        _loading
+                                                    ? null
+                                                    : () => _deleteStaff(user),
                                                 icon: const Icon(
                                                   Icons.delete_outline,
                                                   size: 18,
