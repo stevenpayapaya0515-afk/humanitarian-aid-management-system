@@ -306,22 +306,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ? AppBar(
                   backgroundColor: AppColors.white,
                   foregroundColor: AppColors.primaryGreen,
+                  leadingWidth: 52,
+                  titleSpacing: 0,
 
-                  title: const Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Aid',
-                          style: TextStyle(color: AppColors.primaryGreen),
-                        ),
-                        TextSpan(
-                          text: 'Track',
-                          style: TextStyle(color: AppColors.accentYellow),
-                        ),
-                      ],
-                    ),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/aidtrack_symbol.png',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
+                      ),
 
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                      const SizedBox(width: 8),
+
+                      const Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Aid',
+                              style: TextStyle(color: AppColors.primaryGreen),
+                            ),
+                            TextSpan(
+                              text: 'Track',
+                              style: TextStyle(color: AppColors.accentYellow),
+                            ),
+                          ],
+                        ),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : null,
