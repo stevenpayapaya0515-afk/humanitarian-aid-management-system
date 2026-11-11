@@ -1,0 +1,5 @@
+# Gmail API OAuth delivery only. Existing backend requirements remain intact.
+google-api-python-client>=2,<3
+google-auth>=2,<3
+google-auth-httplib2>=0.2,<1
+google-auth-oauthlib>=1,<2

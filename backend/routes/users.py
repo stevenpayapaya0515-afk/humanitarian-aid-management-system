@@ -139,44 +139,11 @@ def list_users():
     return users
 
 
-# Create a Staff account
-@router.post("", response_model=UserListResponse, status_code=201)
-def create_staff(data: StaffCreate):
-    error = password_error(
-        data.password,
-        data.full_name,
-        data.email,
+# Legacy direct creation is disabled: Staff now registers only via an Admin invitation.
+# Keep this endpoint temporarily to return a helpful error to older Flutter clients.
+@router.post("")
+def create_staff_disabled():
+    raise HTTPException(
+        status_code=410,
+        detail="Staff accounts must be registered using an Admin invitation link.",
     )
-
-    if error is not None:
-        raise HTTPException(status_code=400, detail=error)
-
-    hashed_password = hash_password(data.password)
-
-    try:
-        with get_connection() as connection:
-            with connection.cursor(row_factory=dict_row) as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO public.users
-                        (full_name, email, password_hash, role)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING user_id, full_name, email, role,
-                              is_active, created_at;
-                    """,
-                    (
-                        data.full_name,
-                        data.email,
-                        hashed_password,
-                        "Staff",
-                    ),
-                )
-                new_user = cursor.fetchone()
-
-    except UniqueViolation:
-        raise HTTPException(
-            status_code=409,
-            detail="Email already exists.",
-        )
-
-    return new_user

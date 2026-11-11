@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.auth import router as auth_router
 from routes.users import router as users_router
+from routes.staff_invitations import router as staff_invitations_router
 from routes.households import router as households_router
 from routes.dashboard import router as dashboard_router
 from routes.assessments import router as assessments_router
@@ -32,6 +33,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(staff_invitations_router)
 app.include_router(households_router)
 app.include_router(dashboard_router)
 app.include_router(assessments_router)

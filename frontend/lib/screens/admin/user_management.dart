@@ -8,7 +8,8 @@ import '../../services/auth_service.dart';
 
 // ========================================
 // USER MANAGEMENT
-// Admin can view accounts and create Staff.
+// Admin invites Staff by email.
+// Admin can manage registered accounts.
 // ========================================
 
 class UserManagement extends StatefulWidget {
@@ -19,83 +20,15 @@ class UserManagement extends StatefulWidget {
 }
 
 class _UserManagementState extends State<UserManagement> {
-  // Display Cancel and the action beside each other.
-  Widget _buildActionButtons({
-    String cancelLabel = 'Cancel',
-    required String actionLabel,
-    required VoidCallback? onCancel,
-    required VoidCallback? onConfirm,
-    Color actionColor = const Color(0xFF175C3A),
-  }) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Row(
-          children: [
-            // LEFT: White Cancel button with green border.
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: onCancel,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF175C3A),
-                    side: const BorderSide(color: Color(0xFF175C3A)),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(cancelLabel, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            // RIGHT: Solid-colored action button.
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: onConfirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: actionColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(actionLabel, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Form validation and input controllers
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
 
-  // Accounts received from the backend
   List<Map<String, dynamic>> _users = [];
 
-  // Loading and password visibility
   bool _loading = true;
   bool _saving = false;
-  // Account currently being activated or deactivated
   int? _updatingUserId;
-  bool _hidePassword = true;
 
-  // Search text and error messages
   String _searchText = '';
   String? _listError;
   String? _formError;
@@ -103,23 +36,17 @@ class _UserManagementState extends State<UserManagement> {
   @override
   void initState() {
     super.initState();
-
-    // Load accounts when this page opens.
     _loadUsers();
   }
 
   @override
   void dispose() {
-    // Release the input controllers when leaving the page.
-    _nameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
   // ========================================
   // REQUEST HEADERS
-  // Attach the logged-in user's token.
   // ========================================
 
   Map<String, String> _headers() {
@@ -136,8 +63,7 @@ class _UserManagementState extends State<UserManagement> {
   }
 
   // ========================================
-  // BACKEND RESPONSE CHECKING
-  // Convert errors into readable messages.
+  // BACKEND RESPONSE HANDLING
   // ========================================
 
   void _checkResponse(http.Response response, int expectedCode) {
@@ -153,20 +79,20 @@ class _UserManagementState extends State<UserManagement> {
       throw const AuthException('Only administrators can access this feature.');
     }
 
-    // Use the backend's specific message for these errors.
-    if (response.statusCode == 404 || response.statusCode == 409) {
-      final data = jsonDecode(response.body);
-
-      throw AuthException(
-        data['detail'] as String? ?? 'Refresh and try again.',
-      );
+    if (response.statusCode == 422) {
+      throw const AuthException('Check the Staff email address and try again.');
     }
 
-    if (response.statusCode == 422) {
-      throw const AuthException(
-        'Check your name, email, and password. '
-        'The password must contain at least 12 characters.',
-      );
+    if ([400, 404, 409, 410, 429, 503].contains(response.statusCode)) {
+      try {
+        final data = jsonDecode(response.body);
+
+        if (data is Map && data['detail'] is String) {
+          throw AuthException(data['detail'] as String);
+        }
+      } on FormatException {
+        // Non-JSON response gets a generic error.
+      }
     }
 
     throw const AuthException('The server could not complete the request.');
@@ -174,8 +100,6 @@ class _UserManagementState extends State<UserManagement> {
 
   // ========================================
   // LOAD USER ACCOUNTS
-  // This function only loads the account list.
-  // It does not display a success popup.
   // ========================================
 
   Future<void> _loadUsers() async {
@@ -193,7 +117,6 @@ class _UserManagementState extends State<UserManagement> {
 
       _checkResponse(response, 200);
 
-      // Convert the JSON list into Dart maps.
       final data = jsonDecode(response.body) as List;
 
       final users = data
@@ -206,29 +129,29 @@ class _UserManagementState extends State<UserManagement> {
         _users = users;
       });
     } on AuthException catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        _listError = error.message;
-      });
+      if (mounted) {
+        setState(() {
+          _listError = error.message;
+        });
+      }
     } on TimeoutException {
-      if (!mounted) return;
-
-      setState(() {
-        _listError = 'Loading timed out. Try Refresh.';
-      });
+      if (mounted) {
+        setState(() {
+          _listError = 'Loading timed out. Try Refresh.';
+        });
+      }
     } on http.ClientException {
-      if (!mounted) return;
-
-      setState(() {
-        _listError = 'Cannot connect to the server.';
-      });
+      if (mounted) {
+        setState(() {
+          _listError = 'Cannot connect to the server.';
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _listError = 'Could not load the accounts.';
-      });
+      if (mounted) {
+        setState(() {
+          _listError = 'Could not load the accounts.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -239,8 +162,64 @@ class _UserManagementState extends State<UserManagement> {
   }
 
   // ========================================
-  // CENTERED SUCCESS POPUP
-  // Called only after successful creation.
+  // CONFIRMATION BUTTONS
+  // ========================================
+
+  Widget _buildActionButtons({
+    required String actionLabel,
+    required VoidCallback? onCancel,
+    required VoidCallback? onConfirm,
+    Color actionColor = const Color(0xFF175C3A),
+  }) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF175C3A),
+                    side: const BorderSide(color: Color(0xFF175C3A)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: onConfirm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: actionColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(actionLabel, textAlign: TextAlign.center),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ========================================
+  // INVITATION SUCCESS POPUP
   // ========================================
 
   Future<void> _showSuccessDialog() async {
@@ -249,146 +228,123 @@ class _UserManagementState extends State<UserManagement> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-
-          // Green check icon and heading
-          title: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle, color: Color(0xFF175C3A), size: 60),
-              SizedBox(height: 16),
-              Text(
-                'Account Created!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF175C3A),
-                ),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, color: Color(0xFF175C3A), size: 60),
+            SizedBox(height: 16),
+            Text(
+              'Invitation Sent!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF175C3A),
               ),
-            ],
-          ),
-
-          // Success message
-          content: const Text(
-            'The Staff account was created successfully.',
-            textAlign: TextAlign.center,
-          ),
-
-          // Close the popup
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('OK'),
             ),
           ],
-        );
-      },
+        ),
+        content: const Text(
+          'A registration invitation was sent to the Staff email. '
+          'The account will appear in User Management after registration.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
   // ========================================
-  // DELETE STAFF ACCOUNT
-  // Confirm before permanently deleting.
+  // INVITE STAFF MEMBER
+  // No Admin-created Staff password.
   // ========================================
 
-  Future<void> _deleteStaff(Map<String, dynamic> user) async {
-    if (_updatingUserId != null || _saving || _loading) return;
+  Future<void> _inviteStaff() async {
+    if (_saving) return;
 
-    final userId = user['user_id'] as int;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Delete Staff Account?',
-            textAlign: TextAlign.center,
-          ),
-          content: Text(
-            'Permanently delete ${user['full_name']} '
-            '(${user['email']})?\n\n'
-            'This cannot be undone.',
-            textAlign: TextAlign.center,
-          ),
-
-          // Cancel on the left; Delete on the right.
-          actions: [
-            _buildActionButtons(
-              actionLabel: 'Delete Permanently',
-              actionColor: const Color(0xFFB71C1C),
-              onCancel: () => Navigator.of(dialogContext).pop(false),
-              onConfirm: () => Navigator.of(dialogContext).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted || confirmed != true) return;
-    if (_updatingUserId != null || _saving || _loading) return;
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _updatingUserId = userId;
-      _listError = null;
+      _saving = true;
+      _formError = null;
     });
 
     try {
       final response = await http
-          .delete(
-            Uri.parse('${AuthService.baseUrl}/users/$userId'),
+          .post(
+            Uri.parse('${AuthService.baseUrl}/staff-invitations'),
             headers: _headers(),
+            body: jsonEncode({
+              'email': _emailController.text.trim().toLowerCase(),
+            }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 20));
 
-      _checkResponse(response, 200);
+      _checkResponse(response, 201);
 
       if (!mounted) return;
 
-      // Refresh the table after deletion.
-      await _loadUsers();
+      _formKey.currentState!.reset();
+      _emailController.clear();
+
+      await _showSuccessDialog();
+
+      if (mounted) {
+        await _loadUsers();
+      }
     } on AuthException catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        _listError = error.message;
-      });
+      if (mounted) {
+        setState(() {
+          _formError = error.message;
+        });
+      }
+    } on TimeoutException {
+      if (mounted) {
+        setState(() {
+          _formError = 'Request timed out. Check the invitation status before resending.';
+        });
+      }
+    } on http.ClientException {
+      if (mounted) {
+        setState(() {
+          _formError = 'Cannot connect to the server.';
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _listError =
-            'Could not confirm deletion. '
-            'Refresh the account list before retrying.';
-      });
+      if (mounted) {
+        setState(() {
+          _formError =
+              'Could not confirm the invitation. Please check the server.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
-          _updatingUserId = null;
+          _saving = false;
         });
       }
     }
   }
 
   // ========================================
-  // ACTIVATE OR DEACTIVATE STAFF
-  // Ask for confirmation before changing status.
+  // ACTIVATE / DEACTIVATE STAFF
   // ========================================
 
   Future<void> _changeUserStatus(Map<String, dynamic> user) async {
-    if (_updatingUserId != null) return;
+    if (_updatingUserId != null || _saving || _loading) {
+      return;
+    }
 
     final userId = user['user_id'] as int;
     final currentlyActive = user['is_active'] == true;
@@ -396,33 +352,32 @@ class _UserManagementState extends State<UserManagement> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('$action Staff Account?'),
+        content: Text(
+          currentlyActive
+              ? '${user['full_name']} will lose access to the system.'
+              : '${user['full_name']} will be allowed to log in again.',
+        ),
+        actions: [
+          _buildActionButtons(
+            actionLabel: action,
+            actionColor: currentlyActive
+                ? const Color(0xFFB71C1C)
+                : const Color(0xFF175C3A),
+            onCancel: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            onConfirm: () {
+              Navigator.of(dialogContext).pop(true);
+            },
           ),
-          title: Text('$action Staff Account?'),
-          content: Text(
-            currentlyActive
-                ? '${user['full_name']} will lose access to the system.'
-                : '${user['full_name']} will be allowed to log in again.',
-          ),
-          actions: [
-            _buildActionButtons(
-              actionLabel: action,
-              actionColor: currentlyActive
-                  ? const Color(0xFFB71C1C)
-                  : const Color(0xFF175C3A),
-              onCancel: () => Navigator.of(dialogContext).pop(false),
-              onConfirm: () => Navigator.of(dialogContext).pop(true),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
 
     if (!mounted || confirmed != true) return;
-    if (_updatingUserId != null) return;
 
     setState(() {
       _updatingUserId = userId;
@@ -440,24 +395,21 @@ class _UserManagementState extends State<UserManagement> {
 
       _checkResponse(response, 200);
 
-      if (!mounted) return;
-
-      // Reload the table to show the updated status.
-      await _loadUsers();
+      if (mounted) {
+        await _loadUsers();
+      }
     } on AuthException catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        _listError = error.message;
-      });
+      if (mounted) {
+        setState(() {
+          _listError = error.message;
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _listError =
-            'Could not confirm the status change. '
-            'Refresh the account list before retrying.';
-      });
+      if (mounted) {
+        setState(() {
+          _listError = 'Could not confirm the status change. Refresh accounts before retrying.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -468,106 +420,97 @@ class _UserManagementState extends State<UserManagement> {
   }
 
   // ========================================
-  // CREATE STAFF ACCOUNT
-  // The backend assigns the Staff role.
+  // DELETE STAFF ACCOUNT
   // ========================================
 
-  Future<void> _createStaff() async {
-    // Prevent repeated clicks while saving.
-    if (_saving) return;
+  Future<void> _deleteStaff(Map<String, dynamic> user) async {
+    if (_updatingUserId != null || _saving || _loading) {
+      return;
+    }
 
-    // Check the form before sending a request.
-    if (!_formKey.currentState!.validate()) return;
+    final userId = user['user_id'] as int;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Staff Account?', textAlign: TextAlign.center),
+        content: Text(
+          'Permanently delete ${user['full_name']} '
+          '(${user['email']})?\n\n'
+          'This cannot be undone.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          _buildActionButtons(
+            actionLabel: 'Delete Permanently',
+            actionColor: const Color(0xFFB71C1C),
+            onCancel: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            onConfirm: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || confirmed != true) return;
 
     setState(() {
-      _saving = true;
-      _formError = null;
+      _updatingUserId = userId;
+      _listError = null;
     });
 
     try {
       final response = await http
-          .post(
-            Uri.parse('${AuthService.baseUrl}/users'),
+          .delete(
+            Uri.parse('${AuthService.baseUrl}/users/$userId'),
             headers: _headers(),
-            body: jsonEncode({
-              'full_name': _nameController.text.trim(),
-              'email': _emailController.text.trim().toLowerCase(),
-              'password': _passwordController.text,
-            }),
           )
           .timeout(const Duration(seconds: 15));
 
-      // Continue only if the backend created the account.
-      _checkResponse(response, 201);
+      _checkResponse(response, 200);
 
-      if (!mounted) return;
-
-      // Clear the form after successful creation.
-      _formKey.currentState!.reset();
-      _nameController.clear();
-      _emailController.clear();
-      _passwordController.clear();
-
-      setState(() {
-        _hidePassword = true;
-      });
-
-      // Display the centered success popup once.
-      await _showSuccessDialog();
-
-      if (!mounted) return;
-
-      // Refresh the account list after closing the popup.
-      await _loadUsers();
+      if (mounted) {
+        await _loadUsers();
+      }
     } on AuthException catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        _formError = error.message;
-      });
-    } on TimeoutException {
-      if (!mounted) return;
-
-      setState(() {
-        _formError =
-            'The request timed out. Refresh the account list '
-            'to check whether the account was created before retrying.';
-      });
-    } on http.ClientException {
-      if (!mounted) return;
-
-      setState(() {
-        _formError =
-            'Connection interrupted. Check the server and refresh '
-            'the account list before retrying.';
-      });
+      if (mounted) {
+        setState(() {
+          _listError = error.message;
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _formError = 'Could not confirm the result. Refresh the account list.';
-      });
+      if (mounted) {
+        setState(() {
+          _listError =
+              'Could not confirm deletion. Refresh accounts before retrying.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
-          _saving = false;
+          _updatingUserId = null;
         });
       }
     }
   }
 
   // ========================================
-  // PAGE CONTENT
+  // USER MANAGEMENT PAGE
   // ========================================
 
   @override
   Widget build(BuildContext context) {
-    // Filter accounts by name or email.
     final query = _searchText.trim().toLowerCase();
 
     final filteredUsers = _users.where((user) {
-      final name = (user['full_name'] as String).toLowerCase();
-      final email = (user['email'] as String).toLowerCase();
+      final name = (user['full_name'] ?? '').toString().toLowerCase();
+
+      final email = (user['email'] ?? '').toString().toLowerCase();
 
       return name.contains(query) || email.contains(query);
     }).toList();
@@ -576,7 +519,7 @@ class _UserManagementState extends State<UserManagement> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ========================================
-        // ADD STAFF ACCOUNT FORM
+        // INVITE STAFF FORM
         // ========================================
 
         Card(
@@ -588,48 +531,43 @@ class _UserManagementState extends State<UserManagement> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'Add Staff Account',
+                    'Invite Staff Member',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
+
                   const SizedBox(height: 6),
-                  const Text('New accounts created here have the Staff role.'),
+
+                  const Text(
+                    'Send a private registration link to a Staff member. '
+                    'They will enter their full name and create their own password.',
+                  ),
+
                   const SizedBox(height: 20),
 
-                  // Full name input
-                  TextFormField(
-                    controller: _nameController,
-                    enabled: !_saving,
-                    maxLength: 100,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Full name',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Enter the full name.';
-                      }
-
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Email input
+                  // Staff email input
                   TextFormField(
                     controller: _emailController,
                     enabled: !_saving,
                     maxLength: 254,
                     keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) {
+                      if (!_saving) {
+                        _inviteStaff();
+                      }
+                    },
                     decoration: const InputDecoration(
-                      labelText: 'Email',
+                      labelText: 'Staff Email Address',
+                      hintText: 'staff@example.com',
                       prefixIcon: Icon(Icons.email_outlined),
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
                       final email = value?.trim() ?? '';
+
+                      if (email.isEmpty) {
+                        return 'Enter the Staff email address.';
+                      }
 
                       if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
                           .hasMatch(email)) {
@@ -639,61 +577,8 @@ class _UserManagementState extends State<UserManagement> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
 
-                  // Password input
-                  TextFormField(
-                    controller: _passwordController,
-                    enabled: !_saving,
-                    obscureText: _hidePassword,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    textInputAction: TextInputAction.done,
-
-                    // Enter key also submits the form.
-                    onFieldSubmitted: (_) => _createStaff(),
-
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      helperText:
-                          '• 12 to 64 characters\n'
-                          '• At least 1 uppercase letter (A–Z)\n'
-                          '• At least 1 lowercase letter (a–z)\n'
-                          '• At least 1 number (0–9)\n'
-                          '• At least 1 symbol (! @ #)\n'
-                          '• Avoid common passwords, your name, and email',
-                      helperMaxLines: 8,
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: const OutlineInputBorder(),
-
-                      // Show or hide the password.
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _hidePassword = !_hidePassword;
-                          });
-                        },
-                        icon: Icon(
-                          _hidePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.length < 12) {
-                        return 'Use at least 12 characters.';
-                      }
-
-                      if (value.length > 64) {
-                        return 'Use no more than 64 characters.';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  // Display form errors below the password.
+                  // Invitation errors
                   if (_formError != null) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -704,12 +589,14 @@ class _UserManagementState extends State<UserManagement> {
 
                   const SizedBox(height: 16),
 
-                  // Create Staff button
+                  // Send invitation button
                   ElevatedButton.icon(
-                    onPressed: _saving ? null : _createStaff,
-                    icon: const Icon(Icons.person_add_outlined),
+                    onPressed: _saving ? null : _inviteStaff,
+                    icon: const Icon(Icons.mail_outline),
                     label: Text(
-                      _saving ? 'Creating...' : 'Create Staff Account',
+                      _saving
+                          ? 'Sending Invitation...'
+                          : 'Send Staff Invitation',
                     ),
                   ),
                 ],
@@ -729,7 +616,6 @@ class _UserManagementState extends State<UserManagement> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Heading and refresh button
                 Row(
                   children: [
                     const Expanded(
@@ -751,7 +637,7 @@ class _UserManagementState extends State<UserManagement> {
 
                 const SizedBox(height: 12),
 
-                // Search accounts by name or email.
+                // Search accounts
                 TextField(
                   onChanged: (value) {
                     setState(() {
@@ -767,7 +653,7 @@ class _UserManagementState extends State<UserManagement> {
 
                 const SizedBox(height: 16),
 
-                // Display loading, error, empty state, or table.
+                // Loading / Error / Empty / Table
                 if (_loading)
                   const Center(child: CircularProgressIndicator())
                 else if (_listError != null)
@@ -779,7 +665,6 @@ class _UserManagementState extends State<UserManagement> {
                         : 'No matching accounts found.',
                   )
                 else
-                  // Match the table width to the search bar.
                   LayoutBuilder(
                     builder: (context, constraints) {
                       return SingleChildScrollView(
@@ -799,11 +684,22 @@ class _UserManagementState extends State<UserManagement> {
                             rows: filteredUsers.map((user) {
                               final active = user['is_active'] == true;
 
+                              final isStaff = user['role'] == 'Staff';
+
                               return DataRow(
                                 cells: [
-                                  DataCell(Text(user['full_name'] as String)),
-                                  DataCell(Text(user['email'] as String)),
-                                  DataCell(Text(user['role'] as String)),
+                                  DataCell(
+                                    Text((user['full_name'] ?? '').toString()),
+                                  ),
+
+                                  DataCell(
+                                    Text((user['email'] ?? '').toString()),
+                                  ),
+
+                                  DataCell(
+                                    Text((user['role'] ?? '').toString()),
+                                  ),
+
                                   DataCell(
                                     Text(
                                       active ? 'Active' : 'Inactive',
@@ -815,13 +711,13 @@ class _UserManagementState extends State<UserManagement> {
                                     ),
                                   ),
 
-                                  // Staff accounts have status and delete actions.
+                                  // Staff Actions
                                   DataCell(
-                                    user['role'] == 'Staff'
+                                    isStaff
                                         ? Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              // Activate or deactivate this account.
+                                              // Activate / Deactivate
                                               TextButton(
                                                 style: TextButton.styleFrom(
                                                   foregroundColor: active
@@ -854,9 +750,10 @@ class _UserManagementState extends State<UserManagement> {
                                                       : 'Activate',
                                                 ),
                                               ),
+
                                               const SizedBox(width: 8),
 
-                                              // Permanently delete this Staff account.
+                                              // Delete Staff
                                               TextButton.icon(
                                                 style: TextButton.styleFrom(
                                                   foregroundColor: const Color(
