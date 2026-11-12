@@ -24,7 +24,7 @@ os.environ.setdefault('OTP_HMAC_SECRET', 'a1' * 32)
 from routes import auth
 from core import dependencies
 from core.security import hash_password, create_access_token
-from services import login_captcha
+from services import recaptcha
 from services.login_otp_store import create_login_challenge, mark_login_otp_sent
 
 DSN = os.getenv('AIDTRACK_TEST_DSN')
@@ -57,7 +57,7 @@ def setup_database():
             VALUES ('Test Admin','test@example.test',%s,'Admin')''', (hash_password(PASSWORD),))
     with patch.object(auth, 'get_connection', connect), \
          patch.object(dependencies, 'get_connection', connect), \
-         patch.object(login_captcha, 'get_connection', connect):
+         patch.object(auth, 'verify_recaptcha', return_value=None):
         yield
 
 
@@ -70,12 +70,8 @@ def client():
 
 
 def credentials(client, password=PASSWORD):
-    with patch.object(login_captcha.secrets, 'choice', return_value='A'):
-        response = client.get('/auth/captcha')
-    assert response.status_code == 200
-    assert response.headers['cache-control'] == 'no-store'
     return dict(email='test@example.test', password=password,
-                captcha_id=response.json()['captcha_id'], captcha_answer='AAAAAA')
+                recaptcha_token='mock-provider-token')
 
 
 def start_login(client):
@@ -126,17 +122,12 @@ def test_expired_and_unsent_codes(client):
     assert verify(client, str(challenge.challenge_id), challenge.code).status_code == 401
 
 
-def test_wrong_and_reused_captcha(client):
-    body = credentials(client)
-    wrong = dict(body, captcha_answer='BBBBBB')
-    assert client.post('/auth/login', json=wrong).status_code == 400
-    assert client.post('/auth/login', json=body).status_code == 400
-
-
-def test_captcha_issuance_limit(client):
-    for _ in range(30):
-        assert client.get('/auth/captcha').status_code == 200
-    assert client.get('/auth/captcha').status_code == 429
+def test_provider_rejection_prevents_password_check(client):
+    from fastapi import HTTPException
+    with patch.object(auth, 'verify_recaptcha', side_effect=HTTPException(400, 'Invalid CAPTCHA')), \
+         patch.object(auth, 'verify_password') as password_check:
+        assert client.post('/auth/login', json=credentials(client)).status_code == 400
+        password_check.assert_not_called()
 
 
 def test_password_lockout(client):

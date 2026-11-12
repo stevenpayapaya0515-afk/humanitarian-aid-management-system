@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 import 'dart:async';
-import 'dart:convert';
+import '../../widgets/recaptcha_checkbox.dart';
 import 'login_otp_form.dart';
 
 import '../public/home_page_screen.dart';
@@ -34,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCaptcha();
     _showInvitationForm = widget.invitationToken?.isNotEmpty ?? false;
   }
 
@@ -66,9 +65,8 @@ class _LoginScreenState extends State<LoginScreen> {
         onVerified: _openDashboard,
         onBack: () {
           AuthService.logout();
-          setState(() { _challengeId = null; _loginError = null; });
-          _loadCaptcha();
-        },
+          setState(() { _challengeId = null; _loginError = null; _resetCaptcha(); });
+              },
       );
     }
     // Default: normal login form.
@@ -80,6 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
         widget.invitationToken?.trim().isNotEmpty ?? false;
 
     setState(() {
+      _resetCaptcha();
       if (hasInvitationLink) {
         // Reopen Staff registration using the invitation.
         _showInvitationForm = true;
@@ -176,29 +175,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Prevent repeated clicks while signing in
   bool _isLoading = false;
-  bool _captchaLoading = false;
-  String? _captchaId;
-  String? _captchaImage;
+  String? _recaptchaToken;
+  int _recaptchaGeneration = 0;
   String? _challengeId;
   DateTime? _challengeExpiresAt;
-  final _captchaController = TextEditingController();
 
-  Future<void> _loadCaptcha() async {
-    if (_captchaLoading) return;
-    setState(() { _captchaLoading = true; _captchaId = null; _captchaImage = null; });
-    _captchaController.clear();
-    try {
-      final data = await AuthService.captcha();
-      if (!mounted) return;
-      setState(() {
-        _captchaId = data['captcha_id'] as String;
-        _captchaImage = data['image_base64'] as String;
-      });
-    } catch (error) {
-      if (mounted) setState(() { _loginError = error.toString(); });
-    } finally {
-      if (mounted) setState(() { _captchaLoading = false; });
-    }
+  void _resetCaptcha() {
+    _recaptchaToken = null;
+    _recaptchaGeneration++;
   }
 
   void _openDashboard(Map<String, dynamic> user) {
@@ -262,7 +246,6 @@ class _LoginScreenState extends State<LoginScreen> {
     // Stop the countdown when leaving the login screen.
     _lockTimer?.cancel();
 
-    _captchaController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -274,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     // Block both button clicks and Enter during the cooldown.
-    if (_isLoading || _remainingLockSeconds > 0 || _captchaId == null) return;
+    if (_isLoading || _remainingLockSeconds > 0 || _recaptchaToken == null) return;
 
     // Check the form before sending a request
     if (!_formKey.currentState!.validate()) return;
@@ -288,8 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final challenge = await AuthService.login(
         email: _emailController.text,
         password: _passwordController.text,
-        captchaId: _captchaId!,
-        captchaAnswer: _captchaController.text,
+        recaptchaToken: _recaptchaToken!,
       );
       if (!mounted) return;
       _passwordController.clear();
@@ -318,7 +300,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _loginError = 'Unable to sign in. Please try again.';
       });
     } finally {
-      if (mounted && _challengeId == null) await _loadCaptcha();
+      if (mounted) _resetCaptcha();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -845,23 +827,11 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
 
           const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: _captchaImage == null
-                ? Text(_captchaLoading ? 'Loading security code...' : 'Refresh the security code.')
-                : Image.memory(base64Decode(_captchaImage!), height: 72,
-                    semanticLabel: 'Security code image. Enter the six characters below.')),
-            IconButton(onPressed: _isLoading || _captchaLoading ? null : _loadCaptcha,
-              tooltip: 'Refresh security code', icon: const Icon(Icons.refresh)),
-          ]),
-          TextFormField(
-            controller: _captchaController,
-            textCapitalization: TextCapitalization.characters,
-            maxLength: 6,
-            decoration: const InputDecoration(labelText: 'Security code',
-              helperText: 'Enter the characters above (case-insensitive).'),
-            onFieldSubmitted: (_) => _signIn(),
-            validator: (value) => value == null || value.trim().length != 6
-                ? 'Enter the six-character security code.' : null,
+          RecaptchaCheckbox(
+            key: ValueKey(_recaptchaGeneration),
+            onChanged: (token) {
+              if (mounted) setState(() { _recaptchaToken = token; });
+            },
           ),
           // Show a live countdown below the Password field.
           if (_remainingLockSeconds > 0)
@@ -894,7 +864,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // ========================================
           ElevatedButton(
             // Disable Sign In while loading or temporarily locked.
-            onPressed: _isLoading || _remainingLockSeconds > 0 || _captchaId == null ? null : _signIn,
+            onPressed: _isLoading || _remainingLockSeconds > 0 || _recaptchaToken == null ? null : _signIn,
 
             child: Text(
               _isLoading ? 'Signing in...' : 'Sign In',

@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from math import ceil
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from schemas.auth import LoginChallengeResponse, VerifyLoginRequest
-from services.login_captcha import issue_captcha, consume_captcha
+from services.recaptcha import verify_recaptcha
 from services.login_otp_store import (create_login_challenge, mark_login_otp_sent,
     invalidate_login_challenge, check_login_otp, OTPRateLimited, OTPAccountUnavailable)
 from services.gmail_login_email import send_login_otp_email
@@ -36,16 +36,9 @@ LOCKOUT_MINUTES = 1
 DUMMY_HASH = hash_password("unused-dummy-password")
 
 
-@router.get("/captcha")
-def captcha(request: Request, response: Response):
-    response.headers["Cache-Control"] = "no-store"
-    return issue_captcha(request.client.host if request.client else "127.0.0.1")
-
-
 @router.post("/login", response_model=LoginChallengeResponse)
 def login(data: LoginRequest, request: Request):
-    if not consume_captcha(data.captcha_id, data.captcha_answer):
-        raise HTTPException(400, "Security code is incorrect or expired. Refresh it and try again.")
+    verify_recaptcha(data.recaptcha_token)
     # Normalize the email, but preserve the password exactly.
     email = data.email.strip().lower()
 

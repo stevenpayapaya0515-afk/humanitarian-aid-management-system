@@ -57,18 +57,16 @@ class AuthService {
     }
   }
 
-  static Future<Map<String, dynamic>> captcha() => _request('captcha');
 
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-    required String captchaId,
-    required String captchaAnswer,
+    required String recaptchaToken,
   }) async {
     accessToken = null;
     final data = await _request('login', body: {
       'email': email.trim().toLowerCase(), 'password': password,
-      'captcha_id': captchaId, 'captcha_answer': captchaAnswer.trim(),
+      'recaptcha_token': recaptchaToken,
     });
     if (data['challenge_id'] is! String || data['expires_at'] is! String) {
       throw const AuthException('Unexpected login response. Please try again.');

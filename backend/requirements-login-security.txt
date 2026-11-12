@@ -9,3 +9,6 @@ zxcvbn>=4.4,<5
 Pillow>=10.1,<14
 -r requirements-gmail.txt
 email-validator>=2,<3
+
+# Server-side reCAPTCHA verification
+requests>=2.32,<3

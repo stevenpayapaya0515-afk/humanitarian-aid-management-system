@@ -5,8 +5,7 @@ from datetime import datetime
 
 # Data sent by the login page
 class LoginRequest(BaseModel):
-    captcha_id: UUID
-    captcha_answer: str = Field(min_length=1, max_length=16)
+    recaptcha_token: str = Field(min_length=1, max_length=8192)
     email: str = Field(min_length=1, max_length=254)
     password: str = Field(min_length=1, max_length=1024)
 
