@@ -1,4 +1,5 @@
 import '../../services/auth_service.dart';
+import 'staff_invitation_registration_screen.dart';
 import '../admin/admin_dashboard.dart';
 import '../staff/staff_dashboard.dart';
 
@@ -16,13 +17,138 @@ import '../public/about_page_screen.dart';
 // ========================================
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? invitationToken;
+
+  const LoginScreen({super.key, this.invitationToken});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  bool _showInvitationForm = false;
+  bool _showInvitationNoticePanel = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _showInvitationForm = widget.invitationToken?.isNotEmpty ?? false;
+  }
+
+  Widget _buildRightPanel({bool isMobile = false}) {
+    // Invitation links display the Staff registration form.
+    if (_showInvitationForm && widget.invitationToken != null) {
+      return StaffInvitationRegistrationForm(
+        invitationToken: widget.invitationToken!,
+        onBackToLogin: () {
+          if (mounted) {
+            setState(() {
+              _showInvitationForm = false;
+              _showInvitationNoticePanel = false;
+            });
+          }
+        },
+      );
+    }
+
+    // Public registration attempts show a notice in the right panel.
+    if (_showInvitationNoticePanel) {
+      return _buildInvitationNoticePanel();
+    }
+
+    // Default: normal login form.
+    return _buildLoginForm(isMobile: isMobile);
+  }
+
+  void _showRegistrationNotice() {
+    final hasInvitationLink =
+        widget.invitationToken?.trim().isNotEmpty ?? false;
+
+    setState(() {
+      if (hasInvitationLink) {
+        // Reopen Staff registration using the invitation.
+        _showInvitationForm = true;
+        _showInvitationNoticePanel = false;
+      } else {
+        // Public visitors cannot access Staff registration.
+        _showInvitationForm = false;
+        _showInvitationNoticePanel = true;
+      }
+    });
+  }
+
+  Widget _buildInvitationNoticePanel() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Image.asset('assets/images/aidtrack_logo.png', width: 135),
+        ),
+
+        const SizedBox(height: 24),
+
+        const Center(
+          child: Icon(
+            Icons.mark_email_unread_outlined,
+            color: AppColors.primaryGreen,
+            size: 50,
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        const Text(
+          'Invitation Required',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.darkText,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        const Text(
+          'Staff registration is available by invitation only. '
+          'Ask your LGU Administrator to send a registration link '
+          'to your email.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.greyText, height: 1.5),
+        ),
+
+        const SizedBox(height: 20),
+
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F8F3),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            'Already invited? Open the private link from your email. '
+            'Without a valid, unused invitation, registration is not allowed.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.primaryGreen, height: 1.4),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        ElevatedButton.icon(
+          onPressed: () {
+            setState(() {
+              _showInvitationNoticePanel = false;
+            });
+          },
+          icon: const Icon(Icons.arrow_back),
+          label: const Text('Back to Login'),
+        ),
+      ],
+    );
+  }
+
   // Key for validating the login form
   final _formKey = GlobalKey<FormState>();
 
@@ -218,7 +344,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     constraints: const BoxConstraints(maxWidth: 420),
 
                     // Display the login form
-                    child: _buildLoginForm(),
+                    child: _buildRightPanel(),
                   ),
                 ),
               ),
@@ -531,7 +657,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
-                  child: _buildLoginForm(isMobile: true),
+                  child: _buildRightPanel(isMobile: true),
                 ),
               ),
             ),
@@ -725,28 +851,32 @@ class _LoginScreenState extends State<LoginScreen> {
           // ========================================
           // ADMINISTRATOR INFORMATION
           // ========================================
-          const Center(
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: "Don't have an account? ",
-
-                    style: TextStyle(color: AppColors.greyText),
+          Center(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const Text(
+                  "Don't have an account? ",
+                  style: TextStyle(color: AppColors.greyText),
+                ),
+                TextButton(
+                  onPressed: _showRegistrationNotice,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    overlayColor: Colors.transparent,
                   ),
-
-                  TextSpan(
-                    text: 'Contact your administrator.',
-
+                  child: const Text(
+                    'Register here',
                     style: TextStyle(
                       color: AppColors.primaryGreen,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
-
-              textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
 

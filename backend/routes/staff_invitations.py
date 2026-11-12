@@ -47,16 +47,43 @@ class InvitationToken(BaseModel):
 
 
 class AcceptInvitation(InvitationToken):
-    full_name: str = Field(min_length=2, max_length=100)
+    # These are AidTrack employee details, not the seeded IT107 form fields.
+    first_name: str = Field(min_length=2, max_length=50)
+    middle_name: str | None = Field(default=None, max_length=50)
+    last_name: str = Field(min_length=2, max_length=50)
+    employee_number: str | None = Field(default=None, max_length=32)
+    contact_number: str = Field(pattern=r"^09[0-9]{9}$")
+    position: str = Field(min_length=2, max_length=100)
+    office: str = Field(min_length=2, max_length=100)
+    assigned_barangay: str | None = Field(default=None, max_length=100)
+    home_address: str | None = Field(default=None, max_length=255)
+    privacy_consent: bool
     password: str = Field(min_length=12, max_length=64)
 
-    @field_validator('full_name')
+    @field_validator('first_name', 'last_name', 'position', 'office')
     @classmethod
-    def valid_name(cls, value: str) -> str:
-        name = ' '.join(value.split())
-        if len(name) < 2:
-            raise ValueError('Enter your full name.')
-        return name
+    def required_text(cls, value: str) -> str:
+        value = ' '.join(value.split())
+        if len(value) < 2:
+            raise ValueError('This field requires at least two characters.')
+        return value
+
+    @field_validator('middle_name', 'employee_number', 'assigned_barangay',
+                     'home_address', mode='before')
+    @classmethod
+    def clean_optional(cls, value):
+        if value is None:
+            return None
+        value = ' '.join(str(value).split())
+        return value or None
+
+    @field_validator('employee_number')
+    @classmethod
+    def employee_no_format(cls, value: str | None) -> str | None:
+        import re
+        if value and not re.fullmatch(r'[A-Za-z0-9-]{3,32}', value):
+            raise ValueError('Employee number must have 3–32 letters, numbers or hyphens.')
+        return value
 
 
 def _hash_token(token: str) -> str:
@@ -197,20 +224,38 @@ def validate_invitation(data: InvitationToken):
 
 @router.post('/accept', status_code=201)
 def accept_invitation(data: AcceptInvitation, request: Request):
+    if not data.privacy_consent:
+        raise HTTPException(status_code=422, detail='Privacy consent is required.')
+
+    # Existing Admin/Staff dashboards continue to read public.users.full_name.
+    full_name = ' '.join(filter(None, [data.first_name, data.middle_name, data.last_name]))
     try:
         with get_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
                 invite = _find_valid_invite(cursor, data.token)
-                error = password_error(data.password, data.full_name, invite['invited_email'])
+                error = password_error(data.password, full_name, invite['invited_email'])
                 if error is not None:
                     raise HTTPException(status_code=400, detail=error)
+
                 cursor.execute(
                     """INSERT INTO public.users (full_name, email, password_hash, role)
                        VALUES (%s, %s, %s, 'Staff')
                        RETURNING user_id;""",
-                    (data.full_name, invite['invited_email'], hash_password(data.password)),
+                    (full_name, invite['invited_email'], hash_password(data.password)),
                 )
                 user_id = cursor.fetchone()['user_id']
+
+                # User + employee profile + invitation consumption are atomic.
+                cursor.execute(
+                    """INSERT INTO public.staff_profiles
+                         (user_id, first_name, middle_name, last_name,
+                          employee_number, contact_number, position, office,
+                          assigned_barangay, home_address)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
+                    (user_id, data.first_name, data.middle_name, data.last_name,
+                     data.employee_number, data.contact_number, data.position,
+                     data.office, data.assigned_barangay, data.home_address),
+                )
                 cursor.execute(
                     'UPDATE public.staff_invitations SET accepted_at = NOW() WHERE invitation_id = %s;',
                     (invite['invitation_id'],),
@@ -218,5 +263,9 @@ def accept_invitation(data: AcceptInvitation, request: Request):
                 _audit(cursor, kind='INVITE_ACCEPTED', email=invite['invited_email'],
                        user_id=user_id, request=request)
     except UniqueViolation:
-        raise HTTPException(status_code=409, detail='This Staff account is already registered.') from None
-    return {'message': 'Registration completed. You may now sign in to AidTrack.'}
+        raise HTTPException(
+            status_code=409,
+            detail='The invited email or employee number is already registered.',
+        ) from None
+
+    return {'message': 'Staff registration completed. You may now sign in to AidTrack.'}
