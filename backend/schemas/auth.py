@@ -1,8 +1,12 @@
 from pydantic import BaseModel, Field
+from uuid import UUID
+from datetime import datetime
 
 
 # Data sent by the login page
 class LoginRequest(BaseModel):
+    captcha_id: UUID
+    captcha_answer: str = Field(min_length=1, max_length=16)
     email: str = Field(min_length=1, max_length=254)
     password: str = Field(min_length=1, max_length=1024)
 
@@ -25,3 +29,13 @@ class LoginResponse(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=1024)
     new_password: str = Field(min_length=12, max_length=1024)
+
+class LoginChallengeResponse(BaseModel):
+    challenge_id: UUID
+    expires_at: datetime
+    message: str = "Check your email for the six-digit login code."
+
+
+class VerifyLoginRequest(BaseModel):
+    challenge_id: UUID
+    code: str = Field(pattern=r"^[0-9]{6}$")

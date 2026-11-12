@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 import 'dart:async';
+import 'dart:convert';
+import 'login_otp_form.dart';
 
 import '../public/home_page_screen.dart';
 import '../public/about_page_screen.dart';
@@ -32,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCaptcha();
     _showInvitationForm = widget.invitationToken?.isNotEmpty ?? false;
   }
 
@@ -56,6 +59,18 @@ class _LoginScreenState extends State<LoginScreen> {
       return _buildInvitationNoticePanel();
     }
 
+    if (_challengeId != null) {
+      return LoginOtpForm(
+        challengeId: _challengeId!,
+        expiresAt: _challengeExpiresAt!,
+        onVerified: _openDashboard,
+        onBack: () {
+          AuthService.logout();
+          setState(() { _challengeId = null; _loginError = null; });
+          _loadCaptcha();
+        },
+      );
+    }
     // Default: normal login form.
     return _buildLoginForm(isMobile: isMobile);
   }
@@ -161,6 +176,40 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Prevent repeated clicks while signing in
   bool _isLoading = false;
+  bool _captchaLoading = false;
+  String? _captchaId;
+  String? _captchaImage;
+  String? _challengeId;
+  DateTime? _challengeExpiresAt;
+  final _captchaController = TextEditingController();
+
+  Future<void> _loadCaptcha() async {
+    if (_captchaLoading) return;
+    setState(() { _captchaLoading = true; _captchaId = null; _captchaImage = null; });
+    _captchaController.clear();
+    try {
+      final data = await AuthService.captcha();
+      if (!mounted) return;
+      setState(() {
+        _captchaId = data['captcha_id'] as String;
+        _captchaImage = data['image_base64'] as String;
+      });
+    } catch (error) {
+      if (mounted) setState(() { _loginError = error.toString(); });
+    } finally {
+      if (mounted) setState(() { _captchaLoading = false; });
+    }
+  }
+
+  void _openDashboard(Map<String, dynamic> user) {
+    if (!mounted) return;
+    final Widget dashboard = user['role'] == 'Admin'
+        ? const AdminDashboard() : const StaffDashboard();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => dashboard), (route) => false,
+    );
+  }
+
 
   // Error displayed below the password field
   String? _loginError;
@@ -213,6 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // Stop the countdown when leaving the login screen.
     _lockTimer?.cancel();
 
+    _captchaController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -224,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     // Block both button clicks and Enter during the cooldown.
-    if (_isLoading || _remainingLockSeconds > 0) return;
+    if (_isLoading || _remainingLockSeconds > 0 || _captchaId == null) return;
 
     // Check the form before sending a request
     if (!_formKey.currentState!.validate()) return;
@@ -235,32 +285,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final user = await AuthService.login(
+      final challenge = await AuthService.login(
         email: _emailController.text,
         password: _passwordController.text,
+        captchaId: _captchaId!,
+        captchaAnswer: _captchaController.text,
       );
-
-      // The screen might have closed while waiting
       if (!mounted) return;
-
-      // Choose the dashboard using the role from the backend
-      final Widget dashboard;
-
-      if (user['role'] == 'Admin') {
-        dashboard = const AdminDashboard();
-      } else if (user['role'] == 'Staff') {
-        dashboard = const StaffDashboard();
-      } else {
-        AuthService.logout();
-        throw const AuthException('Account role is not supported.');
-      }
-
       _passwordController.clear();
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => dashboard),
-        (route) => false,
-      );
+      setState(() {
+        _challengeId = challenge['challenge_id'] as String;
+        _challengeExpiresAt = DateTime.parse(challenge['expires_at'] as String);
+      });
     } on AuthException catch (error) {
       if (!mounted) return;
 
@@ -282,6 +318,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _loginError = 'Unable to sign in. Please try again.';
       });
     } finally {
+      if (mounted && _challengeId == null) await _loadCaptcha();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -807,6 +844,25 @@ class _LoginScreenState extends State<LoginScreen> {
             },
           ),
 
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: _captchaImage == null
+                ? Text(_captchaLoading ? 'Loading security code...' : 'Refresh the security code.')
+                : Image.memory(base64Decode(_captchaImage!), height: 72,
+                    semanticLabel: 'Security code image. Enter the six characters below.')),
+            IconButton(onPressed: _isLoading || _captchaLoading ? null : _loadCaptcha,
+              tooltip: 'Refresh security code', icon: const Icon(Icons.refresh)),
+          ]),
+          TextFormField(
+            controller: _captchaController,
+            textCapitalization: TextCapitalization.characters,
+            maxLength: 6,
+            decoration: const InputDecoration(labelText: 'Security code',
+              helperText: 'Enter the characters above (case-insensitive).'),
+            onFieldSubmitted: (_) => _signIn(),
+            validator: (value) => value == null || value.trim().length != 6
+                ? 'Enter the six-character security code.' : null,
+          ),
           // Show a live countdown below the Password field.
           if (_remainingLockSeconds > 0)
             Padding(
@@ -838,7 +894,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // ========================================
           ElevatedButton(
             // Disable Sign In while loading or temporarily locked.
-            onPressed: _isLoading || _remainingLockSeconds > 0 ? null : _signIn,
+            onPressed: _isLoading || _remainingLockSeconds > 0 || _captchaId == null ? null : _signIn,
 
             child: Text(
               _isLoading ? 'Signing in...' : 'Sign In',

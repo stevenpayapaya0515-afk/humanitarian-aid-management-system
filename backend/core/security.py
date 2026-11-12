@@ -30,13 +30,15 @@ def verify_password(password: str, saved_hash: str) -> bool:
 
 
 # Create a token after successful login
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, *, auth_version: int) -> str:
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
     payload = {
         "sub": str(user_id),
+        "auth_version": auth_version,
+        "amr": ["pwd", "email_otp"],
         "exp": expires_at,
     }
 
@@ -49,7 +51,7 @@ def decode_access_token(token: str) -> dict:
         token,
         SECRET_KEY,
         algorithms=[ALGORITHM],
-        options={"require": ["sub", "exp"]},
+        options={"require": ["sub", "exp", "auth_version", "amr"]},
     )
 
 def password_error(password: str, full_name: str = "", email: str = "") -> str | None:

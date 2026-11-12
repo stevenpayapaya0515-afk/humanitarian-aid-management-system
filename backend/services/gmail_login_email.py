@@ -128,7 +128,7 @@ def _load_oauth_credentials():
                 "Gmail sender with offline access and gmail.send scope."
             )
         try:
-            credentials.refresh(Request())
+            credentials.refresh(lambda *args, **kwargs: Request()(*args, **dict(kwargs, timeout=15)))
             # Refreshing can change token data. Keep the renewed credentials
             # in the same ignored local secret file.
             path.write_text(credentials.to_json(), encoding="utf-8")
@@ -143,11 +143,15 @@ def _load_oauth_credentials():
 
 def _send_message(message: EmailMessage) -> str:
     from googleapiclient.discovery import build
+    from google_auth_httplib2 import AuthorizedHttp
+    import httplib2
 
     credentials = _load_oauth_credentials()
     encoded = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii")
     try:
-        service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
+        service = build("gmail", "v1",
+                        http=AuthorizedHttp(credentials, http=httplib2.Http(timeout=15)),
+                        cache_discovery=False)
         result = (
             service.users()
             .messages()

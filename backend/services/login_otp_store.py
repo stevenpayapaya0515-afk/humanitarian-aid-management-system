@@ -1,7 +1,7 @@
 """AidTrack's PostgreSQL storage layer for pending *login* email OTPs.
 
 This service intentionally does NOT issue JWTs or send mail. Route wiring and
-mail delivery are separate steps; the existing /auth/login stays unchanged.
+mail delivery are wired by routes/auth.py.
 
 Call these functions inside ``with get_connection() as connection:`` so all
 updates commit on success and roll back on an exception. Keep the OTP secret
@@ -26,7 +26,7 @@ from core.login_otp import (
 OTP_LIFETIME_MINUTES = 5
 OTP_MAX_WRONG_ATTEMPTS = 3
 OTP_RESEND_COOLDOWN_SECONDS = 60
-OTP_SENDS_PER_15_MINUTES = 4  # Initial send + at most 3 resends.
+OTP_SENDS_PER_15_MINUTES = 4  # Count attempts, including failed deliveries.
 
 
 class OTPRateLimited(Exception):
@@ -104,12 +104,12 @@ def create_login_challenge(
         cursor.execute(
             """
             SELECT COUNT(*) AS send_count,
-                   MIN(sent_at) AS earliest_sent,
-                   MAX(sent_at) AS latest_sent
+                   MIN(created_at) AS earliest_sent,
+                   MAX(created_at) AS latest_sent
             FROM public.login_otps
             WHERE user_id = %s
               AND purpose = 'login'
-              AND sent_at >= NOW() - INTERVAL '15 minutes';
+              AND created_at >= NOW() - INTERVAL '15 minutes';
             """,
             (user_id,),
         )

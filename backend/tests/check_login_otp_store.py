@@ -70,7 +70,8 @@ def main():
         with connection.cursor() as cursor:
             cursor.execute(
                 """UPDATE public.login_otps
-                   SET sent_at = NOW() - INTERVAL '16 minutes'
+                   SET sent_at = NOW() - INTERVAL '16 minutes',
+                       created_at = NOW() - INTERVAL '16 minutes'
                    WHERE challenge_id = %s;""",
                 (first.challenge_id,),
             )
@@ -91,7 +92,8 @@ def main():
         with connection.cursor() as cursor:
             cursor.execute(
                 """UPDATE public.login_otps
-                   SET sent_at = NOW() - INTERVAL '16 minutes'
+                   SET sent_at = NOW() - INTERVAL '16 minutes',
+                       created_at = NOW() - INTERVAL '16 minutes'
                    WHERE challenge_id = %s;""",
                 (second.challenge_id,),
             )

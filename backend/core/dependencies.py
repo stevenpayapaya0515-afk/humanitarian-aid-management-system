@@ -38,7 +38,7 @@ def get_current_user(
         with connection.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                SELECT user_id, full_name, email, role, is_active
+                SELECT user_id, full_name, email, role, is_active, auth_version
                 FROM public.users
                 WHERE user_id = %s;
                 """,
@@ -46,7 +46,10 @@ def get_current_user(
             )
             user = cursor.fetchone()
 
-    if user is None or not user["is_active"]:
+    if (user is None or not user["is_active"]
+        or type(payload.get("auth_version")) is not int
+        or payload["auth_version"] != user["auth_version"]
+        or payload.get("amr") != ["pwd", "email_otp"]):
         raise login_error
 
     return user
