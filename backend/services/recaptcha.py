@@ -20,8 +20,19 @@ def verify_recaptcha(token: str) -> None:
         result = response.json()
     except (requests.RequestException, ValueError):
         raise HTTPException(503, "Security verification is unavailable. Please try again.") from None
+    
     if not isinstance(result, dict):
         raise HTTPException(503, "Security verification is unavailable. Please try again.")
+    
+        print(
+        "RECAPTCHA CHECK:",
+        "success=", result.get("success"),
+        "hostname=", result.get("hostname"),
+        "errors=", result.get("error-codes", []),
+        "allowed_hosts=", sorted(hosts),
+        flush=True,
+    )
+        
     if (result.get("success") is not True or
             str(result.get("hostname", "")).lower() not in hosts):
         raise HTTPException(400, "Please complete the reCAPTCHA checkbox again.")

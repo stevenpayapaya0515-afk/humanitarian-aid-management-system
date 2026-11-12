@@ -16,7 +16,7 @@ class RecaptchaCheckbox extends StatefulWidget {
 class _RecaptchaCheckboxState extends State<RecaptchaCheckbox> {
   static const _siteKey = String.fromEnvironment(
     'RECAPTCHA_SITE_KEY',
-    defaultValue: 'PASTE_YOUR_PUBLIC_SITE_KEY_HERE',
+    defaultValue: '6LfZ5BsuAAAAAGLjPMs_AbuIsUopj7Ujg-txftvW',
   );
   JSObject? _element;
   String? _error;
@@ -33,7 +33,7 @@ class _RecaptchaCheckboxState extends State<RecaptchaCheckbox> {
       setState(() {
         _ready = status != 'loading';
         _error = status == 'error'
-            ? 'Could not load reCAPTCHA. Check your connection and retry.' : null;
+            ? 'reCAPTCHA failed. Check the message inside the Google widget.' : null;
       });
       final value = token.toDart;
       widget.onChanged(value.isEmpty ? null : value);
@@ -60,11 +60,17 @@ class _RecaptchaCheckboxState extends State<RecaptchaCheckbox> {
         textAlign: TextAlign.center);
     }
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      // Standard Google checkbox widget.
-      SizedBox(width: 304, height: 78,
-        child: HtmlElementView.fromTagName(
-          key: ValueKey(_generation), tagName: 'div', onElementCreated: _created,
-        )),
+      Center(
+        child: SizedBox(
+          width: 304,
+          height: 78,
+          child: HtmlElementView.fromTagName(
+            key: ValueKey(_generation),
+            tagName: 'div',
+            onElementCreated: _created,
+          ),
+        ),
+      ),
       if (!_ready) const Text('Loading security verification...'),
       if (_error != null) ...[
         Text(_error!, textAlign: TextAlign.center,
