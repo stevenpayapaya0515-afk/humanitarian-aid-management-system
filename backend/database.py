@@ -16,7 +16,7 @@ def get_connection():
         dbname=os.environ["DB_NAME"],
         user=os.environ["DB_USER"],
         password=os.environ["DB_PASSWORD"],
-        connect_timeout=5,
+        connect_timeout=3,
     )
 
 

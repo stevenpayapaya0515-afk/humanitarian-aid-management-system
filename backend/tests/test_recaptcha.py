@@ -19,7 +19,7 @@ def test_verified_hostname():
     with patch('services.recaptcha.requests.post', return_value=response) as post:
         verify_recaptcha('valid-token')
         assert post.call_args.kwargs['data']['response'] == 'valid-token'
-        assert post.call_args.kwargs['timeout'] == (5, 10)
+        assert post.call_args.kwargs['timeout'] == (3, 6)
 
 @pytest.mark.parametrize('result', [
     {'success': False, 'error-codes': ['timeout-or-duplicate']},

@@ -5,6 +5,9 @@ No JWTs, database writes, or FastAPI routes are implemented here.
 Keep the token JSON and all Gmail credentials out of Git.
 """
 
+import logging
+logger = logging.getLogger("uvicorn.error")
+
 import base64
 import os
 from datetime import datetime, timedelta, timezone
@@ -122,6 +125,7 @@ def _load_oauth_credentials():
         ) from exc
 
     if not credentials.valid:
+        logger.info("LOGIN Gmail OAuth refresh started")
         if not credentials.refresh_token:
             raise GmailConfigError(
                 "Gmail OAuth token has no refresh token. Re-authorize the "
@@ -133,6 +137,8 @@ def _load_oauth_credentials():
             # in the same ignored local secret file.
             path.write_text(credentials.to_json(), encoding="utf-8")
         except Exception as exc:
+            reason = "invalid_grant" if "invalid_grant" in str(exc) else type(exc).__name__
+            logger.warning("LOGIN Gmail OAuth refresh failed: %s", reason)
             raise GmailConfigError(
                 "Gmail OAuth token refresh failed. Re-authorize the sender "
                 "and verify your network/Gmail API access."
@@ -146,19 +152,24 @@ def _send_message(message: EmailMessage) -> str:
     from google_auth_httplib2 import AuthorizedHttp
     import httplib2
 
+    logger.info("LOGIN Gmail loading credentials")
     credentials = _load_oauth_credentials()
+    logger.info("LOGIN Gmail credentials ready; sending message")
     encoded = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii")
     try:
         service = build("gmail", "v1",
                         http=AuthorizedHttp(credentials, http=httplib2.Http(timeout=15)),
-                        cache_discovery=False)
+                        cache_discovery=False, static_discovery=True)
         result = (
             service.users()
             .messages()
             .send(userId="me", body={"raw": encoded})
-            .execute()
+            .execute(num_retries=0)
         )
     except Exception as exc:
+        status = getattr(getattr(exc, "resp", None), "status", None)
+        logger.warning("LOGIN Gmail send failed: %s status=%s",
+                       type(exc).__name__, status if isinstance(status, int) else "unknown")
         # Never expose Google errors, OAuth tokens, or email content to clients.
         raise GmailDeliveryError(
             "Gmail API could not send the message. Check token scope, "

@@ -199,3 +199,43 @@ def test_password_change_revokes_token_and_pending_code(client):
     assert response.status_code == 200
     assert client.get('/auth/me', headers={'Authorization':f'Bearer {token}'}).status_code == 401
     assert verify(client, pending, pending_code).status_code == 401
+
+
+def test_gmail_delivery_releases_user_lock(client):
+    def send(**kwargs):
+        with connect() as connection:
+            connection.execute("SET LOCAL lock_timeout = '200ms'")
+            connection.execute('SELECT user_id FROM users WHERE user_id=1 FOR UPDATE')
+            assert connection.execute('SELECT sent_at FROM login_otps').fetchone()[0] is None
+        return 'sent'
+    with patch.object(auth, 'send_login_otp_email', side_effect=send):
+        assert client.post('/auth/login', json=credentials(client)).status_code == 200
+
+
+def test_timeout_leaves_code_unusable(client):
+    from services.network_deadline import ProviderTimeout
+    with patch.object(auth, 'call_with_deadline', side_effect=ProviderTimeout('email')):
+        response = client.post('/auth/login', json=credentials(client))
+    assert response.status_code == 503
+    with connect() as connection:
+        row = connection.execute('SELECT sent_at,invalidated_at FROM login_otps').fetchone()
+        assert row[0] is None and row[1] is not None
+
+
+def test_password_change_during_send_rejects_challenge(client):
+    def send(**kwargs):
+        with connect() as connection:
+            connection.execute('UPDATE users SET auth_version=auth_version+1')
+        return 'sent'
+    with patch.object(auth, 'send_login_otp_email', side_effect=send):
+        assert client.post('/auth/login', json=credentials(client)).status_code == 503
+    with connect() as connection:
+        assert connection.execute('SELECT sent_at FROM login_otps').fetchone()[0] is None
+
+
+def test_database_lock_returns_controlled_error(client):
+    with connect() as held:
+        held.execute('SELECT user_id FROM users WHERE user_id=1 FOR UPDATE')
+        response = client.post('/auth/login', json=credentials(client))
+        assert response.status_code == 503
+        assert 'database' in response.json()['detail']

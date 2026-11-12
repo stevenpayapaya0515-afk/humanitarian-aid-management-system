@@ -1,3 +1,10 @@
+import logging
+from contextlib import contextmanager
+import psycopg
+from services.network_deadline import call_with_deadline, ProviderTimeout, ProviderBusy
+from services.gmail_login_email import GmailConfigError, GmailDeliveryError
+logger = logging.getLogger("uvicorn.error")
+
 from datetime import datetime, timedelta, timezone
 from math import ceil
 
@@ -25,6 +32,18 @@ from schemas.auth import (
 )
 
 
+@contextmanager
+def auth_connection():
+    try:
+        with get_connection() as connection:
+            connection.execute("SET LOCAL lock_timeout = '2s'")
+            connection.execute("SET LOCAL statement_timeout = '5s'")
+            yield connection
+    except psycopg.Error as error:
+        logger.warning("LOGIN database unavailable: %s", type(error).__name__)
+        raise HTTPException(503, "Login database is busy or unavailable. Please try again shortly.") from None
+
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 # Login protection settings
@@ -38,14 +57,16 @@ DUMMY_HASH = hash_password("unused-dummy-password")
 
 @router.post("/login", response_model=LoginChallengeResponse)
 def login(data: LoginRequest, request: Request):
+    logger.info("LOGIN started: checking CAPTCHA")
     verify_recaptcha(data.recaptcha_token)
+    logger.info("LOGIN checking password/database")
     # Normalize the email, but preserve the password exactly.
     email = data.email.strip().lower()
 
     authenticated_user = None
     retry_after = None
 
-    with get_connection() as connection:
+    with auth_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
             # FOR UPDATE prevents simultaneous login requests
             # from overwriting this account's failed-attempt counter.
@@ -155,37 +176,58 @@ def login(data: LoginRequest, request: Request):
             detail="Invalid email or password.",
         )
 
-    # Hold the user row lock through delivery so simultaneous sends cannot
-    # bypass the cooldown. Recheck credentials under this lock (password may
-    # have changed after the first transaction).
-    delivery_failed = False
+    # Reserve and COMMIT the challenge/cooldown before any Gmail network call.
     try:
-        with get_connection() as connection:
+        with auth_connection() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute("SELECT * FROM public.users WHERE user_id = %s FOR UPDATE",
                                (authenticated_user["user_id"],))
                 account = cursor.fetchone()
                 if (not account or not account["is_active"] or
-                    account["password_hash"] != authenticated_user["password_hash"]):
+                    account["password_hash"] != authenticated_user["password_hash"] or
+                    account["email"] != authenticated_user["email"]):
                     raise HTTPException(401, "Please sign in again.")
             challenge = create_login_challenge(
                 connection, user_id=account["user_id"], email=account["email"],
                 client_ip=request.client.host if request.client else None)
-            try:
-                send_login_otp_email(to_email=account["email"], code=challenge.code,
-                                     expires_at=challenge.expires_at)
-                if not mark_login_otp_sent(connection, challenge_id=challenge.challenge_id):
-                    raise RuntimeError("Challenge expired during delivery")
-            except Exception:
-                invalidate_login_challenge(connection, challenge_id=challenge.challenge_id)
-                delivery_failed = True
     except OTPRateLimited as error:
         raise HTTPException(429, "Please wait before requesting another email code.",
                             headers={"Retry-After": str(error.retry_after)}) from None
     except OTPAccountUnavailable:
         raise HTTPException(401, "Please sign in again.") from None
-    if delivery_failed:
-        raise HTTPException(503, "Could not send the login email. Please try again later.")
+
+    logger.info("LOGIN password passed; sending OTP email (20-second wait limit)")
+    failure = None
+    try:
+        call_with_deadline("email", 20, lambda: send_login_otp_email(
+            to_email=account["email"], code=challenge.code, expires_at=challenge.expires_at))
+    except Exception as error:
+        logger.warning("LOGIN email failed: %s", type(error).__name__)
+        if isinstance(error, (ProviderTimeout, ProviderBusy)):
+            failure = "Email service is slow or busy. Wait 60 seconds, then sign in again."
+        elif isinstance(error, GmailConfigError):
+            failure = "Login email sender is not configured or authorized. Contact your administrator."
+        else:
+            failure = "Could not send the login email. Please try again later."
+
+    with auth_connection() as connection:
+        # Same lock order as verification/password changes; recheck after delivery.
+        with connection.cursor(row_factory=dict_row) as cursor:
+            cursor.execute("SELECT * FROM public.users WHERE user_id = %s FOR UPDATE",
+                           (account["user_id"],))
+            current = cursor.fetchone()
+        if (not current or not current["is_active"] or
+            current["auth_version"] != account["auth_version"] or
+            current["password_hash"] != account["password_hash"] or
+            current["email"] != account["email"]):
+            failure = "Account changed during login. Please sign in again."
+        if failure is None and not mark_login_otp_sent(connection, challenge_id=challenge.challenge_id):
+            failure = "Login code is no longer valid. Please sign in again."
+        if failure is not None:
+            invalidate_login_challenge(connection, challenge_id=challenge.challenge_id)
+    if failure is not None:
+        raise HTTPException(503, failure)
+    logger.info("LOGIN email accepted; OTP challenge ready")
     return LoginChallengeResponse(challenge_id=challenge.challenge_id,
                                   expires_at=challenge.expires_at)
 
@@ -193,7 +235,7 @@ def login(data: LoginRequest, request: Request):
 @router.post("/verify-otp", response_model=LoginResponse)
 def verify_otp(data: VerifyLoginRequest):
     account = None
-    with get_connection() as connection:
+    with auth_connection() as connection:
         # Always lock user before OTP, matching creation and password changes.
         with connection.cursor(row_factory=dict_row) as cursor:
             cursor.execute("""SELECT u.user_id, u.full_name, u.email, u.role,
@@ -229,7 +271,7 @@ def change_password(
     password_changed = False
     error_message = "Current password is incorrect."
 
-    with get_connection() as connection:
+    with auth_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
             # Lock the account row while checking and updating it.
             cursor.execute(
