@@ -94,11 +94,41 @@ def build_login_otp_message(
         "If you did not request this code, ignore this email and "
         "consider changing your password.\n"
     )
-    return _make_message(
+    message = _make_message(
         to_email=to_email,
         subject="AidTrack | Your login verification code",
         body=body,
     )
+    message.add_alternative(f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f2f5f3;font-family:Arial,Helvetica,sans-serif;color:#26352d;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f2f5f3;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background-color:#ffffff;border:1px solid #dfe7e1;border-radius:16px;">
+<tr><td align="center" style="padding:28px 24px;background-color:#185c37;border-radius:16px 16px 0 0;">
+<div style="font-size:30px;font-weight:bold;color:#ffffff;">Aid<span style="color:#ffca28;">Track</span></div>
+<div style="margin-top:8px;font-size:11px;letter-spacing:2px;color:#e0ede5;">ACCOUNT VERIFICATION</div>
+</td></tr>
+<tr><td align="center" style="padding:32px 24px;">
+<h1 style="margin:0 0 12px;font-size:25px;line-height:32px;color:#223b2c;">Your sign-in code</h1>
+<p style="margin:0 0 24px;font-size:15px;line-height:24px;color:#5c6b62;">Enter this six-digit code in AidTrack<br>to finish signing in.</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:340px;">
+<tr><td align="center" style="padding:22px 8px;background-color:#edf6ef;border:1px solid #cfe2d4;border-radius:12px;">
+<div style="margin-bottom:10px;font-size:11px;font-weight:bold;letter-spacing:1px;color:#4c6b57;">VERIFICATION CODE</div>
+<div style="font-family:Consolas,'Courier New',monospace;font-size:36px;line-height:46px;font-weight:bold;letter-spacing:5px;color:#185c37;white-space:nowrap;">{code}</div>
+</td></tr></table>
+<p style="margin:22px 0 0;font-size:13px;line-height:21px;color:#65746a;">This code expires on<br><strong style="color:#344f3e;">{expiry_text}</strong></p>
+</td></tr>
+<tr><td align="center" style="padding:22px 24px;border-top:1px solid #e8eee9;">
+<p style="margin:0 0 8px;font-size:13px;line-height:20px;color:#40594a;"><strong>Keep this code private.</strong> Do not share it with anyone.</p>
+<p style="margin:0;font-size:12px;line-height:19px;color:#748078;">If you did not request this code, ignore this email and consider changing your password.</p>
+</td></tr></table>
+<p style="margin:20px 0 0;font-size:12px;line-height:19px;color:#78877d;">AidTrack &middot; Aid Distribution Management System</p>
+</td></tr></table>
+</body></html>""", subtype="html")
+    return message
+
 
 
 def _load_oauth_credentials():

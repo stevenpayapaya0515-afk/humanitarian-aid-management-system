@@ -257,25 +257,117 @@ class _StaffInvitationRegistrationFormState
   );
 
   void _showPrivacyNotice() {
+    const green = Color(0xFF185C37);
+
+    Widget section(String title, String body) => Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(
+            fontSize: 15, fontWeight: FontWeight.w600,
+            color: Color(0xFF26382D),
+          )),
+          const SizedBox(height: 6),
+          Text(body, style: const TextStyle(
+            fontSize: 14, height: 1.6, color: Color(0xFF526158),
+          )),
+        ],
+      ),
+    );
+
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('AidTrack Staff Privacy Notice'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'AidTrack collects your name, work assignment, contact details, '
-            'and optional employee number/address to create and manage an LGU Staff account. '
-            'Your data is available to authorized LGU administrators for account administration. '
-            'Passwords are stored as secure hashes, not in plain text. '
-            'For requests about access, correction, retention or deletion, '
-            'contact your LGU administrator. The LGU must publish its approved '
-            'retention period and contact details before production use.',
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        scrollable: true,
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEDF6EF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.privacy_tip_outlined, color: green, size: 24),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Staff Privacy Notice', style: TextStyle(
+                  fontSize: 21, fontWeight: FontWeight.w700,
+                  color: Color(0xFF26382D),
+                )),
+                SizedBox(height: 4),
+                Text('How AidTrack uses your information', style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.normal,
+                  color: Color(0xFF68766D),
+                )),
+              ],
+            )),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(height: 1, color: Color(0xFFE6ECE8)),
+              const SizedBox(height: 20),
+              section('Information we collect',
+                'Your name, work assignment and contact details, plus your '
+                'employee number and home address if you provide them.'),
+              section('Why we collect it',
+                'To create and manage your LGU Staff account.'),
+              section('Access and security',
+                'Authorized LGU administrators can access your information '
+                'for account administration. Passwords are stored as secure '
+                'hashes, not in plain text.'),
+              section('Your requests',
+                'Contact your LGU administrator for requests about access, '
+                'correction, retention or deletion of your information.'),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F6F4),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Before production use, the LGU must publish its approved '
+                  'retention period and contact details.',
+                  style: TextStyle(fontSize: 12, height: 1.5,
+                    color: Color(0xFF526158)),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+          SizedBox(
+            width: 120,
+            height: 44,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: green,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
           ),
         ],
       ),
