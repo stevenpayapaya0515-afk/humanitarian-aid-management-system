@@ -1,6 +1,6 @@
 """Boundary tests for FIES financial categories; no database needed."""
 import unittest
-from ml_service.build_fies_baseline import classify_income, FEATURES, threshold_area, NCR_DISTRICTS, choose_candidate, validation_split
+from ml_service.build_fies_baseline import classify_income, FEATURES, threshold_area, NCR_DISTRICTS, choose_candidate, validation_split, engineer_features, DETAILED_FEATURES, assessment_mapping
 
 
 class FiesLabelTests(unittest.TestCase):
@@ -39,6 +39,37 @@ class FiesLabelTests(unittest.TestCase):
         fit, validation = validation_split(data)
         self.assertFalse(set(fit.sample_group) & set(validation.sample_group))
         self.assertEqual(len(fit) + len(validation), len(data))
+
+    def test_expense_features_match_source_units(self):
+        import pandas as pd
+        source = pd.DataFrame([{"FSIZE": 4, "FOOD": 40000, "TOTEX": 100000,
+                                "URBAN": 2, "HOUSING_WATER": 20000,
+                                "HEALTH": 4000, "EDUCATION": 0, "TRANSPORT": 8000}])
+        row = engineer_features(source).iloc[0]
+        self.assertEqual(row.food_per_person, 10000)
+        self.assertEqual(row.nonfood_per_person, 15000)
+        self.assertEqual(row.food_share, .4)
+        self.assertEqual(row.urban_area, 0)
+        self.assertEqual(row.housing_utilities_per_person, 5000)
+        self.assertEqual(row.education_per_person, 0)
+        self.assertEqual(row.transport_per_person, 2000)
+        self.assertNotIn("food_per_person", source.columns)
+
+    def test_bad_additional_values_are_not_filled_with_zero(self):
+        import pandas as pd
+        row = {"FSIZE": 4, "FOOD": 40000, "TOTEX": 100000,
+               "URBAN": 1, "HOUSING_WATER": 20000, "HEALTH": 4000,
+               "EDUCATION": 0, "TRANSPORT": 8000}
+        for field, value in [("FSIZE", 0), ("TOTEX", 0), ("URBAN", 9),
+                             ("HEALTH", float("nan")), ("TRANSPORT", -1),
+                             ("HOUSING_WATER", 100001)]:
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                engineer_features(pd.DataFrame([{**row, field: value}]))
+
+    def test_selected_feature_mapping_is_complete(self):
+        self.assertEqual(set(assessment_mapping(DETAILED_FEATURES)), set(DETAILED_FEATURES))
+        for name in DETAILED_FEATURES:
+            self.assertNotIn(name, ["TOINC", "PERCAPITA", "NPCINC", "proxy_class"])
 
     def test_threshold_boundaries(self):
         self.assertEqual(classify_income(99, 100, 150), "High")

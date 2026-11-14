@@ -20,10 +20,16 @@ from sklearn.dummy import DummyClassifier
 from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
 from sklearn.model_selection import GroupShuffleSplit
 
-VERSION = "fies2025-financial-proxy-v3"
+VERSION = "fies2025-financial-proxy-v4"
 CLASSES = ["Low", "Medium", "High"]
 # No income, income components, deciles, survey weights or identifiers as predictors.
 FEATURES = ["average_family_size", "food_per_person", "nonfood_per_person"]
+CONTEXT_FEATURES = FEATURES + ["urban_area", "food_share"]
+EXPENSE_COLUMNS = {"housing_utilities_per_person": "HOUSING_WATER",
+                   "health_per_person": "HEALTH", "education_per_person": "EDUCATION",
+                   "transport_per_person": "TRANSPORT"}
+DETAILED_FEATURES = CONTEXT_FEATURES + list(EXPENSE_COLUMNS)
+
 ALIASES = {"Mountain Province": "Mt. Province", "Samar (Western)": "Samar",
            "Compostela Valley": "Davao de Oro", "North Cotabato": "Cotabato",
            "Dinagat Island": "Dinagat Islands", "City of Isabela": "Isabela City"}
@@ -71,7 +77,7 @@ def prepare(zip_path, threshold_path):
                 names[int(row[3])] = str(row[2]).strip()
         book.close()
     frame = frame.apply(lambda column: column.str.strip())
-    numeric = ["W_PROV", "W_REGN", "URBAN", "FSIZE", "TOINC", "PERCAPITA", "TOTEX", "FOOD", "RFACT"]
+    numeric = ["W_PROV", "W_REGN", "URBAN", "FSIZE", "TOINC", "PERCAPITA", "TOTEX", "FOOD", "RFACT", *EXPENSE_COLUMNS.values()]
     for col in numeric:
         frame[col] = pd.to_numeric(frame[col], errors="raise")
     if frame[["W_REGN", "W_PROV", "SEQNO"]].duplicated().any():
@@ -107,19 +113,57 @@ def prepare(zip_path, threshold_path):
     frame["proxy_class"] = "Needs review"
     usable = frame.exclusion_reason.eq("")
     frame.loc[usable, "proxy_class"] = [classify_income(i, f, p) for i, f, p in zip(frame.loc[usable, "PERCAPITA"], frame.loc[usable, "food_threshold"], frame.loc[usable, "poverty_threshold"])]
-    frame["average_family_size"] = frame.FSIZE
-    frame["food_per_person"] = frame.FOOD / frame.FSIZE
-    frame["nonfood_per_person"] = (frame.TOTEX - frame.FOOD) / frame.FSIZE
+    frame = engineer_features(frame)
     # Keep whole PSUs together; location prefixes prevent cross-province code collisions.
     frame["sample_group"] = frame.W_REGN.astype(str) + ":" + frame.W_PROV.astype(str) + ":" + frame.RPSU
     return frame
 
 
-def evaluate(model, frame):
+
+def engineer_features(frame):
+    frame = frame.copy()
+    extra = list(EXPENSE_COLUMNS.values())
+    core = ["FSIZE", "TOTEX", "FOOD"]
+    if (not np.isfinite(frame[core]).all().all() or (frame.FSIZE < 1).any()
+            or (frame.TOTEX <= 0).any() or (frame.FOOD < 0).any()
+            or (frame.FOOD > frame.TOTEX).any()):
+        raise ValueError("Family size and total/food expenses must be valid before feature derivation")
+    if (not np.isfinite(frame[extra]).all().all()
+            or (frame[extra] < 0).any().any()
+            or frame[extra].gt(frame.TOTEX, axis=0).any().any()
+            or not frame.URBAN.isin([1, 2]).all()):
+        raise ValueError("Additional expense or urban/rural data invalid; stop rather than compare different row cohorts")
+    frame["average_family_size"] = frame.FSIZE
+    frame["food_per_person"] = frame.FOOD / frame.FSIZE
+    frame["nonfood_per_person"] = (frame.TOTEX - frame.FOOD) / frame.FSIZE
+    frame["urban_area"] = (frame.URBAN == 1).astype(int)
+    # Undefined zero-total share remains missing, never interpreted as zero spending.
+    frame["food_share"] = frame.FOOD / frame.TOTEX.where(frame.TOTEX > 0)
+    for feature, source in EXPENSE_COLUMNS.items():
+        frame[feature] = frame[source] / frame.FSIZE
+    return frame
+
+
+def assessment_mapping(features):
+    mapping = {
+        "average_family_size": {"source": "FSIZE", "input": "average_family_size", "unit": "persons averaged over reference period", "note": "Verify FIES family membership/reference-period definition before integration; not current household headcount."},
+        "food_per_person": {"source": "FOOD / FSIZE", "input": "annual_food_expenditure / average_family_size", "unit": "2025 PHP/person/year"},
+        "nonfood_per_person": {"source": "(TOTEX - FOOD) / FSIZE", "input": "(annual_family_expenditure - annual_food_expenditure) / average_family_size", "unit": "2025 PHP/person/year"},
+        "urban_area": {"source": "URBAN: 1 urban, 2 rural", "input": "verified urban/rural classification of residence", "unit": "1 urban, 0 rural", "note": "New assessment field required; do not infer from household income."},
+        "food_share": {"source": "FOOD / TOTEX", "input": "annual_food_expenditure / annual_family_expenditure", "unit": "fraction 0 to 1"},
+        "housing_utilities_per_person": {"source": "HOUSING_WATER / FSIZE", "input": "annual housing, water, electricity, gas and other fuel expenditure / average_family_size", "unit": "2025 PHP/person/year", "note": "New field; match FIES scope, including applicable housing rental value, before integration."},
+        "health_per_person": {"source": "HEALTH / FSIZE", "input": "annual health expenditure / average_family_size", "unit": "2025 PHP/person/year", "note": "New field; zero expenditure does not prove absence of health needs."},
+        "education_per_person": {"source": "EDUCATION / FSIZE", "input": "annual education expenditure / average_family_size", "unit": "2025 PHP/person/year", "note": "New field; zero expenditure does not prove absence of education needs."},
+        "transport_per_person": {"source": "TRANSPORT / FSIZE", "input": "annual transport expenditure / average_family_size", "unit": "2025 PHP/person/year", "note": "New field; follow FIES expenditure definitions."},
+    }
+    return {feature: mapping[feature] for feature in features}
+
+
+def evaluate(model, frame, features=FEATURES):
     if frame.empty:
         return {"records": 0}
     truth = frame.proxy_class
-    pred = model.predict(frame[FEATURES])
+    pred = model.predict(frame[features])
     report = classification_report(truth, pred, labels=CLASSES, output_dict=True, zero_division=0)
     return {"records": len(frame), "class_counts": truth.value_counts().to_dict(),
             "balanced_accuracy": float(balanced_accuracy_score(truth, pred)),
@@ -129,11 +173,11 @@ def evaluate(model, frame):
 
 
 
-# Fixed before examining v3 holdouts. These compare class weighting only.
+# Fixed feature comparisons. Weighting/trees/leaf size remain the retained baseline.
 CANDIDATES = [
-    ("balanced_baseline", "balanced_subsample"),
-    ("moderate_weights", {"Low": 1, "Medium": 2, "High": 4}),
-    ("unweighted", None),
+    ("baseline_three_inputs", FEATURES),
+    ("context_and_food_share", CONTEXT_FEATURES),
+    ("detailed_expenses", DETAILED_FEATURES),
 ]
 
 
@@ -167,27 +211,72 @@ def choose_candidate(results):
 def select_model(train):
     fit, validation = validation_split(train)
     results = []
-    for name, weights in CANDIDATES:
+    for name, features in CANDIDATES:
+        weights = "balanced_subsample"
         print("Validation candidate:", name, flush=True)
         candidate = RandomForestClassifier(n_estimators=200, min_samples_leaf=10,
                                             class_weight=weights, random_state=42, n_jobs=2)
-        candidate.fit(fit[FEATURES], fit.proxy_class)
-        metrics = evaluate(candidate, validation)
-        results.append({"name": name, "class_weight": weights, "metrics": metrics})
+        candidate.fit(fit[features], fit.proxy_class)
+        metrics = evaluate(candidate, validation, features)
+        results.append({"name": name, "class_weight": weights, "features": features, "metrics": metrics})
         print("  macro F1:", round(metrics["macro_f1"], 4), flush=True)
     selected, rule = choose_candidate(results)
     print("Selected using validation only:", selected["name"], flush=True)
     model = RandomForestClassifier(n_estimators=200, min_samples_leaf=10,
                                     class_weight=selected["class_weight"], random_state=42, n_jobs=2)
     # Refit only on the original training partition, never test or Caraga rows.
-    model.fit(train[FEATURES], train.proxy_class)
+    model.fit(train[selected["features"]], train.proxy_class)
     return model, {
         "fit_records": len(fit), "validation_records": len(validation),
         "group_split_seed": 17, "candidates": results,
-        "selected_candidate": selected["name"], "selection_rule": rule,
+        "selected_candidate": selected["name"], "selected_features": selected["features"], "selection_rule": rule,
         "refit_records": len(train),
         "note": "Validation is a subset of the original training partition; its score is not a test score.",
     }, validation.index
+
+
+
+def write_charts(report, directory):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import LinearSegmentedColormap
+    green = "#185C37"
+    cmap = LinearSegmentedColormap.from_list("aidtrack", ["#F1F7F3", green])
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5), layout="constrained")
+    scopes = [("holdout_non_caraga", "Non-Caraga"), ("holdout_caraga", "Caraga"),
+              ("holdout_agusan_del_norte_excluding_butuan", "Agusan del Norte\n(excluding Butuan)")]
+    for ax, (key, title) in zip(axes, scopes):
+        result = report[key]
+        counts = np.asarray(result["confusion_matrix"])
+        ratios = counts / np.maximum(counts.sum(axis=1, keepdims=True), 1)
+        ax.imshow(ratios, vmin=0, vmax=1, cmap=cmap)
+        for row in range(3):
+            for col in range(3):
+                ax.text(col, row, f"{counts[row, col]:,}\n{ratios[row, col]:.1%}",
+                        ha="center", va="center", fontsize=11,
+                        color="white" if ratios[row, col] > .55 else "#20362A")
+        ax.set(xticks=range(3), yticks=range(3), xticklabels=CLASSES, yticklabels=CLASSES,
+               xlabel="Predicted class", ylabel="Income-threshold class",
+               title=f"{title} • n={result['records']:,}")
+    fig.suptitle("FIES 2025 financial proxy • Counts and percentage within each true class", fontsize=14)
+    fig.savefig(directory / "fies2025_confusion_matrices.png", dpi=160)
+    plt.close(fig)
+    candidates = report["model_selection"]["candidates"]
+    fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
+    x = np.arange(len(candidates)); width = .23
+    series = [("Macro F1", [c["metrics"]["macro_f1"] for c in candidates], green),
+              ("High precision", [c["metrics"]["classification_report"]["High"]["precision"] for c in candidates], "#689C79"),
+              ("High recall", [c["metrics"]["classification_report"]["High"]["recall"] for c in candidates], "#BD8914")]
+    for offset, (label, values, color) in enumerate(series):
+        bars = ax.bar(x + (offset - 1) * width, values, width, label=label, color=color)
+        ax.bar_label(bars, fmt="%.3f", fontsize=9, padding=3)
+    ax.set(xticks=x, xticklabels=[c["name"].replace("_", "\n") for c in candidates], ylim=(0, 1.12),
+           ylabel="Score (0 to 1)", title="Training-only grouped validation • Feature comparison")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(loc="upper right", ncols=3, frameon=False)
+    fig.savefig(directory / "fies2025_validation_comparison.png", dpi=160)
+    plt.close(fig)
 
 
 def main():
@@ -211,10 +300,11 @@ def main():
     frame.loc[test.index, "split"] = "test_non_caraga"
     frame.loc[caraga.index, "split"] = "test_caraga"
     model, selection, validation_ids = select_model(train)
+    features = selection["selected_features"]
     frame["selection_partition"] = "not_used"
     frame.loc[train.index, "selection_partition"] = "fit"
     frame.loc[validation_ids, "selection_partition"] = "validation"
-    dummy = DummyClassifier(strategy="most_frequent").fit(train[FEATURES], train.proxy_class)
+    dummy = DummyClassifier(strategy="most_frequent").fit(train[features], train.proxy_class)
     excluded = frame[~frame.exclusion_reason.eq("")]
     report = {"version": VERSION, "status": "offline research candidate; not connected to app",
               "source": "PSA FIES 2025 Volume 1 PUF", "threshold_source": "2025 official poverty workbook, tab16 including NCR footnote a/",
@@ -224,18 +314,21 @@ def main():
               "records_total": len(frame), "records_usable": len(usable), "training_records": len(train), "model_selection": selection,
               "excluded_records": len(excluded),
               "excluded_domains": excluded.groupby(["W_PROV", "province_name", "exclusion_reason"], dropna=False).size().reset_index(name="records").to_dict("records"),
-              "features": FEATURES, "class_distribution": usable.proxy_class.value_counts().to_dict(),
+              "features": features, "assessment_input_mapping": assessment_mapping(features), "class_distribution": usable.proxy_class.value_counts().to_dict(),
               "label_definition": {"High": "income per person < food threshold", "Medium": "food threshold <= income per person < poverty threshold", "Low": "income per person >= poverty threshold"},
-              "holdout_non_caraga": evaluate(model, test), "holdout_caraga": evaluate(model, caraga),
-              "holdout_agusan_del_norte_excluding_butuan": evaluate(model, caraga[caraga.W_PROV == 2]),
-              "majority_baseline_non_caraga": evaluate(dummy, test), "majority_baseline_caraga": evaluate(dummy, caraga),
-              "feature_importance": dict(zip(FEATURES, model.feature_importances_.tolist())),
+              "holdout_non_caraga": evaluate(model, test, features), "holdout_caraga": evaluate(model, caraga, features),
+              "holdout_agusan_del_norte_excluding_butuan": evaluate(model, caraga[caraga.W_PROV == 2], features),
+              "majority_baseline_non_caraga": evaluate(dummy, test, features), "majority_baseline_caraga": evaluate(dummy, caraga, features),
+              "feature_importance": dict(zip(features, model.feature_importances_.tolist())),
               "versions": {"sklearn": sklearn.__version__, "pandas": pd.__version__},
               "limitations": [
                   "Low/Medium/High are researcher-defined financial categories, not official humanitarian vulnerability or aid eligibility.",
                   "Unmapped HUCs and other domains are excluded, including Butuan; national coverage is incomplete pending verified mapping.",
                   "Known income directly determines the threshold category; RF is only an expenditure-based proxy for unknown income.",
                   "No income, income components, per-capita income, deciles, target thresholds, or identifiers are predictors.",
+                  "Urban/rural location is known context also used to choose target thresholds; it is not an independent validation outcome.",
+                  "Detailed expenditure components and food share overlap with total spending; feature importances are not causal explanations.",
+                  "Low reported health/education spending may reflect unmet need and cannot imply lower humanitarian need.",
                   "Family size is a shared denominator in income labels and expenditure predictors; association is not causal validation.",
                   "Metrics are unweighted sample-level results, not population poverty prevalence estimates.",
                   "All Caraga records are withheld from training and candidate selection. No final refit on holdouts.",
@@ -246,14 +339,15 @@ def main():
     root = args.output_root
     for directory in ("datasets", "evaluation", "models"):
         (root / directory).mkdir(parents=True, exist_ok=True)
-    keep = ["W_REGN", "W_PROV", "SEQNO", "URBAN", "province_name", "threshold_area", "threshold_sheet_row", "FSIZE", "TOINC", "PERCAPITA", "TOTEX", "FOOD", "RFACT", "food_threshold", "poverty_threshold", *FEATURES, "proxy_class", "exclusion_reason", "sample_group", "split", "selection_partition"]
+    keep = ["W_REGN", "W_PROV", "SEQNO", "URBAN", "province_name", "threshold_area", "threshold_sheet_row", "FSIZE", "TOINC", "PERCAPITA", "TOTEX", "FOOD", "RFACT", "food_threshold", "poverty_threshold", *EXPENSE_COLUMNS.values(), *DETAILED_FEATURES, "proxy_class", "exclusion_reason", "sample_group", "split", "selection_partition"]
     frame[keep].to_csv(root / "datasets/fies2025_prepared.csv", index=False)
     (root / "evaluation/fies2025_evaluation.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-    joblib.dump({"pipeline": model, "version": VERSION, "features": FEATURES,
+    joblib.dump({"pipeline": model, "version": VERSION, "features": features,
                  "label_kind": "financial_threshold_proxy", "reference_year": 2025,
                  "geographic_mapping_version": "province-aliases-and-ncr-districts-v2",
                  "selected_candidate": selection["selected_candidate"],
                  "app_ready": False}, root / "models/fies2025_candidate.joblib", compress=3)
+    write_charts(report, root / "evaluation")
     print(json.dumps({k: report[k] for k in ("records_total", "records_usable", "excluded_records", "class_distribution")}, indent=2))
     for name in ("holdout_non_caraga", "holdout_caraga", "holdout_agusan_del_norte_excluding_butuan"):
         print(name, "macro F1", round(report[name]["macro_f1"], 4), "balanced accuracy", round(report[name]["balanced_accuracy"], 4))

@@ -1,5 +1,5 @@
 {
-  "version": "fies2025-financial-proxy-v2",
+  "version": "fies2025-financial-proxy-v4",
   "status": "offline research candidate; not connected to app",
   "source": "PSA FIES 2025 Volume 1 PUF",
   "threshold_source": "2025 official poverty workbook, tab16 including NCR footnote a/",
@@ -9,6 +9,267 @@
   "records_total": 170916,
   "records_usable": 146516,
   "training_records": 111715,
+  "model_selection": {
+    "fit_records": 89324,
+    "validation_records": 22391,
+    "group_split_seed": 17,
+    "candidates": [
+      {
+        "name": "baseline_three_inputs",
+        "class_weight": "balanced_subsample",
+        "features": [
+          "average_family_size",
+          "food_per_person",
+          "nonfood_per_person"
+        ],
+        "metrics": {
+          "records": 22391,
+          "class_counts": {
+            "Low": 20768,
+            "Medium": 1319,
+            "High": 304
+          },
+          "balanced_accuracy": 0.7988554677998114,
+          "macro_f1": 0.6766653687040285,
+          "classification_report": {
+            "Low": {
+              "precision": 0.9930279398853483,
+              "recall": 0.9258474576271186,
+              "f1-score": 0.9582616929555705,
+              "support": 20768.0
+            },
+            "Medium": {
+              "precision": 0.38485680659081994,
+              "recall": 0.7437452615617892,
+              "f1-score": 0.5072388831437435,
+              "support": 1319.0
+            },
+            "High": {
+              "precision": 0.4613778705636743,
+              "recall": 0.7269736842105263,
+              "f1-score": 0.5644955300127714,
+              "support": 304.0
+            },
+            "accuracy": 0.9124201688178286,
+            "macro avg": {
+              "precision": 0.6130875390132808,
+              "recall": 0.7988554677998113,
+              "f1-score": 0.6766653687040285,
+              "support": 22391.0
+            },
+            "weighted avg": {
+              "precision": 0.9499838888876584,
+              "recall": 0.9124201688178286,
+              "f1-score": 0.92634690577874,
+              "support": 22391.0
+            }
+          },
+          "confusion_matrix_order": [
+            "Low",
+            "Medium",
+            "High"
+          ],
+          "confusion_matrix": [
+            [
+              19228,
+              1491,
+              49
+            ],
+            [
+              129,
+              981,
+              209
+            ],
+            [
+              6,
+              77,
+              221
+            ]
+          ]
+        }
+      },
+      {
+        "name": "context_and_food_share",
+        "class_weight": "balanced_subsample",
+        "features": [
+          "average_family_size",
+          "food_per_person",
+          "nonfood_per_person",
+          "urban_area",
+          "food_share"
+        ],
+        "metrics": {
+          "records": 22391,
+          "class_counts": {
+            "Low": 20768,
+            "Medium": 1319,
+            "High": 304
+          },
+          "balanced_accuracy": 0.8106911188574557,
+          "macro_f1": 0.6900159671091162,
+          "classification_report": {
+            "Low": {
+              "precision": 0.9932630496271535,
+              "recall": 0.9299884437596302,
+              "f1-score": 0.9605848854847935,
+              "support": 20768.0
+            },
+            "Medium": {
+              "precision": 0.40129449838187703,
+              "recall": 0.7520849128127369,
+              "f1-score": 0.5233447639145344,
+              "support": 1319.0
+            },
+            "High": {
+              "precision": 0.4810126582278481,
+              "recall": 0.75,
+              "f1-score": 0.5861182519280206,
+              "support": 304.0
+            },
+            "accuracy": 0.9170648921441651,
+            "macro avg": {
+              "precision": 0.6251900687456261,
+              "recall": 0.8106911188574557,
+              "f1-score": 0.6900159671091162,
+              "support": 22391.0
+            },
+            "weighted avg": {
+              "precision": 0.9514368409684107,
+              "recall": 0.9170648921441651,
+              "f1-score": 0.929744030813165,
+              "support": 22391.0
+            }
+          },
+          "confusion_matrix_order": [
+            "Low",
+            "Medium",
+            "High"
+          ],
+          "confusion_matrix": [
+            [
+              19314,
+              1410,
+              44
+            ],
+            [
+              125,
+              992,
+              202
+            ],
+            [
+              6,
+              70,
+              228
+            ]
+          ]
+        }
+      },
+      {
+        "name": "detailed_expenses",
+        "class_weight": "balanced_subsample",
+        "features": [
+          "average_family_size",
+          "food_per_person",
+          "nonfood_per_person",
+          "urban_area",
+          "food_share",
+          "housing_utilities_per_person",
+          "health_per_person",
+          "education_per_person",
+          "transport_per_person"
+        ],
+        "metrics": {
+          "records": 22391,
+          "class_counts": {
+            "Low": 20768,
+            "Medium": 1319,
+            "High": 304
+          },
+          "balanced_accuracy": 0.8012108787890879,
+          "macro_f1": 0.7044862268681044,
+          "classification_report": {
+            "Low": {
+              "precision": 0.992253592905922,
+              "recall": 0.9375,
+              "f1-score": 0.9641000247586036,
+              "support": 20768.0
+            },
+            "Medium": {
+              "precision": 0.42875264270613106,
+              "recall": 0.7687642153146323,
+              "f1-score": 0.5504885993485342,
+              "support": 1319.0
+            },
+            "High": {
+              "precision": 0.5247524752475248,
+              "recall": 0.6973684210526315,
+              "f1-score": 0.5988700564971752,
+              "support": 304.0
+            },
+            "accuracy": 0.9242999419409584,
+            "macro avg": {
+              "precision": 0.6485862369531926,
+              "recall": 0.8012108787890879,
+              "f1-score": 0.7044862268681044,
+              "support": 22391.0
+            },
+            "weighted avg": {
+              "precision": 0.9527118978908858,
+              "recall": 0.9242999419409584,
+              "f1-score": 0.9347764849226269,
+              "support": 22391.0
+            }
+          },
+          "confusion_matrix_order": [
+            "Low",
+            "Medium",
+            "High"
+          ],
+          "confusion_matrix": [
+            [
+              19470,
+              1265,
+              33
+            ],
+            [
+              146,
+              1014,
+              159
+            ],
+            [
+              6,
+              86,
+              212
+            ]
+          ]
+        }
+      }
+    ],
+    "selected_candidate": "detailed_expenses",
+    "selected_features": [
+      "average_family_size",
+      "food_per_person",
+      "nonfood_per_person",
+      "urban_area",
+      "food_share",
+      "housing_utilities_per_person",
+      "health_per_person",
+      "education_per_person",
+      "transport_per_person"
+    ],
+    "selection_rule": {
+      "high_recall_floor": 0.6769736842105263,
+      "medium_recall_floor": 0.6437452615617892,
+      "criterion": "Highest validation macro F1 subject to recall floors relative to balanced baseline; ties retain earlier candidate.",
+      "eligible_candidates": [
+        "baseline_three_inputs",
+        "context_and_food_share",
+        "detailed_expenses"
+      ]
+    },
+    "refit_records": 111715,
+    "note": "Validation is a subset of the original training partition; its score is not a test score."
+  },
   "excluded_records": 24400,
   "excluded_domains": [
     {
@@ -123,8 +384,67 @@
   "features": [
     "average_family_size",
     "food_per_person",
-    "nonfood_per_person"
+    "nonfood_per_person",
+    "urban_area",
+    "food_share",
+    "housing_utilities_per_person",
+    "health_per_person",
+    "education_per_person",
+    "transport_per_person"
   ],
+  "assessment_input_mapping": {
+    "average_family_size": {
+      "source": "FSIZE",
+      "input": "average_family_size",
+      "unit": "persons averaged over reference period",
+      "note": "Verify FIES family membership/reference-period definition before integration; not current household headcount."
+    },
+    "food_per_person": {
+      "source": "FOOD / FSIZE",
+      "input": "annual_food_expenditure / average_family_size",
+      "unit": "2025 PHP/person/year"
+    },
+    "nonfood_per_person": {
+      "source": "(TOTEX - FOOD) / FSIZE",
+      "input": "(annual_family_expenditure - annual_food_expenditure) / average_family_size",
+      "unit": "2025 PHP/person/year"
+    },
+    "urban_area": {
+      "source": "URBAN: 1 urban, 2 rural",
+      "input": "verified urban/rural classification of residence",
+      "unit": "1 urban, 0 rural",
+      "note": "New assessment field required; do not infer from household income."
+    },
+    "food_share": {
+      "source": "FOOD / TOTEX",
+      "input": "annual_food_expenditure / annual_family_expenditure",
+      "unit": "fraction 0 to 1"
+    },
+    "housing_utilities_per_person": {
+      "source": "HOUSING_WATER / FSIZE",
+      "input": "annual housing, water, electricity, gas and other fuel expenditure / average_family_size",
+      "unit": "2025 PHP/person/year",
+      "note": "New field; match FIES scope, including applicable housing rental value, before integration."
+    },
+    "health_per_person": {
+      "source": "HEALTH / FSIZE",
+      "input": "annual health expenditure / average_family_size",
+      "unit": "2025 PHP/person/year",
+      "note": "New field; zero expenditure does not prove absence of health needs."
+    },
+    "education_per_person": {
+      "source": "EDUCATION / FSIZE",
+      "input": "annual education expenditure / average_family_size",
+      "unit": "2025 PHP/person/year",
+      "note": "New field; zero expenditure does not prove absence of education needs."
+    },
+    "transport_per_person": {
+      "source": "TRANSPORT / FSIZE",
+      "input": "annual transport expenditure / average_family_size",
+      "unit": "2025 PHP/person/year",
+      "note": "New field; follow FIES expenditure definitions."
+    }
+  },
   "class_distribution": {
     "Low": 135497,
     "Medium": 8966,
@@ -142,38 +462,38 @@
       "Medium": 1840,
       "High": 494
     },
-    "balanced_accuracy": 0.810644457466831,
-    "macro_f1": 0.6949358834373243,
+    "balanced_accuracy": 0.8021016509126103,
+    "macro_f1": 0.7110899015873343,
     "classification_report": {
       "Low": {
-        "precision": 0.991436925647452,
-        "recall": 0.9228944707986624,
-        "f1-score": 0.9559386201619074,
+        "precision": 0.9901863763813293,
+        "recall": 0.933742903802784,
+        "f1-score": 0.9611366820092055,
         "support": 25718.0
       },
       "Medium": {
-        "precision": 0.39593301435406697,
-        "recall": 0.7195652173913043,
-        "f1-score": 0.5108024691358025,
+        "precision": 0.43075941289087427,
+        "recall": 0.7336956521739131,
+        "f1-score": 0.5428226779252111,
         "support": 1840.0
       },
       "High": {
-        "precision": 0.5078125,
-        "recall": 0.7894736842105263,
-        "f1-score": 0.618066561014263,
+        "precision": 0.5480480480480481,
+        "recall": 0.7388663967611336,
+        "f1-score": 0.6293103448275862,
         "support": 494.0
       },
-      "accuracy": 0.9072080422073292,
+      "accuracy": 0.91718950520462,
       "macro avg": {
-        "precision": 0.6317274800005063,
-        "recall": 0.810644457466831,
-        "f1-score": 0.6949358834373243,
+        "precision": 0.6563312791067506,
+        "recall": 0.8021016509126103,
+        "f1-score": 0.7110899015873343,
         "support": 28052.0
       },
       "weighted avg": {
-        "precision": 0.9438596526170202,
-        "recall": 0.9072080422073292,
-        "f1-score": 0.9207910615169991,
+        "precision": 0.9457060560113351,
+        "recall": 0.91718950520462,
+        "f1-score": 0.9278549203493498,
         "support": 28052.0
       }
     },
@@ -184,19 +504,19 @@
     ],
     "confusion_matrix": [
       [
-        23735,
-        1920,
-        63
+        24014,
+        1659,
+        45
       ],
       [
-        201,
-        1324,
-        315
+        234,
+        1350,
+        256
       ],
       [
         4,
-        100,
-        390
+        125,
+        365
       ]
     ]
   },
@@ -207,38 +527,38 @@
       "Medium": 491,
       "High": 103
     },
-    "balanced_accuracy": 0.8203511205934179,
-    "macro_f1": 0.6623331777527331,
+    "balanced_accuracy": 0.8323057211954575,
+    "macro_f1": 0.6918384733154838,
     "classification_report": {
       "Low": {
-        "precision": 0.9963329666299964,
-        "recall": 0.882859463850528,
-        "f1-score": 0.9361702127659575,
+        "precision": 0.9962230215827338,
+        "recall": 0.899918765231519,
+        "f1-score": 0.9456252667520273,
         "support": 6155.0
       },
       "Medium": {
-        "precision": 0.34563456345634563,
-        "recall": 0.7820773930753564,
-        "f1-score": 0.4794007490636704,
+        "precision": 0.388671875,
+        "recall": 0.8105906313645621,
+        "f1-score": 0.5254125412541254,
         "support": 491.0
       },
       "High": {
-        "precision": 0.44565217391304346,
-        "recall": 0.7961165048543689,
-        "f1-score": 0.5714285714285714,
+        "precision": 0.4909090909090909,
+        "recall": 0.7864077669902912,
+        "f1-score": 0.6044776119402985,
         "support": 103.0
       },
-      "accuracy": 0.8742035857164024,
+      "accuracy": 0.8916876574307305,
       "macro avg": {
-        "precision": 0.5958732346664618,
-        "recall": 0.8203511205934179,
-        "f1-score": 0.6623331777527331,
+        "precision": 0.6252679958306083,
+        "recall": 0.8323057211954574,
+        "f1-score": 0.6918384733154838,
         "support": 6749.0
       },
       "weighted avg": {
-        "precision": 0.9405894434994423,
-        "recall": 0.8742035857164024,
-        "f1-score": 0.8973730286297043,
+        "precision": 0.944310894181414,
+        "recall": 0.8916876574307305,
+        "f1-score": 0.9098477209430071,
         "support": 6749.0
       }
     },
@@ -249,19 +569,19 @@
     ],
     "confusion_matrix": [
       [
-        5434,
-        706,
-        15
+        5539,
+        604,
+        12
       ],
       [
-        20,
-        384,
-        87
+        21,
+        398,
+        72
       ],
       [
         0,
-        21,
-        82
+        22,
+        81
       ]
     ]
   },
@@ -272,38 +592,38 @@
       "Medium": 86,
       "High": 14
     },
-    "balanced_accuracy": 0.8508712620531206,
-    "macro_f1": 0.6251688723854274,
+    "balanced_accuracy": 0.8656998227804179,
+    "macro_f1": 0.6534748263268019,
     "classification_report": {
       "Low": {
-        "precision": 0.9974768713204374,
-        "recall": 0.8682284040995608,
-        "f1-score": 0.9283757338551859,
+        "precision": 0.9975369458128078,
+        "recall": 0.8894582723279648,
+        "f1-score": 0.9404024767801857,
         "support": 1366.0
       },
       "Medium": {
-        "precision": 0.26639344262295084,
-        "recall": 0.7558139534883721,
-        "f1-score": 0.3939393939393939,
+        "precision": 0.3087557603686636,
+        "recall": 0.7790697674418605,
+        "f1-score": 0.44224422442244227,
         "support": 86.0
       },
       "High": {
-        "precision": 0.3939393939393939,
+        "precision": 0.41935483870967744,
         "recall": 0.9285714285714286,
-        "f1-score": 0.5531914893617021,
+        "f1-score": 0.5777777777777777,
         "support": 14.0
       },
-      "accuracy": 0.8622100954979536,
+      "accuracy": 0.883356070941337,
       "macro avg": {
-        "precision": 0.5526032359609273,
-        "recall": 0.8508712620531206,
-        "f1-score": 0.6251688723854274,
+        "precision": 0.5752158482970496,
+        "recall": 0.8656998227804179,
+        "f1-score": 0.6534748263268019,
         "support": 1466.0
       },
       "weighted avg": {
-        "precision": 0.9488256437956635,
-        "recall": 0.8622100954979536,
-        "f1-score": 0.8934411467776505,
+        "precision": 0.9516094345934079,
+        "recall": 0.883356070941337,
+        "f1-score": 0.9077160132816866,
         "support": 1466.0
       }
     },
@@ -314,14 +634,14 @@
     ],
     "confusion_matrix": [
       [
-        1186,
-        178,
+        1215,
+        149,
         2
       ],
       [
         3,
-        65,
-        18
+        67,
+        16
       ],
       [
         0,
@@ -461,9 +781,15 @@
     ]
   },
   "feature_importance": {
-    "average_family_size": 0.09966717935389696,
-    "food_per_person": 0.4328029589541049,
-    "nonfood_per_person": 0.4675298616919981
+    "average_family_size": 0.02882665323212781,
+    "food_per_person": 0.3036782532155253,
+    "nonfood_per_person": 0.35477712861104704,
+    "urban_area": 0.008257437263475394,
+    "food_share": 0.05882745490964449,
+    "housing_utilities_per_person": 0.09627434069132486,
+    "health_per_person": 0.04161206967542767,
+    "education_per_person": 0.02768911830365008,
+    "transport_per_person": 0.08005754409777753
   },
   "versions": {
     "sklearn": "1.9.1",
@@ -474,9 +800,13 @@
     "Unmapped HUCs and other domains are excluded, including Butuan; national coverage is incomplete pending verified mapping.",
     "Known income directly determines the threshold category; RF is only an expenditure-based proxy for unknown income.",
     "No income, income components, per-capita income, deciles, target thresholds, or identifiers are predictors.",
+    "Urban/rural location is known context also used to choose target thresholds; it is not an independent validation outcome.",
+    "Detailed expenditure components and food share overlap with total spending; feature importances are not causal explanations.",
+    "Low reported health/education spending may reflect unmet need and cannot imply lower humanitarian need.",
     "Family size is a shared denominator in income labels and expenditure predictors; association is not causal validation.",
     "Metrics are unweighted sample-level results, not population poverty prevalence estimates.",
-    "All Caraga records are withheld from training. No final refit on holdouts.",
+    "All Caraga records are withheld from training and candidate selection. No final refit on holdouts.",
+    "Caraga and non-Caraga holdouts were inspected during earlier baseline development; these are reused development holdouts, not a fresh external validation.",
     "Annual monetary values are in 2025 pesos; current-period values require separate validation.",
     "FIES PUF contains 170916 rows; the supplied report describes 170914 completed samples. Source difference unresolved.",
     "No expert humanitarian labels, disaster outcomes, temporal validation, or automatic approval."
