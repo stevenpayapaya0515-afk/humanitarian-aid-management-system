@@ -53,5 +53,49 @@ class APISPredictionTests(unittest.TestCase):
             with self.subTest(extra=extra), self.assertRaises(ValidationError):
                 AssessmentCreate(**base, **extra)
 
+class FinancialAssessmentTests(unittest.TestCase):
+    def setUp(self):
+        self.base = dict(household_id=1, assessment_date='2026-11-14',
+            age_0_5_count=0, age_6_17_count=1, age_18_59_count=2, age_60_plus_count=0,
+            senior_citizens_count=0, pwd_count=0, monthly_income_range='Below 5000',
+            employment_status='Employed', livelihood_type='Salaried employment',
+            previous_humanitarian_assistance=False, beneficiary_status='Pending',
+            disaster_affected=False, housing_damage_level='None', displaced=False)
+        self.finance = dict(financial_reference_year=2025, financial_single_family=True,
+            average_family_size='3.50', annual_family_income='100000.25',
+            annual_family_expenditure='120000', annual_food_expenditure='50000')
+
+    def test_legacy_and_unknown_amounts_remain_null(self):
+        self.assertIsNone(AssessmentCreate(**self.base).annual_family_income)
+        record = AssessmentCreate(**self.base, **(self.finance | {'annual_family_income': None}))
+        self.assertIsNone(record.annual_family_income)
+        self.assertEqual(str(record.average_family_size), '3.50')
+
+    def test_zero_and_negative_net_income_preserved(self):
+        for amount in ['0', '-100.25']:
+            record = AssessmentCreate(**self.base, **(self.finance | {'annual_family_income': amount}))
+            self.assertEqual(str(record.annual_family_income), amount)
+
+    def test_invalid_financial_history_rejected(self):
+        cases = [dict(financial_reference_year=2026), dict(financial_reference_year=None),
+            dict(financial_reference_year=True), dict(financial_single_family=False),
+            dict(financial_single_family=None), dict(average_family_size=None),
+            dict(average_family_size=0), dict(annual_family_income='NaN'),
+            dict(annual_family_expenditure='Infinity'), dict(annual_food_expenditure=-1),
+            dict(annual_food_expenditure='120000.01'), dict(annual_family_income='1.123'),
+            dict(annual_family_income=None, annual_family_expenditure=None, annual_food_expenditure=None)]
+        for change in cases:
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                AssessmentCreate(**self.base, **(self.finance | change))
+
+    def test_financial_answers_do_not_change_apis_model_inputs(self):
+        answers = dict(roof_material=1, wall_material=1, electricity=1,
+            drinking_water_source=11, toilet_facility=12, working_adult_present=1,
+            apis_single_family=True)
+        with patch.object(predict, 'load_model', return_value=Model()):
+            before = predict.predict_vulnerability(answers)
+            after = predict.predict_vulnerability(answers | self.finance)
+        self.assertEqual(before, after)
+
 if __name__ == '__main__':
     unittest.main()

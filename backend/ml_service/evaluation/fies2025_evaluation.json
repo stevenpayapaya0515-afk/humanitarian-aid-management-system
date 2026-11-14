@@ -1,0 +1,585 @@
+{
+  "version": "fies2025-financial-proxy-v1",
+  "status": "offline research candidate; not connected to app",
+  "source": "PSA FIES 2025 Volume 1 PUF",
+  "threshold_source": "2025 official poverty workbook, tab16",
+  "source_sha256": "703afd4ad5e29b90d3f7be99e6caf1ccde7c0b9a44e17b3c3a4c7b577259b990",
+  "threshold_sha256": "6e4f469815fa9e3076e4e6604e38d36a57cd1d15359737f9e7de7863d6830498",
+  "records_total": 170916,
+  "records_usable": 124518,
+  "training_records": 94438,
+  "excluded_records": 46398,
+  "excluded_domains": [
+    {
+      "W_PROV": 301,
+      "province_name": "City of Angeles",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1399
+    },
+    {
+      "W_PROV": 302,
+      "province_name": "City of Bacolod",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1566
+    },
+    {
+      "W_PROV": 303,
+      "province_name": "City of Baguio",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1217
+    },
+    {
+      "W_PROV": 304,
+      "province_name": "City of Butuan",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1472
+    },
+    {
+      "W_PROV": 305,
+      "province_name": "City of Cagayan de Oro",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1453
+    },
+    {
+      "W_PROV": 306,
+      "province_name": "City of Cebu",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1409
+    },
+    {
+      "W_PROV": 307,
+      "province_name": "City of Davao",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1510
+    },
+    {
+      "W_PROV": 308,
+      "province_name": "City of General Santos",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1283
+    },
+    {
+      "W_PROV": 309,
+      "province_name": "City of Iligan",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1495
+    },
+    {
+      "W_PROV": 310,
+      "province_name": "City of Iloilo",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1535
+    },
+    {
+      "W_PROV": 311,
+      "province_name": "City of Lapulapu",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1470
+    },
+    {
+      "W_PROV": 312,
+      "province_name": "City of Lucena",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 902
+    },
+    {
+      "W_PROV": 313,
+      "province_name": "City of Mandaue",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1453
+    },
+    {
+      "W_PROV": 314,
+      "province_name": "City of Olongapo",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1412
+    },
+    {
+      "W_PROV": 315,
+      "province_name": "City of Puerto Princesa",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1473
+    },
+    {
+      "W_PROV": 316,
+      "province_name": "City of Tacloban",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1542
+    },
+    {
+      "W_PROV": 317,
+      "province_name": "City of Zamboanga",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1617
+    },
+    {
+      "W_PROV": 801,
+      "province_name": "CITY OF CALOOCAN",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1504
+    },
+    {
+      "W_PROV": 802,
+      "province_name": "CITY OF LAS PI\u00d1AS",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1540
+    },
+    {
+      "W_PROV": 803,
+      "province_name": "CITY OF MAKATI",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 917
+    },
+    {
+      "W_PROV": 804,
+      "province_name": "CITY OF MALABON",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1540
+    },
+    {
+      "W_PROV": 805,
+      "province_name": "CITY OF MANDALUYONG",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1213
+    },
+    {
+      "W_PROV": 806,
+      "province_name": "CITY OF MANILA",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1496
+    },
+    {
+      "W_PROV": 807,
+      "province_name": "CITY OF MARIKINA",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1462
+    },
+    {
+      "W_PROV": 808,
+      "province_name": "CITY OF MUNTINLUPA",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1457
+    },
+    {
+      "W_PROV": 809,
+      "province_name": "CITY OF NAVOTAS",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1606
+    },
+    {
+      "W_PROV": 810,
+      "province_name": "CITY OF PARA\u00d1AQUE",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1445
+    },
+    {
+      "W_PROV": 811,
+      "province_name": "PASAY CITY",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1289
+    },
+    {
+      "W_PROV": 812,
+      "province_name": "CITY OF PASIG",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1306
+    },
+    {
+      "W_PROV": 813,
+      "province_name": "QUEZON CITY",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1412
+    },
+    {
+      "W_PROV": 814,
+      "province_name": "CITY OF SAN JUAN",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 496
+    },
+    {
+      "W_PROV": 815,
+      "province_name": "CITY OF TAGUIG",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1316
+    },
+    {
+      "W_PROV": 816,
+      "province_name": "CITY OF VALENZUELA",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 1452
+    },
+    {
+      "W_PROV": 817,
+      "province_name": "PATEROS",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 547
+    },
+    {
+      "W_PROV": 999,
+      "province_name": "BARMM63",
+      "exclusion_reason": "No verified province/urban-rural threshold mapping",
+      "records": 192
+    }
+  ],
+  "features": [
+    "average_family_size",
+    "food_per_person",
+    "nonfood_per_person"
+  ],
+  "class_distribution": {
+    "Low": 113622,
+    "Medium": 8844,
+    "High": 2052
+  },
+  "label_definition": {
+    "High": "income per person < food threshold",
+    "Medium": "food threshold <= income per person < poverty threshold",
+    "Low": "income per person >= poverty threshold"
+  },
+  "holdout_non_caraga": {
+    "records": 23331,
+    "class_counts": {
+      "Low": 21303,
+      "Medium": 1627,
+      "High": 401
+    },
+    "balanced_accuracy": 0.8178886894487616,
+    "macro_f1": 0.694458585837657,
+    "classification_report": {
+      "Low": {
+        "precision": 0.9913202375513933,
+        "recall": 0.9167722855935784,
+        "f1-score": 0.9525899912203687,
+        "support": 21303.0
+      },
+      "Medium": {
+        "precision": 0.3994629070157771,
+        "recall": 0.7314074984634297,
+        "f1-score": 0.5167173252279635,
+        "support": 1627.0
+      },
+      "High": {
+        "precision": 0.49615975422427033,
+        "recall": 0.8054862842892768,
+        "f1-score": 0.6140684410646388,
+        "support": 401.0
+      },
+      "accuracy": 0.901933050447902,
+      "macro avg": {
+        "precision": 0.6289809662638136,
+        "recall": 0.8178886894487616,
+        "f1-score": 0.694458585837657,
+        "support": 23331.0
+      },
+      "weighted avg": {
+        "precision": 0.9415362064084666,
+        "recall": 0.901933050447902,
+        "f1-score": 0.916375856841984,
+        "support": 23331.0
+      }
+    },
+    "confusion_matrix_order": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "confusion_matrix": [
+      [
+        19530,
+        1715,
+        58
+      ],
+      [
+        167,
+        1190,
+        270
+      ],
+      [
+        4,
+        74,
+        323
+      ]
+    ]
+  },
+  "holdout_caraga": {
+    "records": 6749,
+    "class_counts": {
+      "Low": 6155,
+      "Medium": 491,
+      "High": 103
+    },
+    "balanced_accuracy": 0.8135668343946528,
+    "macro_f1": 0.6636552029457459,
+    "classification_report": {
+      "Low": {
+        "precision": 0.9963689179375453,
+        "recall": 0.8916328188464663,
+        "f1-score": 0.9410957729572151,
+        "support": 6155.0
+      },
+      "Medium": {
+        "precision": 0.3626062322946176,
+        "recall": 0.7820773930753564,
+        "f1-score": 0.49548387096774194,
+        "support": 491.0
+      },
+      "High": {
+        "precision": 0.4340659340659341,
+        "recall": 0.7669902912621359,
+        "f1-score": 0.5543859649122806,
+        "support": 103.0
+      },
+      "accuracy": 0.8817602607793747,
+      "macro avg": {
+        "precision": 0.597680361432699,
+        "recall": 0.8135668343946528,
+        "f1-score": 0.6636552029457459,
+        "support": 6749.0
+      },
+      "weighted avg": {
+        "precision": 0.9416801216729944,
+        "recall": 0.8817602607793747,
+        "f1-score": 0.9027750507605253,
+        "support": 6749.0
+      }
+    },
+    "confusion_matrix_order": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "confusion_matrix": [
+      [
+        5488,
+        651,
+        16
+      ],
+      [
+        20,
+        384,
+        87
+      ],
+      [
+        0,
+        24,
+        79
+      ]
+    ]
+  },
+  "holdout_agusan_del_norte_excluding_butuan": {
+    "records": 1466,
+    "class_counts": {
+      "Low": 1366,
+      "Medium": 86,
+      "High": 14
+    },
+    "balanced_accuracy": 0.8579195102059347,
+    "macro_f1": 0.6344652993012069,
+    "classification_report": {
+      "Low": {
+        "precision": 0.997504159733777,
+        "recall": 0.8777452415812591,
+        "f1-score": 0.9338006230529595,
+        "support": 1366.0
+      },
+      "Medium": {
+        "precision": 0.2857142857142857,
+        "recall": 0.7674418604651163,
+        "f1-score": 0.416403785488959,
+        "support": 86.0
+      },
+      "High": {
+        "precision": 0.3939393939393939,
+        "recall": 0.9285714285714286,
+        "f1-score": 0.5531914893617021,
+        "support": 14.0
+      },
+      "accuracy": 0.8717598908594816,
+      "macro avg": {
+        "precision": 0.5590526131291522,
+        "recall": 0.8579195102059346,
+        "f1-score": 0.6344652993012069,
+        "support": 1466.0
+      },
+      "weighted avg": {
+        "precision": 0.9499844899610639,
+        "recall": 0.8717598908594816,
+        "f1-score": 0.8998138182083608,
+        "support": 1466.0
+      }
+    },
+    "confusion_matrix_order": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "confusion_matrix": [
+      [
+        1199,
+        164,
+        3
+      ],
+      [
+        3,
+        66,
+        17
+      ],
+      [
+        0,
+        1,
+        13
+      ]
+    ]
+  },
+  "majority_baseline_non_caraga": {
+    "records": 23331,
+    "class_counts": {
+      "Low": 21303,
+      "Medium": 1627,
+      "High": 401
+    },
+    "balanced_accuracy": 0.3333333333333333,
+    "macro_f1": 0.31818792848501143,
+    "classification_report": {
+      "Low": {
+        "precision": 0.9130770219879131,
+        "recall": 1.0,
+        "f1-score": 0.9545637854550343,
+        "support": 21303.0
+      },
+      "Medium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 1627.0
+      },
+      "High": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 401.0
+      },
+      "accuracy": 0.9130770219879131,
+      "macro avg": {
+        "precision": 0.3043590073293044,
+        "recall": 0.3333333333333333,
+        "f1-score": 0.31818792848501143,
+        "support": 23331.0
+      },
+      "weighted avg": {
+        "precision": 0.8337096480823158,
+        "recall": 0.9130770219879131,
+        "f1-score": 0.8715902585207919,
+        "support": 23331.0
+      }
+    },
+    "confusion_matrix_order": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "confusion_matrix": [
+      [
+        21303,
+        0,
+        0
+      ],
+      [
+        1627,
+        0,
+        0
+      ],
+      [
+        401,
+        0,
+        0
+      ]
+    ]
+  },
+  "majority_baseline_caraga": {
+    "records": 6749,
+    "class_counts": {
+      "Low": 6155,
+      "Medium": 491,
+      "High": 103
+    },
+    "balanced_accuracy": 0.3333333333333333,
+    "macro_f1": 0.31798925397809463,
+    "classification_report": {
+      "Low": {
+        "precision": 0.9119869610312639,
+        "recall": 1.0,
+        "f1-score": 0.9539677619342839,
+        "support": 6155.0
+      },
+      "Medium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 491.0
+      },
+      "High": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 103.0
+      },
+      "accuracy": 0.9119869610312639,
+      "macro avg": {
+        "precision": 0.303995653677088,
+        "recall": 0.3333333333333333,
+        "f1-score": 0.31798925397809463,
+        "support": 6749.0
+      },
+      "weighted avg": {
+        "precision": 0.83172021709104,
+        "recall": 0.9119869610312639,
+        "f1-score": 0.8700061601282438,
+        "support": 6749.0
+      }
+    },
+    "confusion_matrix_order": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "confusion_matrix": [
+      [
+        6155,
+        0,
+        0
+      ],
+      [
+        491,
+        0,
+        0
+      ],
+      [
+        103,
+        0,
+        0
+      ]
+    ]
+  },
+  "feature_importance": {
+    "average_family_size": 0.1010444752680462,
+    "food_per_person": 0.43955975639295214,
+    "nonfood_per_person": 0.45939576833900164
+  },
+  "versions": {
+    "sklearn": "1.8.0",
+    "pandas": "2.2.3"
+  },
+  "limitations": [
+    "Low/Medium/High are researcher-defined financial categories, not official humanitarian vulnerability or aid eligibility.",
+    "Unmapped HUCs and other domains are excluded, including Butuan; national coverage is incomplete pending verified mapping.",
+    "Known income directly determines the threshold category; RF is only an expenditure-based proxy for unknown income.",
+    "No income, income components, per-capita income, deciles, target thresholds, or identifiers are predictors.",
+    "Family size is a shared denominator in income labels and expenditure predictors; association is not causal validation.",
+    "Metrics are unweighted sample-level results, not population poverty prevalence estimates.",
+    "All Caraga records are withheld from training. No final refit on holdouts.",
+    "Annual monetary values are in 2025 pesos; current-period values require separate validation.",
+    "FIES PUF contains 170916 rows; the supplied report describes 170914 completed samples. Source difference unresolved.",
+    "No expert humanitarian labels, disaster outcomes, temporal validation, or automatic approval."
+  ]
+}

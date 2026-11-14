@@ -114,4 +114,36 @@ class OperationalFlowTests(unittest.TestCase):
         self.assertIn('v.classification_id = d.classification_id',deliveries.DISTRIBUTION_SELECT)
         self.assertNotIn('v.classification_id = b.classification_id',deliveries.DISTRIBUTION_SELECT)
 
+class FinancialPersistenceTests(unittest.TestCase):
+    def test_insert_columns_match_values_and_read_returns_finance(self):
+        from routes import assessments
+        from schemas.assessments import AssessmentCreate
+        from decimal import Decimal
+        payload = dict(household_id=1, assessment_date='2026-11-14',
+            age_0_5_count=0, age_6_17_count=1, age_18_59_count=2, age_60_plus_count=0,
+            senior_citizens_count=0, pwd_count=0, monthly_income_range='Below 5000',
+            employment_status='Employed', livelihood_type='Salaried employment',
+            previous_humanitarian_assistance=False, beneficiary_status='Pending',
+            disaster_affected=False, housing_damage_level='None', displaced=False,
+            financial_reference_year=2025, financial_single_family=True,
+            average_family_size='3.50', annual_family_income='0',
+            annual_family_expenditure='100.25', annual_food_expenditure=None)
+        data = AssessmentCreate(**payload)
+        row = data.model_dump() | {'assessment_id': 20}
+        c = Cursor([{'household_size': 3}, {'assessment_id': 20}, row])
+        with patch.object(assessments, 'get_connection', return_value=Connection(c)):
+            result = assessments.create_assessment(data, {'user_id': 9})
+        sql, args = next((s,a) for s,a in c.calls if 'INSERT INTO' in s)
+        columns = [x.strip() for x in sql.split('(',1)[1].split(')',1)[0].split(',')]
+        inserted = dict(zip(columns,args))
+        self.assertEqual(len(columns), len(args))
+        self.assertEqual(inserted['annual_family_income'], Decimal('0'))
+        self.assertEqual(inserted['annual_family_expenditure'], Decimal('100.25'))
+        self.assertIsNone(inserted['annual_food_expenditure'])
+        self.assertEqual(inserted['recorded_by'], 9)
+        for key in ('financial_reference_year', 'financial_single_family', 'average_family_size',
+                    'annual_family_income', 'annual_family_expenditure', 'annual_food_expenditure'):
+            self.assertIn('a.' + key, assessments.ASSESSMENT_SELECT)
+            self.assertEqual(result[key], getattr(data,key))
+
 if __name__=='__main__': unittest.main()

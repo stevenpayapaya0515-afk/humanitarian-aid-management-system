@@ -129,4 +129,10 @@ backend/secrets/
 # Local update backups
 backup-login-*/
 
-/backend/ml_service/apis_outputs/
+/backend/ml_service/datasets/apis2019_prepared.csv
+/backend/ml_service/models/apis2019_prototype.joblib
+/backend/ml_service/evaluation/apis2019_evaluation.json
+
+# Local FIES research artifacts
+/backend/ml_service/datasets/fies2025_prepared.csv
+/backend/ml_service/models/fies2025_candidate.joblib

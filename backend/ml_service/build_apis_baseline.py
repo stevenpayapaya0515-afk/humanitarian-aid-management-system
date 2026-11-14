@@ -73,7 +73,8 @@ def evaluate(fitted,frame):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--zip',required=True,type=Path)
-    parser.add_argument('--output',type=Path,default=Path(__file__).parent/'apis_outputs')
+    parser.add_argument('--output-root',type=Path,default=Path(__file__).resolve().parent,
+                        help='Root containing datasets/, evaluation/, and models/.')
     args=parser.parse_args()
     frame=prepare(args.zip)
     usable=frame[frame.proxy_class!='Needs review'].copy()
@@ -104,16 +105,17 @@ def main():
             'No automatic aid eligibility or allocation; ambiguous inputs need human review.',
         ],
         'versions':{'sklearn':sklearn.__version__,'pandas':pd.__version__},
-        'app_model_path':'ml_service/apis_outputs/apis2019_prototype.joblib',
+        'app_model_path':'ml_service/models/apis2019_prototype.joblib',
     }
-    args.output.mkdir(parents=True,exist_ok=True)
-    frame.to_csv(args.output/'apis2019_prepared.csv',index=False)
-    (args.output/'evaluation.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+    for folder in ('datasets', 'evaluation', 'models'):
+        (args.output_root / folder).mkdir(parents=True, exist_ok=True)
+    frame.to_csv(args.output_root/'datasets'/'apis2019_prepared.csv',index=False)
+    (args.output_root/'evaluation'/'apis2019_evaluation.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
     # Training-only fit retained so reported holdouts remain genuinely held out.
-    joblib.dump({'pipeline':fitted,'version':VERSION,'features':FEATURES,'label_kind':'researcher_defined_proxy'},args.output/'apis2019_prototype.joblib')
+    joblib.dump({'pipeline':fitted,'version':VERSION,'features':FEATURES,'label_kind':'researcher_defined_proxy'},args.output_root/'models'/'apis2019_prototype.joblib')
     print(json.dumps({k:report[k] for k in ['records_total','records_usable','needs_review','caraga_total','caraga_usable','class_distribution']},indent=2))
     for k in ['holdout_non_caraga','holdout_caraga']:
         print(k,report[k]['records'],'rule-agreement accuracy',report[k]['accuracy'])
-    print('Saved to',args.output,'; restart the updated backend to load this model.')
+    print('Saved dataset, evaluation, and model under', args.output_root, '; restart the backend.')
 
 if __name__=='__main__':main()

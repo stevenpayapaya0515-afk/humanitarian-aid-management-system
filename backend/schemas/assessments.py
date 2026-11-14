@@ -1,5 +1,6 @@
 """Household assessment request and response formats for AidTrack."""
 
+from decimal import Decimal
 from datetime import date, datetime
 from typing import Literal
 
@@ -35,6 +36,33 @@ class AssessmentCreate(BaseModel):
     toilet_facility: int | None = Field(default=None, strict=True)
     working_adult_present: int | None = Field(default=None, strict=True)
     apis_single_family: bool | None = Field(default=None, strict=True)
+
+    # Optional financial history adapted from FIES concepts, not an imported PSA record.
+    financial_reference_year: int | None = Field(default=None, ge=1900, strict=True)
+    financial_single_family: bool | None = Field(default=None, strict=True)
+    average_family_size: Decimal | None = Field(default=None, ge=1, max_digits=7, decimal_places=2)
+    annual_family_income: Decimal | None = Field(default=None, max_digits=14, decimal_places=2)
+    annual_family_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    annual_food_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+
+    @model_validator(mode="after")
+    def check_financial_history(self):
+        values = (self.average_family_size, self.annual_family_income,
+                  self.annual_family_expenditure, self.annual_food_expenditure)
+        supplied = self.financial_reference_year is not None or self.financial_single_family is not None or any(v is not None for v in values)
+        if not supplied:
+            return self  # Legacy assessments remain readable; unknown is not zero.
+        if self.financial_reference_year is None or self.financial_reference_year >= self.assessment_date.year:
+            raise ValueError("Financial history must identify a completed calendar year before the assessment year.")
+        if self.financial_single_family is not True:
+            raise ValueError("Financial amounts must refer to one family sharing income and expenses during that year.")
+        if self.average_family_size is None:
+            raise ValueError("Enter the average family size for the reference year.")
+        if all(v is None for v in values[1:]):
+            raise ValueError("Enter at least one known annual financial amount, or omit financial history.")
+        if self.annual_food_expenditure is not None and self.annual_family_expenditure is not None and self.annual_food_expenditure > self.annual_family_expenditure:
+            raise ValueError("Food expenditure cannot exceed total expenditure for the same year.")
+        return self
 
     @model_validator(mode="after")
     def check_apis_codes(self):

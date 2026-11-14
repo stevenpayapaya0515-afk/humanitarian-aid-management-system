@@ -23,6 +23,16 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   final _age60PlusController = TextEditingController(text: '0');
   final _pwdController = TextEditingController(text: '0');
 
+  bool _includeFinancialHistory = false;
+  bool _financialSingleFamily = false;
+  final _financialYear = TextEditingController();
+  final _familyAverage = TextEditingController();
+  final Map<String, TextEditingController> _financialAmounts = {
+    'annual_family_income': TextEditingController(),
+    'annual_family_expenditure': TextEditingController(),
+    'annual_food_expenditure': TextEditingController(),
+  };
+
   // Beneficiary record.
   final _beneficiaryStatusController = TextEditingController(text: 'Pending');
 
@@ -133,6 +143,11 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     _pwdController.dispose();
     _beneficiaryStatusController.dispose();
 
+    _financialYear.dispose();
+    _familyAverage.dispose();
+    for (final controller in _financialAmounts.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -524,6 +539,14 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
         'displaced': _displaced,
 
+        if (_includeFinancialHistory) ...{
+          'financial_reference_year': int.parse(_financialYear.text.trim()),
+          'financial_single_family': _financialSingleFamily,
+          'average_family_size': _familyAverage.text.trim(),
+          for (final entry in _financialAmounts.entries)
+            entry.key: entry.value.text.trim().isEmpty
+                ? null : entry.value.text.trim(),
+        },
         'data_origin': _assessmentOrigin,
         'apis_single_family': _apisSingleFamily,
         for (final entry in _apisAnswers.entries)
@@ -865,6 +888,13 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
                     setState(() {
                       _selectedHousehold = household;
+                      _includeFinancialHistory = false;
+                      _financialSingleFamily = false;
+                      _financialYear.clear();
+                      _familyAverage.clear();
+                      for (final controller in _financialAmounts.values) {
+                        controller.clear();
+                      }
                       _apisAnswers.clear();
                       _apisSingleFamily = false;
                       _clearFormError();
@@ -1050,6 +1080,179 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     );
   }
 
+  String? _validateFinancialNumber(String? raw, {bool familySize = false, bool allowNegative = false}) {
+    final text = (raw ?? '').trim();
+    if (text.isEmpty) return familySize ? 'Enter the average family size.' : null;
+    if (!RegExp(r'^-?\d+(\.\d{1,2})?$').hasMatch(text)) {
+      return 'Use digits and up to two decimal places; no commas.';
+    }
+    final value = double.tryParse(text);
+    if (value == null || !value.isFinite || (!allowNegative && value < 0)) {
+      return 'Enter a valid amount.';
+    }
+    if (familySize && (value < 1 || value > 99999.99)) {
+      return 'Enter a family size from 1 to 99999.99.';
+    }
+    if (!familySize && value.abs() > 999999999999.99) {
+      return 'Amount is too large.';
+    }
+    return null;
+  }
+
+  Widget _buildFinancialHistory() {
+    return _sectionCard(
+      title: 'Family Income and Expenses',
+      subtitle: 'Annual financial history for staff review.',
+      icon: Icons.account_balance_wallet_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Add financial information'),
+            subtitle: const Text('Optional. Leave unknown amounts blank; enter 0 only when confirmed.'),
+            value: _includeFinancialHistory,
+            onChanged: _isSaving ? null : (value) => setState(() {
+              _includeFinancialHistory = value;
+            }),
+          ),
+          if (_includeFinancialHistory) ...[
+            const SizedBox(height: 12),
+            _fieldGrid([
+              TextFormField(
+                controller: _financialYear,
+                enabled: !_isSaving,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Completed calendar year',
+                  helperText: 'January to December, before the assessment year.',
+                  helperMaxLines: 2,
+                ),
+                validator: (value) {
+                  final year = int.tryParse((value ?? '').trim());
+                  return year == null || year < 1900 || year >= _assessmentDate.year
+                      ? 'Enter a completed year before ${_assessmentDate.year}.' : null;
+                },
+              ),
+              TextFormField(
+                controller: _familyAverage,
+                enabled: !_isSaving,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Average family members during that year',
+                  helperText: 'Average the 12 monthly counts; include members sharing income and expenses.',
+                  helperMaxLines: 3,
+                ),
+                validator: (value) => _validateFinancialNumber(value, familySize: true),
+              ),
+              for (final entry in const {
+                'annual_family_income': 'Total annual family income',
+                'annual_family_expenditure': 'Total annual family expenditure',
+                'annual_food_expenditure': 'Annual food expenditure',
+              }.entries)
+                TextFormField(
+                  controller: _financialAmounts[entry.key],
+                  enabled: !_isSaving,
+                  keyboardType: TextInputType.numberWithOptions(
+                    decimal: true, signed: entry.key == 'annual_family_income'),
+                  decoration: InputDecoration(
+                    labelText: entry.value,
+                    prefixText: 'PHP ',
+                    helperText: entry.key == 'annual_family_income'
+                        ? 'All income sources, including net business income and in-kind receipts.'
+                        : entry.key == 'annual_food_expenditure'
+                            ? 'Part of total expenditure, including food received in kind.'
+                            : 'All family consumption, including in-kind items and estimated housing rental value.',
+                    helperMaxLines: 3,
+                  ),
+                  validator: (value) {
+                    final error = _validateFinancialNumber(value,
+                        allowNegative: entry.key == 'annual_family_income');
+                    if (error != null) return error;
+                    if (entry.key == 'annual_family_income' &&
+                        _financialAmounts.values.every((c) => c.text.trim().isEmpty)) {
+                      return 'Enter at least one known annual amount.';
+                    }
+                    if (entry.key == 'annual_food_expenditure') {
+                      final food = double.tryParse((value ?? '').trim());
+                      final total = double.tryParse(_financialAmounts['annual_family_expenditure']!.text.trim());
+                      if (food != null && total != null && food > total) {
+                        return 'Food spending cannot exceed total expenditure.';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+            ]),
+            const SizedBox(height: 12),
+            FormField<bool>(
+              initialValue: _financialSingleFamily,
+              validator: (_) => _financialSingleFamily ? null
+                  : 'Confirm that the figures refer to one family.',
+              builder: (field) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text('These figures describe one family during the selected year.'),
+                    value: _financialSingleFamily,
+                    onChanged: _isSaving ? null : (value) {
+                      setState(() => _financialSingleFamily = value ?? false);
+                      field.didChange(value);
+                    },
+                  ),
+                  if (field.hasError)
+                    Text(field.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Questions adapted from FIES concepts. Saved for staff review; the current model uses living-condition answers.',
+              style: TextStyle(fontSize: 12, color: AppColors.greyText),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showFinancialHistory(Map<String, dynamic> assessment) async {
+    String amount(String key) {
+      final value = double.tryParse('${assessment[key]}');
+      return value == null ? 'Not recorded' : 'PHP ${value.toStringAsFixed(2)}';
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Family Income and Expenses'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${assessment['household_head']}'),
+                const SizedBox(height: 12),
+                Text('Reference year: ${assessment['financial_reference_year']}'),
+                Text('Average family size: ${assessment['average_family_size']}'),
+                const SizedBox(height: 12),
+                Text('Income: ${amount('annual_family_income')}'),
+                Text('Total expenditure: ${amount('annual_family_expenditure')}'),
+                Text('Food expenditure: ${amount('annual_food_expenditure')}'),
+                const SizedBox(height: 12),
+                const Text('Annual amounts recorded for staff review.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+      ),
+    );
+  }
+
   // ==========================================
   // ASSESSMENT HISTORY
   // ==========================================
@@ -1096,6 +1299,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   border: Border.all(color: AppColors.borderColor),
                 ),
                 child: ListTile(
+                  onTap: assessment['financial_reference_year'] == null ? null
+                      : () => _showFinancialHistory(assessment),
                   leading: CircleAvatar(
                     backgroundColor: AppColors.lightGreen,
                     child: const Icon(
@@ -1112,7 +1317,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   ),
                   subtitle: Text(
                     'Assessment #$id • Household #$householdId'
-                    '\n${assessment['assessment_date']}',
+                    '\n${assessment['assessment_date']}'
+                    '${assessment['financial_reference_year'] == null ? '' : ' • Tap for financial details'}',
                     style: const TextStyle(fontSize: 11),
                   ),
                   isThreeLine: true,
@@ -1290,7 +1496,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
               icon: Icons.account_balance_wallet_outlined,
               child: _fieldGrid([
                 _dropdownField(
-                  label: 'Monthly Income Range',
+                  label: 'Current Monthly Income Range',
                   value: _monthlyIncomeRange,
                   options: _incomeRanges,
                   onChanged: (value) {
@@ -1348,6 +1554,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             // ======================================
             // ASSISTANCE AND DISASTER INFORMATION
             // ======================================
+            _buildFinancialHistory(),
+            const SizedBox(height: 18),
             _sectionCard(
               title: 'Living Conditions',
               subtitle: 'Record the household’s current living conditions. Select Unknown when information is unavailable.',

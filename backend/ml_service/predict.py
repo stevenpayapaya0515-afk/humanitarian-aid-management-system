@@ -5,7 +5,7 @@ import joblib
 import pandas as pd
 from .apis_rules import FEATURES, VERSION, VALID, classify
 
-MODEL_PATH = Path(__file__).resolve().parent / "apis_outputs" / "apis2019_prototype.joblib"
+MODEL_PATH = Path(__file__).resolve().parent / "models" / "apis2019_prototype.joblib"
 MODEL_VERSION = VERSION
 MODEL_TRAINING_DATA_ORIGIN = "psa_apis2019"
 
