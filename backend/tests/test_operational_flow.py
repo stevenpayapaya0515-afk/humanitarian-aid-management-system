@@ -127,7 +127,9 @@ class FinancialPersistenceTests(unittest.TestCase):
             disaster_affected=False, housing_damage_level='None', displaced=False,
             financial_reference_year=2025, financial_single_family=True,
             average_family_size='3.50', annual_family_income='0',
-            annual_family_expenditure='100.25', annual_food_expenditure=None)
+            annual_family_expenditure='100.25', annual_food_expenditure=None,
+            financial_residence_classification='Urban', annual_housing_utilities_expenditure='30.25',
+            annual_health_expenditure='0', annual_education_expenditure=None, annual_transport_expenditure='10')
         data = AssessmentCreate(**payload)
         row = data.model_dump() | {'assessment_id': 20}
         c = Cursor([{'household_size': 3}, {'assessment_id': 20}, row])
@@ -141,8 +143,15 @@ class FinancialPersistenceTests(unittest.TestCase):
         self.assertEqual(inserted['annual_family_expenditure'], Decimal('100.25'))
         self.assertIsNone(inserted['annual_food_expenditure'])
         self.assertEqual(inserted['recorded_by'], 9)
+        self.assertEqual(inserted['financial_residence_classification'], 'Urban')
+        self.assertEqual(inserted['annual_health_expenditure'], Decimal('0'))
+        self.assertEqual(inserted['annual_housing_utilities_expenditure'], Decimal('30.25'))
+        self.assertIsNone(inserted['annual_education_expenditure'])
+        self.assertEqual(inserted['annual_transport_expenditure'], Decimal('10'))
         for key in ('financial_reference_year', 'financial_single_family', 'average_family_size',
-                    'annual_family_income', 'annual_family_expenditure', 'annual_food_expenditure'):
+                    'annual_family_income', 'annual_family_expenditure', 'annual_food_expenditure',
+                    'financial_residence_classification', 'annual_housing_utilities_expenditure',
+                    'annual_health_expenditure', 'annual_education_expenditure', 'annual_transport_expenditure'):
             self.assertIn('a.' + key, assessments.ASSESSMENT_SELECT)
             self.assertEqual(result[key], getattr(data,key))
 

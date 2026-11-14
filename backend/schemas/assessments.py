@@ -45,11 +45,19 @@ class AssessmentCreate(BaseModel):
     annual_family_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     annual_food_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
 
+    # Residence classification and spending refer to the same financial year.
+    financial_residence_classification: Literal["Urban", "Rural"] | None = None
+    annual_housing_utilities_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    annual_health_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    annual_education_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    annual_transport_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+
     @model_validator(mode="after")
     def check_financial_history(self):
         values = (self.average_family_size, self.annual_family_income,
                   self.annual_family_expenditure, self.annual_food_expenditure)
-        supplied = self.financial_reference_year is not None or self.financial_single_family is not None or any(v is not None for v in values)
+        detailed = (self.annual_housing_utilities_expenditure, self.annual_health_expenditure, self.annual_education_expenditure, self.annual_transport_expenditure)
+        supplied = self.financial_residence_classification is not None or any(v is not None for v in detailed) or self.financial_reference_year is not None or self.financial_single_family is not None or any(v is not None for v in values)
         if not supplied:
             return self  # Legacy assessments remain readable; unknown is not zero.
         if self.financial_reference_year is None or self.financial_reference_year >= self.assessment_date.year:
@@ -62,6 +70,13 @@ class AssessmentCreate(BaseModel):
             raise ValueError("Enter at least one known annual financial amount, or omit financial history.")
         if self.annual_food_expenditure is not None and self.annual_family_expenditure is not None and self.annual_food_expenditure > self.annual_family_expenditure:
             raise ValueError("Food expenditure cannot exceed total expenditure for the same year.")
+        if any(v is not None for v in detailed):
+            if self.annual_family_expenditure is None:
+                raise ValueError("Enter total annual expenditure when recording spending categories.")
+            # Missing components remain NULL; sum only the known disjoint categories.
+            known = [v for v in (self.annual_food_expenditure, *detailed) if v is not None]
+            if sum(known, Decimal("0")) > self.annual_family_expenditure:
+                raise ValueError("Known food, housing/utilities, health, education and transport expenses cannot exceed total annual expenditure.")
         return self
 
     @model_validator(mode="after")

@@ -35,6 +35,7 @@ ASSESSMENT_SELECT = """
            a.housing_damage_level, a.displaced, a.data_origin,
            a.roof_material, a.wall_material, a.electricity, a.drinking_water_source, a.toilet_facility, a.working_adult_present, a.apis_single_family,
            a.financial_reference_year, a.financial_single_family, a.average_family_size, a.annual_family_income, a.annual_family_expenditure, a.annual_food_expenditure,
+           a.financial_residence_classification, a.annual_housing_utilities_expenditure, a.annual_health_expenditure, a.annual_education_expenditure, a.annual_transport_expenditure,
            a.recorded_by, a.created_at,
            h.household_head, h.barangay
     FROM public.household_assessments a
@@ -101,11 +102,12 @@ def create_assessment(
                         disaster_affected, housing_damage_level, displaced,
                         roof_material, wall_material, electricity, drinking_water_source, toilet_facility, working_adult_present, apis_single_family,
                         financial_reference_year, financial_single_family, average_family_size, annual_family_income, annual_family_expenditure, annual_food_expenditure,
+                        financial_residence_classification, annual_housing_utilities_expenditure, annual_health_expenditure, annual_education_expenditure, annual_transport_expenditure,
                         data_origin, recorded_by
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                        , %s, %s, %s, %s, %s, %s
+                        , %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) RETURNING assessment_id;
                     """,
                     (
@@ -119,6 +121,7 @@ def create_assessment(
                         data.housing_damage_level, data.displaced,
                         data.roof_material, data.wall_material, data.electricity, data.drinking_water_source, data.toilet_facility, data.working_adult_present, data.apis_single_family,
                         data.financial_reference_year, data.financial_single_family, data.average_family_size, data.annual_family_income, data.annual_family_expenditure, data.annual_food_expenditure,
+                        data.financial_residence_classification, data.annual_housing_utilities_expenditure, data.annual_health_expenditure, data.annual_education_expenditure, data.annual_transport_expenditure,
                         data.data_origin, current_user["user_id"],
                     ),
                 )

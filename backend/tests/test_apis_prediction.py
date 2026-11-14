@@ -97,5 +97,45 @@ class FinancialAssessmentTests(unittest.TestCase):
             after = predict.predict_vulnerability(answers | self.finance)
         self.assertEqual(before, after)
 
+    def test_detailed_finance_preserves_unknown_and_zero(self):
+        data = AssessmentCreate(**self.base, **self.finance,
+            financial_residence_classification="Rural", annual_health_expenditure="0",
+            annual_housing_utilities_expenditure="20000", annual_transport_expenditure="10000")
+        self.assertEqual(str(data.annual_health_expenditure), "0")
+        self.assertIsNone(data.annual_education_expenditure)
+        self.assertIsNone(AssessmentCreate(**self.base).financial_residence_classification)
+
+    def test_detailed_expense_totals_and_context(self):
+        changes = [
+            {"annual_health_expenditure": "-1"},
+            {"annual_health_expenditure": "NaN"},
+            {"annual_health_expenditure": "Infinity"},
+            {"annual_health_expenditure": "1.123"},
+            {"annual_health_expenditure": "1", "annual_family_expenditure": None},
+            {"annual_housing_utilities_expenditure": "60000", "annual_transport_expenditure": "10000.01"},
+            {"financial_residence_classification": "Unknown"},
+            {"financial_residence_classification": 1},
+            {"financial_residence_classification": "Urban", "financial_reference_year": None},
+        ]
+        for change in changes:
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                AssessmentCreate(**self.base, **(self.finance | change))
+        # Exact boundary: known components add to the total, not beyond it.
+        AssessmentCreate(**self.base, **self.finance,
+            annual_housing_utilities_expenditure="60000", annual_transport_expenditure="10000")
+        with self.assertRaises(ValidationError):
+            AssessmentCreate(**self.base, annual_health_expenditure="0")
+
+    def test_response_reads_legacy_and_new_fields(self):
+        from schemas.assessments import AssessmentResponse
+        metadata = dict(assessment_id=1, household_head="Test", barangay="Test",
+                        recorded_by=1, created_at="2026-11-14T00:00:00Z")
+        legacy = AssessmentResponse(**self.base, **metadata)
+        self.assertIsNone(legacy.annual_transport_expenditure)
+        updated = AssessmentResponse(**self.base, **metadata, **self.finance,
+                                     financial_residence_classification="Urban",
+                                     annual_transport_expenditure="10.25")
+        self.assertEqual(str(updated.annual_transport_expenditure), "10.25")
+
 if __name__ == '__main__':
     unittest.main()
