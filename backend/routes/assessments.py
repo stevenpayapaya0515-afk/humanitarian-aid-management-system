@@ -33,6 +33,7 @@ ASSESSMENT_SELECT = """
            a.livelihood_type, a.previous_humanitarian_assistance,
            a.beneficiary_status, a.disaster_affected,
            a.housing_damage_level, a.displaced, a.data_origin,
+           a.roof_material, a.wall_material, a.electricity, a.drinking_water_source, a.toilet_facility, a.working_adult_present, a.apis_single_family,
            a.recorded_by, a.created_at,
            h.household_head, h.barangay
     FROM public.household_assessments a
@@ -97,10 +98,11 @@ def create_assessment(
                         monthly_income_range, employment_status, livelihood_type,
                         previous_humanitarian_assistance, beneficiary_status,
                         disaster_affected, housing_damage_level, displaced,
+                        roof_material, wall_material, electricity, drinking_water_source, toilet_facility, working_adult_present, apis_single_family,
                         data_origin, recorded_by
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) RETURNING assessment_id;
                     """,
                     (
@@ -112,6 +114,7 @@ def create_assessment(
                         data.livelihood_type, data.previous_humanitarian_assistance,
                         data.beneficiary_status, data.disaster_affected,
                         data.housing_damage_level, data.displaced,
+                        data.roof_material, data.wall_material, data.electricity, data.drinking_water_source, data.toilet_facility, data.working_adult_present, data.apis_single_family,
                         data.data_origin, current_user["user_id"],
                     ),
                 )

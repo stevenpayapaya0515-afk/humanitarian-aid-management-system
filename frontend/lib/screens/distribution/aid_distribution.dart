@@ -45,6 +45,13 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
   List<Map<String, dynamic>> _beneficiaries = [];
   List<Map<String, dynamic>> _distributions = [];
 
+  bool _deliveryConfirmed = false;
+  Map<String, dynamic>? get _selectedRecord {
+    for (final item in _beneficiaries) {
+      if (_id(item['beneficiary_id']) == _selectedBeneficiaryId) return item;
+    }
+    return null;
+  }
   int? _selectedBeneficiaryId;
   String _selectedAidType = 'Food Packs';
   String _selectedUnit = 'packs';
@@ -259,7 +266,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                 SizedBox(height: 20),
 
                 Text(
-                  'Saving Simulation...',
+                  'Saving Distribution...',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 17,
@@ -451,6 +458,9 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
         distributionDate: _isoDate(_selectedDate),
         batchCode: _batchController.text.trim().toUpperCase(),
         notes: _notesController.text.trim(),
+        expectedAssessmentId: _id(_selectedRecord?['assessment_id']),
+        expectedClassificationId: _id(_selectedRecord?['classification_id']),
+        deliveryConfirmed: _deliveryConfirmed,
       );
 
       if (!mounted) return;
@@ -500,6 +510,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
     setState(() {
       _selectedBeneficiaryId = null;
+      _deliveryConfirmed = false;
       _selectedAidType = 'Food Packs';
       _selectedUnit = 'packs';
       _selectedDate = DateTime.now();
@@ -516,11 +527,11 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     // Show the result in a modal instead of a SnackBar.
     await _showFeedbackDialog(
       success: true,
-      title: 'Distribution Simulation Saved',
+      title: 'Distribution Saved',
       message: _recordsError == null
-          ? 'The aid distribution simulation has been '
+          ? 'The distribution record has been '
                 'successfully saved to the database.'
-          : 'The simulation was saved, but the records could '
+          : 'The distribution was saved, but the records could '
                 'not be refreshed. Please use Refresh records '
                 'to reload the list.',
     );
@@ -697,8 +708,8 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
   Widget _buildDistributionForm() {
     return _sectionCard(
-      title: 'Record Aid Distribution Simulation',
-      subtitle: 'Enter assistance details for a beneficiary review record.',
+      title: 'Record Aid Distribution',
+      subtitle: 'Enter assistance received by an approved beneficiary.',
       icon: Icons.inventory_2_outlined,
       trailing: _refreshButton(
         label: 'Refresh beneficiaries',
@@ -725,8 +736,8 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'No beneficiary review records available. '
-                  'Register a household in Beneficiary Management first.',
+                  'No approved, up-to-date beneficiaries are available. '
+                  'Complete the review in Beneficiary Management first.',
                   style: TextStyle(color: AppColors.greyText),
                 ),
               ),
@@ -756,6 +767,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                   onSelected: (value) {
                     setState(() {
                       _selectedBeneficiaryId = value;
+                      _deliveryConfirmed = false;
                       _selectionError = null;
                     });
                   },
@@ -906,13 +918,27 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
             const SizedBox(height: 16),
 
+            if (_selectedRecord != null) ...[
+              Text(_selectedRecord!['assessment_data_origin'] == 'synthetic'
+                  ? 'Practice record — excluded from delivery totals'
+                  : 'LGU household assessment',
+                  style: const TextStyle(fontSize: 12, color: AppColors.greyText)),
+              if (_selectedRecord!['assessment_data_origin'] != 'synthetic')
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _deliveryConfirmed,
+                  onChanged: _isSaving ? null : (value) => setState(() => _deliveryConfirmed = value ?? false),
+                  title: const Text('I confirm that this assistance was received on the recorded date.'),
+                ),
+              const SizedBox(height: 12),
+            ],
             TextFormField(
               controller: _notesController,
               enabled: !_isSaving,
               maxLines: 3,
               maxLength: 500,
               decoration: const InputDecoration(
-                labelText: 'Simulation Notes (optional)',
+                labelText: 'Notes (optional)',
                 alignLabelWithHint: true,
                 hintText: 'No physical assistance was released.',
               ),
@@ -934,10 +960,8 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Simulation only. This record does not '
-                      'represent actual humanitarian aid delivery. '
-                      'Pending and For Review beneficiaries are used '
-                      'only for testing.',
+                      'Record assistance after it has been received. '
+                      'Practice records remain separate from actual deliveries.',
                       style: TextStyle(color: AppColors.darkText, fontSize: 12),
                     ),
                   ),
@@ -970,8 +994,8 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                     : const Icon(Icons.save_outlined),
                 label: Text(
                   _isSaving
-                      ? 'Saving Simulation...'
-                      : 'Save Distribution Simulation',
+                      ? 'Saving Distribution...'
+                      : 'Save Distribution',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryGreen,
@@ -1038,8 +1062,9 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                   fontSize: 15,
                 ),
               ),
-              _chip('Simulation Only', const Color(0xFF9A6800)),
-              _chip('$vulnerability Vulnerability', _classColor(vulnerability)),
+              _chip(record['is_simulation'] == true ? 'Practice record' : 'Recorded delivery', const Color(0xFF185C37)),
+              if (record['predicted_class'] != null)
+                _chip('$vulnerability Vulnerability', _classColor(vulnerability)),
             ],
           ),
           const SizedBox(height: 12),
@@ -1080,7 +1105,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
     return _sectionCard(
       title: 'Aid Distribution Records',
-      subtitle: 'Saved humanitarian aid distribution simulations.',
+      subtitle: 'Recorded assistance and distribution history.',
       icon: Icons.history_outlined,
       trailing: _refreshButton(
         label: 'Refresh records',
@@ -1158,7 +1183,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
         const SizedBox(height: 5),
 
         const Text(
-          'Record and monitor humanitarian assistance simulations.',
+          'Record and monitor assistance received.',
           style: TextStyle(color: AppColors.greyText, fontSize: 13),
         ),
 

@@ -448,6 +448,27 @@ class _BeneficiaryManagementScreenState
   // UPDATE REVIEW STATUS
   // ==========================================
 
+  Future<void> _useLatestAssessment(Map<String, dynamic> record) async {
+    if (_isSaving || _isLoading) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Use latest assessment?'),
+        content: const Text('Link this beneficiary to the latest saved assessment and its APIS classification. A changed record returns to For Review. Previous assessment and classification IDs remain in history.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Use latest assessment')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _performBeneficiarySave(
+      request: () => BeneficiaryService.useLatestAssessment(record),
+      successTitle: 'Assessment Link Checked',
+      successMessage: 'This beneficiary now uses its latest APIS classification. If the link changed, the record was returned to For Review and the change was saved in history.',
+    );
+  }
+
   Future<void> _updateStatus(Map<String, dynamic> beneficiary) async {
     if (_isSaving || _isLoading) return;
 
@@ -471,6 +492,7 @@ class _BeneficiaryManagementScreenState
       text: (beneficiary['review_notes'] ?? '').toString(),
     );
 
+    bool reviewConfirmed = false;
     String selectedStatus = currentStatus == 'For Review'
         ? 'For Review'
         : 'Pending';
@@ -484,7 +506,7 @@ class _BeneficiaryManagementScreenState
             title: const Text('Update Beneficiary Review'),
             content: SizedBox(
               width: 450,
-              child: Column(
+              child: SingleChildScrollView(child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -506,10 +528,9 @@ class _BeneficiaryManagementScreenState
                         value: 'Pending',
                         child: Text('Pending'),
                       ),
-                      DropdownMenuItem(
-                        value: 'For Review',
-                        child: Text('For Review'),
-                      ),
+                      DropdownMenuItem(value: 'For Review', child: Text('For Review')),
+                      DropdownMenuItem(value: 'Approved', child: Text('Approved')),
+                      DropdownMenuItem(value: 'Rejected', child: Text('Rejected')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -530,13 +551,19 @@ class _BeneficiaryManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 8),
+                  if (selectedStatus == 'Approved' || selectedStatus == 'Rejected')
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: reviewConfirmed,
+                      onChanged: (value) => setDialogState(() => reviewConfirmed = value ?? false),
+                      title: const Text('I reviewed the household information and recorded my decision reason.'),
+                    ),
                   const Text(
-                    'Final approval is unavailable while the '
-                    'classification data is synthetic or preliminary.',
+                    'Enter a reason for approval or rejection. The classification supports your review.',
                     style: TextStyle(color: AppColors.greyText, fontSize: 12),
                   ),
                 ],
-              ),
+              )),
             ),
             actions: [
               TextButton(
@@ -547,6 +574,7 @@ class _BeneficiaryManagementScreenState
                 onPressed: () => Navigator.pop(dialogContext, {
                   'status': selectedStatus,
                   'review_notes': notesController.text.trim(),
+                  'review_confirmed': reviewConfirmed.toString(),
                 }),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.white,
@@ -570,6 +598,10 @@ class _BeneficiaryManagementScreenState
           beneficiaryId: beneficiaryId,
           status: result['status']!,
           reviewNotes: result['review_notes']!,
+          expectedAssessmentId: _id(beneficiary['assessment_id']),
+          expectedClassificationId: _id(beneficiary['classification_id']),
+          expectedStatus: currentStatus,
+          reviewConfirmed: result['review_confirmed'] == 'true',
         );
       },
       successTitle: 'Beneficiary Status Updated',
@@ -977,6 +1009,10 @@ class _BeneficiaryManagementScreenState
             'Review Notes: ${_value(beneficiary['review_notes'])}',
             style: const TextStyle(color: AppColors.greyText, fontSize: 12),
           ),
+          const SizedBox(height: 8),
+          Text(beneficiary['assessment_data_origin'] == 'synthetic'
+              ? 'Practice record' : 'LGU household assessment',
+              style: const TextStyle(fontSize: 12, color: AppColors.greyText)),
           const SizedBox(height: 14),
           Wrap(
             spacing: 10,
@@ -991,13 +1027,18 @@ class _BeneficiaryManagementScreenState
                   side: const BorderSide(color: AppColors.primaryGreen),
                 ),
               ),
+              OutlinedButton.icon(
+                  onPressed: _isSaving || _isLoading ? null : () => _useLatestAssessment(beneficiary),
+                  icon: const Icon(Icons.sync, size: 18),
+                  label: const Text('Use latest assessment'),
+                ),
               if (status == 'Pending' || status == 'For Review')
                 OutlinedButton.icon(
                   onPressed: _isSaving || _isLoading
                       ? null
                       : () => _updateStatus(beneficiary),
                   icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Update Status'),
+                  label: const Text('Update Review'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primaryGreen,
                     side: const BorderSide(color: AppColors.primaryGreen),
@@ -1051,9 +1092,8 @@ class _BeneficiaryManagementScreenState
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Testing mode: vulnerability results are '
-                  'preliminary and based on synthetic training data. '
-                  'Beneficiary registration is not official aid approval.',
+                  'Review the household information, then record your decision. '
+                  'Use latest assessment when new information is available.',
                   style: TextStyle(fontSize: 12, color: AppColors.darkText),
                 ),
               ),

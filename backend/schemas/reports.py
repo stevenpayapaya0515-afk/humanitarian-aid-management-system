@@ -15,6 +15,7 @@ class ReportCounts(BaseModel):
     for_review_beneficiaries: int
     approved_beneficiaries: int
     rejected_beneficiaries: int
+    aid_distributions: int
     simulated_distributions: int
 
 

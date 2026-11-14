@@ -21,6 +21,10 @@ class BeneficiaryCreate(BaseModel):
 
 
 class BeneficiaryUpdate(BaseModel):
+    expected_assessment_id: int = Field(ge=1, strict=True)
+    expected_classification_id: int = Field(ge=1, strict=True)
+    expected_status: BeneficiaryStatus
+    review_confirmed: bool = Field(default=False, strict=True)
     status: BeneficiaryStatus
     review_notes: str = Field(default="", max_length=1000)
 
@@ -43,6 +47,7 @@ class BeneficiaryCandidate(BaseModel):
     ]
 
     model_training_data_origin: Literal[
+        "psa_apis2019",
         "synthetic",
         "lgu_authorized",
     ]
@@ -75,3 +80,8 @@ class BeneficiaryHistoryEvent(BaseModel):
     review_notes: str
     changed_by: int
     changed_at: datetime
+
+
+class BeneficiaryReassessment(BaseModel):
+    expected_assessment_id: int = Field(ge=1, strict=True)
+    expected_classification_id: int = Field(ge=1, strict=True)

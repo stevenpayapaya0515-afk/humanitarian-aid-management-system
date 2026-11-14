@@ -21,7 +21,6 @@ class DashboardSummary(BaseModel):
     medium_vulnerability: int
     high_vulnerability: int
 
-    # None until the Aid Distribution database module is implemented.
-    aid_distributions: int | None = None
+    aid_distributions: int
     simulated_distributions: int
     recent_activity: list[RecentActivity] = Field(default_factory=list)

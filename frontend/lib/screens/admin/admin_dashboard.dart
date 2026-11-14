@@ -183,7 +183,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         'assessed_households',
         'classified_households',
         'high_vulnerability',
-        'simulated_distributions',
+        'aid_distributions',
       ];
 
       for (final field in requiredFields) {
@@ -227,7 +227,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return activity;
       }).toList();
 
-      final simulated = data['simulated_distributions'] as int;
+      final simulated = data['aid_distributions'] as int;
 
       // Ignore results if the screen closed or a newer request started.
       if (!mounted || requestId != _dashboardRequestId) return;
@@ -985,7 +985,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 // DISTRIBUTION SIMULATIONS
                 _buildSummaryCard(
                   width: cardWidth,
-                  title: 'Distribution Simulations',
+                  title: 'Aid Distributions',
                   icon: Icons.inventory_2_outlined,
                   value: _dashboardLoading
                       ? '…'
@@ -1102,7 +1102,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const SizedBox(height: 18),
 
         const Text(
-          'Predictions use synthetic training data and require validation before official LGU decisions.',
+          'Classifications support staff review. Aid decisions are recorded separately.',
           style: TextStyle(fontSize: 11, color: AppColors.greyText),
         ),
       ],

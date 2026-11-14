@@ -81,6 +81,7 @@ def get_dashboard_summary(
 
                     INNER JOIN public.vulnerability_classifications vc
                         ON vc.assessment_id = la.assessment_id
+                        AND vc.model_version = 'apis2019-proxy-v1'
 
                     ORDER BY
                         la.household_id,
@@ -116,9 +117,9 @@ def get_dashboard_summary(
 
             cursor.execute(
                 """
-                SELECT COUNT(*) AS simulated_distributions
-                FROM public.aid_distributions
-                WHERE is_simulation = TRUE;
+                SELECT COUNT(*) FILTER (WHERE is_simulation) AS simulated_distributions,
+                       COUNT(*) FILTER (WHERE NOT is_simulation) AS aid_distributions
+                FROM public.aid_distributions;
                 """
             )
 
@@ -181,7 +182,7 @@ def get_dashboard_summary(
                             || h.household_head
                             || ' as '
                             || vc.predicted_class
-                            || ' vulnerability'
+                            || ' socioeconomic proxy (' || vc.model_version || ')'
                             AS description,
 
                         vc.created_at AS occurred_at
@@ -214,7 +215,7 @@ def get_dashboard_summary(
         **vulnerability_summary,
 
         # Not connected until the Aid Distribution table exists.
-        "aid_distributions": None,
+        "aid_distributions": distribution_summary["aid_distributions"],
         "simulated_distributions": distribution_summary["simulated_distributions"],
 
         "recent_activity": recent_activity,

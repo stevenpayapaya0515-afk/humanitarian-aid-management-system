@@ -472,7 +472,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
                   SizedBox(
                     width: fieldWidth,
                     child: _dateButton(
-                      'From Date',
+                      'Registered from',
                       _fromDate,
                       () => _pickDate(from: true),
                     ),
@@ -480,7 +480,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
                   SizedBox(
                     width: fieldWidth,
                     child: _dateButton(
-                      'To Date',
+                      'Registered through',
                       _toDate,
                       () => _pickDate(from: false),
                     ),
@@ -622,8 +622,8 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
         Icons.block_outlined,
       ),
       (
-        'Distribution Simulations',
-        'simulated_distributions',
+        'Recorded Deliveries',
+        'aid_distributions',
         Icons.inventory_2_outlined,
       ),
     ];
@@ -694,7 +694,8 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
       ('For Review', 'for_review_beneficiaries'),
       ('Approved', 'approved_beneficiaries'),
       ('Rejected', 'rejected_beneficiaries'),
-      ('Simulations', 'simulated_distributions'),
+      ('Deliveries', 'aid_distributions'),
+      ('Practice entries', 'simulated_distributions'),
     ];
 
     return SingleChildScrollView(
@@ -775,10 +776,8 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Testing mode: classifications use '
-                  'preliminary synthetic data. Distribution '
-                  'counts represent simulations, not '
-                  'physical aid deliveries.',
+                  'Delivery totals exclude practice entries. '
+                  'Classifications support staff review.',
                   style: TextStyle(fontSize: 12, color: AppColors.darkText),
                 ),
               ),
@@ -842,7 +841,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
         const Text(
           'Date filters select households by registration '
           'date in Philippine time. Assessments, classifications, '
-          'beneficiary statuses, and simulations are current '
+          'beneficiary statuses, and distribution counts are current '
           'values for those households.',
           style: TextStyle(fontSize: 11, color: AppColors.greyText),
         ),

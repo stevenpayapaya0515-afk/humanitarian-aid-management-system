@@ -27,6 +27,7 @@ COUNT_FIELDS = (
     "for_review_beneficiaries",
     "approved_beneficiaries",
     "rejected_beneficiaries",
+    "aid_distributions",
     "simulated_distributions",
 )
 
@@ -86,6 +87,7 @@ def get_reports_summary(
                     FROM latest_assessment la
                     JOIN public.vulnerability_classifications vc
                         ON vc.assessment_id = la.assessment_id
+                        AND vc.model_version = 'apis2019-proxy-v1'
                     ORDER BY
                         la.household_id,
                         vc.created_at DESC,
@@ -95,11 +97,11 @@ def get_reports_summary(
                 distribution_totals AS (
                     SELECT
                         b.household_id,
-                        COUNT(*) AS simulation_count
+                        COUNT(*) FILTER (WHERE d.is_simulation = TRUE) AS simulation_count,
+                        COUNT(*) FILTER (WHERE d.is_simulation = FALSE) AS delivery_count
                     FROM public.aid_distributions d
                     JOIN public.beneficiaries b
                         ON b.beneficiary_id = d.beneficiary_id
-                    WHERE d.is_simulation = TRUE
                     GROUP BY b.household_id
                 )
 
@@ -150,7 +152,8 @@ def get_reports_summary(
 
                     COALESCE(
                         SUM(dt.simulation_count), 0
-                    ) AS simulated_distributions
+                    ) AS simulated_distributions,
+                    COALESCE(SUM(dt.delivery_count), 0) AS aid_distributions
 
                 FROM public.households h
 

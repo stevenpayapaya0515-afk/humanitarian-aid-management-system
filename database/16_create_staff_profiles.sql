@@ -25,3 +25,7 @@ CREATE TABLE IF NOT EXISTS public.staff_profiles (
 );
 
 COMMIT;
+
+GRANT SELECT, INSERT
+ON TABLE public.staff_profiles
+TO aidtrack_app;

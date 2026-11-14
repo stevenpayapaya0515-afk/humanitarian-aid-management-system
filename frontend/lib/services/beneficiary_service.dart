@@ -127,17 +127,38 @@ class BeneficiaryService {
     required int beneficiaryId,
     required String status,
     required String reviewNotes,
+    required int expectedAssessmentId,
+    required int expectedClassificationId,
+    required String expectedStatus,
+    required bool reviewConfirmed,
   }) async {
     final response = await http
         .patch(
           Uri.parse('${AuthService.baseUrl}/beneficiaries/$beneficiaryId'),
           headers: _headers(),
-          body: jsonEncode({'status': status, 'review_notes': reviewNotes}),
+          body: jsonEncode({
+            'status': status, 'review_notes': reviewNotes,
+            'expected_assessment_id': expectedAssessmentId,
+            'expected_classification_id': expectedClassificationId,
+            'expected_status': expectedStatus, 'review_confirmed': reviewConfirmed,
+          }),
         )
         .timeout(_timeout);
 
     _checkResponse(response, 200);
     return _decodeObject(response);
+  }
+
+  static Future<void> useLatestAssessment(Map<String, dynamic> record) async {
+    final response = await http.post(
+      Uri.parse('${AuthService.baseUrl}/beneficiaries/${record['beneficiary_id']}/use-latest-assessment'),
+      headers: _headers(),
+      body: jsonEncode({
+        'expected_assessment_id': record['assessment_id'],
+        'expected_classification_id': record['classification_id'],
+      }),
+    ).timeout(_timeout);
+    _checkResponse(response, 200);
   }
 
   // Retrieve the audit history of status changes.

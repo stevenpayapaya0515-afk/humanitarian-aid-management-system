@@ -1,147 +1,51 @@
+"""APIS socioeconomic proxy inference; never an aid eligibility decision."""
 from functools import lru_cache
 from pathlib import Path
-
 import joblib
 import pandas as pd
+from .apis_rules import FEATURES, VERSION, VALID, classify
 
+MODEL_PATH = Path(__file__).resolve().parent / "apis_outputs" / "apis2019_prototype.joblib"
+MODEL_VERSION = VERSION
+MODEL_TRAINING_DATA_ORIGIN = "psa_apis2019"
 
-# ==========================================
-# MODEL CONFIGURATION
-# ==========================================
-
-MODEL_PATH = (
-    Path(__file__).resolve().parent
-    / "models"
-    / "aidtrack_random_forest.joblib"
-)
-
-MODEL_VERSION = "aidtrack-rf-synthetic-v1"
-
-MODEL_TRAINING_DATA_ORIGIN = "synthetic"
-
-
-# ==========================================
-# MODEL INPUT FEATURES
-# ==========================================
-
-FEATURE_COLUMNS = [
-    "household_size",
-    "age_0_5_count",
-    "age_6_17_count",
-    "age_18_59_count",
-    "age_60_plus_count",
-    "pwd_count",
-    "monthly_income_range",
-    "employment_status",
-    "livelihood_type",
-    "disaster_affected",
-    "housing_damage_level",
-    "displaced",
-]
-
-
-# ==========================================
-# LOAD TRAINED MODEL
-# ==========================================
+class AssessmentNeedsReview(ValueError):
+    pass
 
 @lru_cache(maxsize=1)
 def load_model():
-
     if not MODEL_PATH.is_file():
-        raise FileNotFoundError(
-            f"Trained Random Forest model not found: {MODEL_PATH}"
-        )
-
-    model = joblib.load(MODEL_PATH)
-
-    if not hasattr(model, "predict_proba"):
-        raise RuntimeError(
-            "The loaded model does not support predict_proba."
-        )
-
-    return model
-
-
-# ==========================================
-# PREDICT HOUSEHOLD VULNERABILITY
-# ==========================================
+        raise FileNotFoundError("Build the APIS baseline before classification.")
+    try:
+        bundle = joblib.load(MODEL_PATH)
+        if (not isinstance(bundle, dict) or bundle.get("version") != VERSION
+                or bundle.get("features") != FEATURES
+                or bundle.get("label_kind") != "researcher_defined_proxy"):
+            raise RuntimeError("Incompatible APIS model bundle.")
+        model = bundle["pipeline"]
+        if set(model.classes_) != {"Low", "Medium", "High"}:
+            raise RuntimeError("Unexpected model classes.")
+        return model
+    except Exception as error:
+        raise RuntimeError("Rebuild the APIS model using this backend environment.") from error
 
 def predict_vulnerability(assessment: dict) -> dict:
-
-    disaster_affected = bool(
-        assessment["disaster_affected"]
-    )
-
-    displaced = bool(
-        assessment["displaced"]
-    )
-
-    # Match the preprocessing used during training.
-    housing_damage_level = (
-        assessment["housing_damage_level"]
-        if disaster_affected
-        else "None"
-    )
-
-    features = {
-        "household_size": int(assessment["household_size"]),
-
-        "age_0_5_count": int(assessment["age_0_5_count"]),
-
-        "age_6_17_count": int(assessment["age_6_17_count"]),
-
-        "age_18_59_count": int(assessment["age_18_59_count"]),
-
-        "age_60_plus_count": int(assessment["age_60_plus_count"]),
-
-        "pwd_count": int(assessment["pwd_count"]),
-
-        "monthly_income_range": assessment["monthly_income_range"],
-
-        "employment_status": assessment["employment_status"],
-
-        "livelihood_type": assessment["livelihood_type"],
-
-        "disaster_affected": (
-            "Yes" if disaster_affected else "No"
-        ),
-
-        "housing_damage_level": housing_damage_level,
-
-        "displaced": (
-            "Yes" if displaced else "No"
-        ),
-    }
-
-    # Keep the exact training feature order.
-    input_data = pd.DataFrame(
-        [features],
-        columns=FEATURE_COLUMNS
-    )
-
+    missing = [k for k in FEATURES if type(assessment.get(k)) is not int or assessment[k] not in VALID[k]]
+    if missing or assessment.get("apis_single_family") is not True:
+        raise AssessmentNeedsReview(
+            "Needs review: record a new assessment with all six socioeconomic answers "
+            "and confirm a single-family household. Unknown answers and multi-family "
+            "households are outside this prototype's prediction scope."
+        )
+    reference = classify(assessment)
     model = load_model()
-
-    # Random Forest class prediction uses ensemble voting.
-    predicted_class = str(
-        model.predict(input_data)[0]
-    )
-
-    # Retrieve the model's class scores.
-    probabilities = model.predict_proba(input_data)[0]
-
-    class_scores = {
-        str(label): round(float(score), 6)
-        for label, score in zip(model.classes_, probabilities)
-    }
-
+    data = pd.DataFrame([{k: assessment[k] for k in FEATURES}], columns=FEATURES)
+    label = str(model.predict(data)[0])
+    scores = {str(k): round(float(v), 6) for k, v in zip(model.classes_, model.predict_proba(data)[0])}
     return {
-        "predicted_class": predicted_class,
-
-        "predicted_class_score": class_scores[predicted_class],
-
-        "class_scores": class_scores,
-
-        "model_version": MODEL_VERSION,
-
+        "predicted_class": label, "predicted_class_score": scores[label],
+        "class_scores": scores, "model_version": MODEL_VERSION,
         "model_training_data_origin": MODEL_TRAINING_DATA_ORIGIN,
+        "proxy_details": {"rule_class": reference["class"], "flag_count": reference["score"],
+                          "reasons": reference["reasons"], "model_agrees_with_rules": label == reference["class"]},
     }

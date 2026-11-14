@@ -7,6 +7,7 @@ from psycopg.rows import dict_row
 
 from core.dependencies import get_current_user
 from database import get_connection
+from ml_service.apis_rules import VERSION as APIS_MODEL_VERSION
 
 from schemas.beneficiaries import (
     BeneficiaryCandidate,
@@ -14,6 +15,7 @@ from schemas.beneficiaries import (
     BeneficiaryHistoryEvent,
     BeneficiaryResponse,
     BeneficiaryUpdate,
+    BeneficiaryReassessment,
 )
 
 
@@ -128,6 +130,7 @@ def list_candidates(
                         v.classification_id,
                         v.predicted_class,
                         v.model_training_data_origin,
+                        v.model_version,
                         v.prediction_status
 
                     FROM public.vulnerability_classifications v
@@ -166,6 +169,7 @@ def list_candidates(
                     ON b.household_id = la.household_id
 
                 WHERE b.beneficiary_id IS NULL
+                  AND lp.model_version = 'apis2019-proxy-v1'
 
                 ORDER BY
                     h.household_head,
@@ -259,7 +263,7 @@ def create_beneficiary(
                 # for that assessment.
                 cursor.execute(
                     """
-                    SELECT classification_id
+                    SELECT classification_id, model_version
                     FROM public.vulnerability_classifications
                     WHERE assessment_id = %s
                     ORDER BY
@@ -280,6 +284,10 @@ def create_beneficiary(
                             "assessment first."
                         ),
                     )
+
+                if classification["model_version"] != APIS_MODEL_VERSION:
+                    raise HTTPException(status_code=409, detail=
+                        "Save a complete APIS assessment and generate its classification before registering for review.")
 
                 # All newly registered records begin Pending.
                 # ML predictions cannot approve beneficiaries.
@@ -385,6 +393,12 @@ def update_beneficiary(
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
 
+            cursor.execute("""SELECT h.household_id FROM public.households h
+                JOIN public.beneficiaries b ON b.household_id = h.household_id
+                WHERE b.beneficiary_id = %s FOR UPDATE OF h;""", (beneficiary_id,))
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Beneficiary not found.")
+
             cursor.execute(
                 """
                 SELECT
@@ -397,6 +411,7 @@ def update_beneficiary(
                     a.data_origin AS assessment_data_origin,
 
                     v.model_training_data_origin,
+                    v.model_version,
                     v.prediction_status
 
                 FROM public.beneficiaries b
@@ -422,26 +437,17 @@ def update_beneficiary(
                     detail="Beneficiary not found.",
                 )
 
-            # Final decisions are blocked for synthetic
-            # and preliminary records in this prototype.
+            if (record["assessment_id"] != data.expected_assessment_id or
+                    record["classification_id"] != data.expected_classification_id or
+                    record["status"] != data.expected_status):
+                raise HTTPException(status_code=409, detail="This review changed. Refresh records and try again.")
+            if record["status"] in ("Approved", "Rejected"):
+                raise HTTPException(status_code=409, detail="Use a new assessment to reopen a completed review.")
             if data.status in ("Approved", "Rejected"):
-
-                if (
-                    record["assessment_data_origin"]
-                    != "lgu_authorized"
-                    or record["model_training_data_origin"]
-                    != "lgu_authorized"
-                    or record["prediction_status"]
-                    != "validated"
-                ):
-                    raise HTTPException(
-                        status_code=409,
-                        detail=(
-                            "Cannot finalize this decision using "
-                            "synthetic or preliminary data. "
-                            "Use Pending or For Review during testing."
-                        ),
-                    )
+                if not data.review_confirmed:
+                    raise HTTPException(status_code=422, detail="Confirm that you reviewed the household and recorded a decision reason.")
+                if record["model_version"] != APIS_MODEL_VERSION:
+                    raise HTTPException(status_code=409, detail="Use the latest APIS assessment before completing this review.")
 
                 # Avoid finalizing a record linked to
                 # an outdated household assessment.
@@ -474,7 +480,7 @@ def update_beneficiary(
 
                 cursor.execute(
                     """
-                    SELECT classification_id
+                    SELECT classification_id, model_version
                     FROM public.vulnerability_classifications
                     WHERE assessment_id = %s
                     ORDER BY
@@ -612,3 +618,60 @@ def get_beneficiary_history(
             )
 
             return cursor.fetchall()
+
+
+@router.post("/{beneficiary_id}/use-latest-assessment", response_model=BeneficiaryResponse)
+def use_latest_assessment(
+    beneficiary_id: int,
+    data: BeneficiaryReassessment,
+    current_user: dict = Depends(require_write),
+):
+    """Explicitly relink an open review, preserving the old links in audit history."""
+    if beneficiary_id < 1:
+        raise HTTPException(status_code=422, detail="Invalid beneficiary ID.")
+    with get_connection() as connection:
+        with connection.cursor(row_factory=dict_row) as cursor:
+            # Consistent household-first locking also prevents a concurrent assessment save.
+            cursor.execute("""SELECT h.household_id FROM public.households h
+                JOIN public.beneficiaries b ON b.household_id = h.household_id
+                WHERE b.beneficiary_id = %s FOR UPDATE OF h;""", (beneficiary_id,))
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Beneficiary not found.")
+            cursor.execute("""SELECT household_id, assessment_id, classification_id,
+                status, review_notes FROM public.beneficiaries
+                WHERE beneficiary_id = %s FOR UPDATE;""", (beneficiary_id,))
+            old = cursor.fetchone()
+            if (old["assessment_id"] != data.expected_assessment_id or
+                    old["classification_id"] != data.expected_classification_id):
+                raise HTTPException(status_code=409, detail="This record changed. Refresh records and try again.")
+            cursor.execute("""SELECT assessment_id FROM public.household_assessments
+                WHERE household_id = %s ORDER BY assessment_date DESC, assessment_id DESC
+                LIMIT 1;""", (old["household_id"],))
+            assessment = cursor.fetchone()
+            if assessment is None:
+                raise HTTPException(status_code=409, detail="Save a household assessment first.")
+            cursor.execute("""SELECT classification_id, model_version
+                FROM public.vulnerability_classifications WHERE assessment_id = %s
+                ORDER BY created_at DESC, classification_id DESC LIMIT 1;""",
+                (assessment["assessment_id"],))
+            prediction = cursor.fetchone()
+            if prediction is None or prediction["model_version"] != APIS_MODEL_VERSION:
+                raise HTTPException(status_code=409, detail=
+                    "Generate the APIS classification for the latest assessment first.")
+            if (old["assessment_id"], old["classification_id"]) != (
+                    assessment["assessment_id"], prediction["classification_id"]):
+                summary = (f"Assessment updated from #{old['assessment_id']} to #{assessment['assessment_id']}; "
+                           f"classification #{old['classification_id']} to #{prediction['classification_id']}. "
+                           "Returned to For Review.")
+                cursor.execute("""UPDATE public.beneficiaries SET assessment_id = %s,
+                    classification_id = %s, status = 'For Review', review_notes = %s,
+                    updated_by = %s, updated_at = NOW() WHERE beneficiary_id = %s;""",
+                    (assessment["assessment_id"], prediction["classification_id"], summary,
+                     current_user["user_id"], beneficiary_id))
+                cursor.execute("""INSERT INTO public.beneficiary_status_history
+                    (beneficiary_id, old_status, new_status, review_notes, changed_by)
+                    VALUES (%s, %s, 'For Review', %s, %s);""",
+                    (beneficiary_id, old["status"], summary + " Previous review notes: " +
+                     (old["review_notes"] or "None"), current_user["user_id"]))
+            cursor.execute(BENEFICIARY_SELECT + " WHERE b.beneficiary_id = %s;", (beneficiary_id,))
+            return cursor.fetchone()

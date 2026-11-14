@@ -76,7 +76,7 @@ class DistributionService {
     return data;
   }
 
-  // Load beneficiaries available for simulation.
+  // Load beneficiaries approved for distribution.
   static Future<List<Map<String, dynamic>>> fetchBeneficiaries() async {
     final response = await http
         .get(
@@ -89,7 +89,7 @@ class DistributionService {
     return _decodeList(response);
   }
 
-  // Load saved distribution simulation records.
+  // Load saved distribution records.
   static Future<List<Map<String, dynamic>>> fetchDistributions() async {
     final response = await http
         .get(
@@ -102,7 +102,7 @@ class DistributionService {
     return _decodeList(response);
   }
 
-  // Create a new distribution simulation.
+  // Create a new distribution record.
   static Future<Map<String, dynamic>> createDistribution({
     required int beneficiaryId,
     required String aidType,
@@ -111,6 +111,9 @@ class DistributionService {
     required String distributionDate,
     required String batchCode,
     required String notes,
+    required int expectedAssessmentId,
+    required int expectedClassificationId,
+    required bool deliveryConfirmed,
   }) async {
     final response = await http
         .post(
@@ -118,6 +121,9 @@ class DistributionService {
           headers: _headers(),
           body: jsonEncode({
             'beneficiary_id': beneficiaryId,
+            'expected_assessment_id': expectedAssessmentId,
+            'expected_classification_id': expectedClassificationId,
+            'delivery_confirmed': deliveryConfirmed,
             'aid_type': aidType,
             'quantity': quantity,
             'unit': unit,

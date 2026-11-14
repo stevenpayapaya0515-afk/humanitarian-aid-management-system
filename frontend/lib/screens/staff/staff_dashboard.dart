@@ -168,7 +168,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       final medium = data['medium_vulnerability'];
       final high = data['high_vulnerability'];
 
-      final distributions = data['simulated_distributions'];
+      final distributions = data['aid_distributions'];
 
       // Validate required numeric values.
       if (households is! int ||
@@ -1124,7 +1124,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 // AID DISTRIBUTIONS
                 _buildSummaryCard(
                   width: cardWidth,
-                  title: 'Distribution Simulations',
+                  title: 'Aid Distributions',
                   icon: Icons.inventory_2_outlined,
                   value: display(_aidDistributions),
                 ),

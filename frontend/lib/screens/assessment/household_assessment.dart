@@ -61,6 +61,29 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   List<Map<String, dynamic>> _households = [];
   List<Map<String, dynamic>> _assessments = [];
 
+  final Map<String, int?> _apisAnswers = {};
+  bool _apisSingleFamily = false;
+  String? _assessmentOrigin;
+
+  Widget _apisQuestion(String name, String label, Map<int, String> options) {
+    return DropdownButtonFormField<int>(
+      key: ValueKey('$_selectedHousehold-$name'),
+      initialValue: _apisAnswers[name],
+      isExpanded: true,
+      decoration: InputDecoration(labelText: label),
+      items: {...options, -1: 'Unknown / other / not applicable'}.entries
+          .map((entry) => DropdownMenuItem<int>(
+            value: entry.key,
+            child: Text(entry.value, overflow: TextOverflow.ellipsis),
+          )).toList(),
+      onChanged: _isSaving ? null : (value) => setState(() {
+        _apisAnswers[name] = value;
+        _clearFormError();
+      }),
+      validator: (value) => value == null ? 'Select an answer or Unknown.' : null,
+    );
+  }
+
   Map<String, dynamic>? _selectedHousehold;
 
   DateTime _assessmentDate = DateTime.now();
@@ -501,7 +524,10 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
         'displaced': _displaced,
 
-        'data_origin': 'synthetic',
+        'data_origin': _assessmentOrigin,
+        'apis_single_family': _apisSingleFamily,
+        for (final entry in _apisAnswers.entries)
+          entry.key: entry.value == -1 ? null : entry.value,
       };
 
       // Save assessment only.
@@ -839,6 +865,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
                     setState(() {
                       _selectedHousehold = household;
+                      _apisAnswers.clear();
+                      _apisSingleFamily = false;
                       _clearFormError();
                     });
                   },
@@ -1321,6 +1349,47 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             // ASSISTANCE AND DISASTER INFORMATION
             // ======================================
             _sectionCard(
+              title: 'Living Conditions',
+              subtitle: 'Record the household’s current living conditions. Select Unknown when information is unavailable.',
+              icon: Icons.fact_check_outlined,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _fieldGrid([
+                    _apisQuestion("roof_material", "Roof material", {1: "Strong material", 2: "Light material", 3: "Salvaged / makeshift", 4: "Mixed, predominantly strong", 5: "Mixed, predominantly light", 6: "Mixed, predominantly salvaged"}),
+                    _apisQuestion("wall_material", "Outer wall material", {1: "Strong material", 2: "Light material", 3: "Salvaged / makeshift", 4: "Mixed, predominantly strong", 5: "Mixed, predominantly light", 6: "Mixed, predominantly salvaged"}),
+                    _apisQuestion("electricity", "Electricity available", {1: "Yes", 2: "No"}),
+                    _apisQuestion("drinking_water_source", "Main drinking water source", {11: "Piped into dwelling", 12: "Piped into yard / plot", 13: "Piped from neighbor", 14: "Public tap / standpipe", 21: "Tube well / borehole", 31: "Protected dug well", 32: "Unprotected dug well", 41: "Protected spring", 42: "Unprotected spring", 51: "Rainwater", 61: "Tanker truck", 71: "Cart with small tank / drum", 72: "Water refilling station", 81: "Surface water", 91: "Bottled water", 92: "Sachet water"}),
+                    _apisQuestion("toilet_facility", "Toilet facility", {11: "Flush to sewer", 12: "Flush to septic tank", 13: "Flush to pit", 14: "Flush to open drain", 21: "Ventilated improved pit", 22: "Pit with slab", 23: "Pit without slab / open pit", 31: "Composting toilet", 41: "Bucket toilet", 51: "Hanging toilet", 95: "No toilet / open field"}),
+                    _apisQuestion("working_adult_present", "Working family member aged 18+", {1: "Yes", 0: "No"}),
+                  ]),
+                  const SizedBox(height: 16),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _apisSingleFamily,
+                    onChanged: _isSaving ? null : (value) => setState(() => _apisSingleFamily = value ?? false),
+                    title: const Text('This household contains one family'),
+                    subtitle: const Text('Multi-family households require a separate staff review.'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _assessmentOrigin,
+                    validator: (value) => value == null ? 'Select where this information came from.' : null,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Assessment data source'),
+                    items: const [
+                      DropdownMenuItem(value: 'synthetic', child: Text('Practice record')),
+                      DropdownMenuItem(value: 'lgu_authorized', child: Text('Actual household — authorized LGU collection')),
+                    ],
+                    onChanged: _isSaving ? null : (value) => setState(() => _assessmentOrigin = value!),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            _sectionCard(
               title: 'Assistance and Disaster Information',
               subtitle:
                   'Record previous assistance and disaster-related conditions.',
@@ -1443,9 +1512,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Testing mode: This assessment will be marked as '
-                      'synthetic data. Replace this source setting only '
-                      'when authorized LGU records are available.',
+                      'Check the household information before saving.',
                       style: TextStyle(fontSize: 12, color: AppColors.darkText),
                     ),
                   ),

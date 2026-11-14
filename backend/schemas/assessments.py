@@ -28,6 +28,25 @@ class AssessmentCreate(BaseModel):
     displaced: bool
     data_origin: Literal["synthetic", "lgu_authorized"] = "synthetic"
 
+    roof_material: int | None = Field(default=None, strict=True)
+    wall_material: int | None = Field(default=None, strict=True)
+    electricity: int | None = Field(default=None, strict=True)
+    drinking_water_source: int | None = Field(default=None, strict=True)
+    toilet_facility: int | None = Field(default=None, strict=True)
+    working_adult_present: int | None = Field(default=None, strict=True)
+    apis_single_family: bool | None = Field(default=None, strict=True)
+
+    @model_validator(mode="after")
+    def check_apis_codes(self):
+        from ml_service.apis_rules import VALID
+        for name, codes in VALID.items():
+            value = getattr(self, name)
+            if value is not None and value not in codes:
+                raise ValueError(f"Unsupported {name} code; use null for unknown/not applicable.")
+        if self.working_adult_present == 1 and self.age_18_59_count + self.age_60_plus_count == 0:
+            raise ValueError("A working adult requires at least one member aged 18 or above.")
+        return self
+
     @model_validator(mode="after")
     def check_age_and_pwd_counts(self):
         total = (
