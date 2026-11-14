@@ -4,7 +4,7 @@
   "source": "PSA FIES 2025 Volume 1 PUF",
   "threshold_source": "2025 official poverty workbook, tab16 including NCR footnote a/",
   "geographic_mapping_version": "province-aliases-and-ncr-districts-v2",
-  "source_sha256": "703afd4ad5e29b90d3f7be99e6caf1ccde7c0b9a44e17b3c3a4c7b577259b990",
+  "source_sha256": "cc738afbd226dffc55f4c73533249f06f03fb7d91a553f739ef19805a432500a",
   "threshold_sha256": "6e4f469815fa9e3076e4e6604e38d36a57cd1d15359737f9e7de7863d6830498",
   "records_total": 170916,
   "records_usable": 146516,
@@ -142,38 +142,38 @@
       "Medium": 1840,
       "High": 494
     },
-    "balanced_accuracy": 0.8110605911853531,
-    "macro_f1": 0.695709637239617,
+    "balanced_accuracy": 0.810644457466831,
+    "macro_f1": 0.6949358834373243,
     "classification_report": {
       "Low": {
-        "precision": 0.991356993736952,
-        "recall": 0.923205536977992,
-        "f1-score": 0.9560682934686318,
+        "precision": 0.991436925647452,
+        "recall": 0.9228944707986624,
+        "f1-score": 0.9559386201619074,
         "support": 25718.0
       },
       "Medium": {
-        "precision": 0.39640179910044976,
-        "recall": 0.7184782608695652,
-        "f1-score": 0.5109178743961352,
+        "precision": 0.39593301435406697,
+        "recall": 0.7195652173913043,
+        "f1-score": 0.5108024691358025,
         "support": 1840.0
       },
       "High": {
-        "precision": 0.5097783572359843,
-        "recall": 0.791497975708502,
-        "f1-score": 0.6201427438540841,
+        "precision": 0.5078125,
+        "recall": 0.7894736842105263,
+        "f1-score": 0.618066561014263,
         "support": 494.0
       },
-      "accuracy": 0.9074575787822615,
+      "accuracy": 0.9072080422073292,
       "macro avg": {
-        "precision": 0.6325123833577954,
-        "recall": 0.8110605911853531,
-        "f1-score": 0.695709637239617,
+        "precision": 0.6317274800005063,
+        "recall": 0.810644457466831,
+        "f1-score": 0.6949358834373243,
         "support": 28052.0
       },
       "weighted avg": {
-        "precision": 0.943851739046996,
-        "recall": 0.9074575787822615,
-        "f1-score": 0.9209540772771666,
+        "precision": 0.9438596526170202,
+        "recall": 0.9072080422073292,
+        "f1-score": 0.9207910615169991,
         "support": 28052.0
       }
     },
@@ -184,19 +184,19 @@
     ],
     "confusion_matrix": [
       [
-        23743,
-        1914,
-        61
+        23735,
+        1920,
+        63
       ],
       [
-        203,
-        1322,
+        201,
+        1324,
         315
       ],
       [
         4,
-        99,
-        391
+        100,
+        390
       ]
     ]
   },
@@ -207,19 +207,19 @@
       "Medium": 491,
       "High": 103
     },
-    "balanced_accuracy": 0.8196722339674843,
-    "macro_f1": 0.6619897058411747,
+    "balanced_accuracy": 0.8203511205934179,
+    "macro_f1": 0.6623331777527331,
     "classification_report": {
       "Low": {
-        "precision": 0.9961503208065995,
+        "precision": 0.9963329666299964,
         "recall": 0.882859463850528,
-        "f1-score": 0.9360895779500431,
+        "f1-score": 0.9361702127659575,
         "support": 6155.0
       },
       "Medium": {
-        "precision": 0.345045045045045,
-        "recall": 0.780040733197556,
-        "f1-score": 0.47845096814490945,
+        "precision": 0.34563456345634563,
+        "recall": 0.7820773930753564,
+        "f1-score": 0.4794007490636704,
         "support": 491.0
       },
       "High": {
@@ -228,17 +228,17 @@
         "f1-score": 0.5714285714285714,
         "support": 103.0
       },
-      "accuracy": 0.8740554156171285,
+      "accuracy": 0.8742035857164024,
       "macro avg": {
-        "precision": 0.5956158465882293,
-        "recall": 0.8196722339674843,
-        "f1-score": 0.6619897058411747,
+        "precision": 0.5958732346664618,
+        "recall": 0.8203511205934179,
+        "f1-score": 0.6623331777527331,
         "support": 6749.0
       },
       "weighted avg": {
-        "precision": 0.9403799845302682,
-        "recall": 0.8740554156171285,
-        "f1-score": 0.8972303927246716,
+        "precision": 0.9405894434994423,
+        "recall": 0.8742035857164024,
+        "f1-score": 0.8973730286297043,
         "support": 6749.0
       }
     },
@@ -254,8 +254,8 @@
         15
       ],
       [
-        21,
-        383,
+        20,
+        384,
         87
       ],
       [
@@ -272,19 +272,19 @@
       "Medium": 86,
       "High": 14
     },
-    "balanced_accuracy": 0.8511152835270103,
-    "macro_f1": 0.6257077532174925,
+    "balanced_accuracy": 0.8508712620531206,
+    "macro_f1": 0.6251688723854274,
     "classification_report": {
       "Low": {
-        "precision": 0.9974789915966387,
-        "recall": 0.8689604685212299,
-        "f1-score": 0.9287949921752738,
+        "precision": 0.9974768713204374,
+        "recall": 0.8682284040995608,
+        "f1-score": 0.9283757338551859,
         "support": 1366.0
       },
       "Medium": {
-        "precision": 0.2674897119341564,
+        "precision": 0.26639344262295084,
         "recall": 0.7558139534883721,
-        "f1-score": 0.3951367781155015,
+        "f1-score": 0.3939393939393939,
         "support": 86.0
       },
       "High": {
@@ -293,17 +293,17 @@
         "f1-score": 0.5531914893617021,
         "support": 14.0
       },
-      "accuracy": 0.8628922237380627,
+      "accuracy": 0.8622100954979536,
       "macro avg": {
-        "precision": 0.5529693658233964,
-        "recall": 0.8511152835270103,
-        "f1-score": 0.6257077532174925,
+        "precision": 0.5526032359609273,
+        "recall": 0.8508712620531206,
+        "f1-score": 0.6251688723854274,
         "support": 1466.0
       },
       "weighted avg": {
-        "precision": 0.948891929919848,
-        "recall": 0.8628922237380627,
-        "f1-score": 0.8939020484859624,
+        "precision": 0.9488256437956635,
+        "recall": 0.8622100954979536,
+        "f1-score": 0.8934411467776505,
         "support": 1466.0
       }
     },
@@ -314,8 +314,8 @@
     ],
     "confusion_matrix": [
       [
-        1187,
-        177,
+        1186,
+        178,
         2
       ],
       [
@@ -461,13 +461,13 @@
     ]
   },
   "feature_importance": {
-    "average_family_size": 0.09943611011167065,
-    "food_per_person": 0.43174056715065373,
-    "nonfood_per_person": 0.4688233227376758
+    "average_family_size": 0.09966717935389696,
+    "food_per_person": 0.4328029589541049,
+    "nonfood_per_person": 0.4675298616919981
   },
   "versions": {
-    "sklearn": "1.8.0",
-    "pandas": "2.2.3"
+    "sklearn": "1.9.1",
+    "pandas": "2.3.3"
   },
   "limitations": [
     "Low/Medium/High are researcher-defined financial categories, not official humanitarian vulnerability or aid eligibility.",
