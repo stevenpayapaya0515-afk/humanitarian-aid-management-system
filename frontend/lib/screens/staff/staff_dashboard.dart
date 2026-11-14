@@ -977,6 +977,22 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
         const SizedBox(height: 25),
 
+        _buildAgusanOverview(),
+        const SizedBox(height: 25),
+        const Text(
+          'Registered Household Activity',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: AppColors.darkText,
+          ),
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          'Current totals from AidTrack records.',
+          style: TextStyle(fontSize: 13, color: AppColors.greyText),
+        ),
+
         // ========================================
         // REFRESH DASHBOARD
         // ========================================
@@ -1172,6 +1188,115 @@ class _StaffDashboardState extends State<StaffDashboard> {
           ),
         ),
       ],
+    );
+  }
+
+  // Static PSA reference figures, not dashboard API totals or model outputs.
+  // Source: 1_2025 Full Year Official Poverty Statistics_30Oct2026_rev.xlsx
+  // tab1a, row 153, C153 (2023) and D153 (2025).
+  // Geography: Agusan del Norte (w/o the City of Butuan).
+  Widget _buildAgusanOverview() {
+    return _buildDashboardPanel(
+      title: 'Agusan del Norte Overview',
+      icon: Icons.location_on_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'PSA family poverty estimates • Excludes Butuan City',
+            style: TextStyle(fontSize: 13, color: AppColors.greyText),
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 520 ? 2 : 1;
+              final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  _buildPsaPovertyCard(width: width, year: '2025', value: '6.9%'),
+                  _buildPsaPovertyCard(width: width, year: '2023', value: '17.2%'),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Family poverty incidence decreased by 10.3 percentage points from 2023 to 2025.',
+            style: TextStyle(fontSize: 13, color: AppColors.darkText),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Provincial survey estimates; separate from households registered in AidTrack.',
+            style: TextStyle(fontSize: 12, color: AppColors.greyText),
+          ),
+          const SizedBox(height: 6),
+          const ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.only(bottom: 8),
+            title: Text(
+              'Source and definition',
+              style: TextStyle(fontSize: 13, color: AppColors.primaryGreen),
+            ),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SelectableText(
+                  'Philippine Statistics Authority, 2025 Full Year Official Poverty '
+                  'Statistics, Table 1a; workbook revision: 30 October 2026.\n\n'
+                  'Poverty incidence among families is the estimated percentage of '
+                  'families whose income falls below the poverty threshold. '
+                  'These figures describe families, not the percentage of individual residents.\n\n'
+                  'Geographic row: Agusan del Norte (w/o the City of Butuan). '
+                  'This is a fixed published reference, not a live PSA feed.\n\n'
+                  'https://psa.gov.ph/content/poverty-incidence-all-regions-declined-between-2023-and-2025',
+                  style: TextStyle(fontSize: 12, color: AppColors.greyText),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPsaPovertyCard({
+    required double width,
+    required String year,
+    required String value,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F7F3),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4EBE5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            year,
+            style: const TextStyle(fontSize: 14, color: AppColors.greyText),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryGreen,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Poverty incidence among families',
+            style: TextStyle(fontSize: 13, color: AppColors.darkText),
+          ),
+        ],
+      ),
     );
   }
 
