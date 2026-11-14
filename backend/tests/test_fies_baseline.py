@@ -1,6 +1,6 @@
 """Boundary tests for FIES financial categories; no database needed."""
 import unittest
-from ml_service.build_fies_baseline import classify_income, FEATURES, threshold_area, NCR_DISTRICTS
+from ml_service.build_fies_baseline import classify_income, FEATURES, threshold_area, NCR_DISTRICTS, choose_candidate, validation_split
 
 
 class FiesLabelTests(unittest.TestCase):
@@ -18,6 +18,27 @@ class FiesLabelTests(unittest.TestCase):
     def test_unmapped_city_not_guessed(self):
         self.assertEqual(threshold_area(304, "City of Butuan", 16), "City of Butuan")
         self.assertEqual(threshold_area(2, "Agusan del Norte", 16), "Agusan del Norte")
+
+    def test_selection_rejects_recall_collapse(self):
+        def result(name, f1, high, medium):
+            return {"name": name, "metrics": {"macro_f1": f1,
+                    "classification_report": {"High": {"recall": high},
+                                              "Medium": {"recall": medium}}}}
+        rows = [result("baseline", .60, .80, .70),
+                result("misleading_f1", .90, .50, .70),
+                result("improvement", .65, .78, .65)]
+        chosen, rule = choose_candidate(rows)
+        self.assertEqual(chosen["name"], "improvement")
+        self.assertNotIn("misleading_f1", rule["eligible_candidates"])
+
+    def test_validation_keeps_groups_together(self):
+        import pandas as pd
+        rows = [{"sample_group": str(g), "proxy_class": label}
+                for g in range(30) for label in ["Low", "Medium", "High"]]
+        data = pd.DataFrame(rows)
+        fit, validation = validation_split(data)
+        self.assertFalse(set(fit.sample_group) & set(validation.sample_group))
+        self.assertEqual(len(fit) + len(validation), len(data))
 
     def test_threshold_boundaries(self):
         self.assertEqual(classify_income(99, 100, 150), "High")

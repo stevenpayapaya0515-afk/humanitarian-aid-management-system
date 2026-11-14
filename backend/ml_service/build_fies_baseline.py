@@ -20,7 +20,7 @@ from sklearn.dummy import DummyClassifier
 from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
 from sklearn.model_selection import GroupShuffleSplit
 
-VERSION = "fies2025-financial-proxy-v2"
+VERSION = "fies2025-financial-proxy-v3"
 CLASSES = ["Low", "Medium", "High"]
 # No income, income components, deciles, survey weights or identifiers as predictors.
 FEATURES = ["average_family_size", "food_per_person", "nonfood_per_person"]
@@ -128,6 +128,68 @@ def evaluate(model, frame):
             "confusion_matrix": confusion_matrix(truth, pred, labels=CLASSES).tolist()}
 
 
+
+# Fixed before examining v3 holdouts. These compare class weighting only.
+CANDIDATES = [
+    ("balanced_baseline", "balanced_subsample"),
+    ("moderate_weights", {"Low": 1, "Medium": 2, "High": 4}),
+    ("unweighted", None),
+]
+
+
+def validation_split(train):
+    splitter = GroupShuffleSplit(n_splits=1, test_size=.2, random_state=17)
+    fit_ids, validation_ids = next(splitter.split(train, groups=train.sample_group))
+    fit, validation = train.iloc[fit_ids], train.iloc[validation_ids]
+    if set(fit.proxy_class) != set(CLASSES) or set(validation.proxy_class) != set(CLASSES):
+        raise ValueError("All classes must occur in fitting and validation partitions")
+    if set(fit.sample_group) & set(validation.sample_group):
+        raise ValueError("PSU overlap between fitting and validation")
+    return fit, validation
+
+
+def choose_candidate(results):
+    # Keep sensitivity close to the balanced baseline on validation data only.
+    # These are research comparison tolerances, not operational acceptance criteria.
+    reference = results[0]["metrics"]["classification_report"]
+    high_floor = max(0.0, reference["High"]["recall"] - .05)
+    medium_floor = max(0.0, reference["Medium"]["recall"] - .10)
+    eligible = [item for item in results
+                if item["metrics"]["classification_report"]["High"]["recall"] >= high_floor
+                and item["metrics"]["classification_report"]["Medium"]["recall"] >= medium_floor]
+    return max(eligible, key=lambda item: item["metrics"]["macro_f1"]), {
+        "high_recall_floor": high_floor, "medium_recall_floor": medium_floor,
+        "criterion": "Highest validation macro F1 subject to recall floors relative to balanced baseline; ties retain earlier candidate.",
+        "eligible_candidates": [item["name"] for item in eligible],
+    }
+
+
+def select_model(train):
+    fit, validation = validation_split(train)
+    results = []
+    for name, weights in CANDIDATES:
+        print("Validation candidate:", name, flush=True)
+        candidate = RandomForestClassifier(n_estimators=200, min_samples_leaf=10,
+                                            class_weight=weights, random_state=42, n_jobs=2)
+        candidate.fit(fit[FEATURES], fit.proxy_class)
+        metrics = evaluate(candidate, validation)
+        results.append({"name": name, "class_weight": weights, "metrics": metrics})
+        print("  macro F1:", round(metrics["macro_f1"], 4), flush=True)
+    selected, rule = choose_candidate(results)
+    print("Selected using validation only:", selected["name"], flush=True)
+    model = RandomForestClassifier(n_estimators=200, min_samples_leaf=10,
+                                    class_weight=selected["class_weight"], random_state=42, n_jobs=2)
+    # Refit only on the original training partition, never test or Caraga rows.
+    model.fit(train[FEATURES], train.proxy_class)
+    return model, {
+        "fit_records": len(fit), "validation_records": len(validation),
+        "group_split_seed": 17, "candidates": results,
+        "selected_candidate": selected["name"], "selection_rule": rule,
+        "refit_records": len(train),
+        "note": "Validation is a subset of the original training partition; its score is not a test score.",
+    }, validation.index
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zip", type=Path, required=True)
@@ -148,9 +210,10 @@ def main():
     frame.loc[train.index, "split"] = "train"
     frame.loc[test.index, "split"] = "test_non_caraga"
     frame.loc[caraga.index, "split"] = "test_caraga"
-    model = RandomForestClassifier(n_estimators=200, min_samples_leaf=10,
-                                   class_weight="balanced_subsample", random_state=42, n_jobs=2)
-    model.fit(train[FEATURES], train.proxy_class)
+    model, selection, validation_ids = select_model(train)
+    frame["selection_partition"] = "not_used"
+    frame.loc[train.index, "selection_partition"] = "fit"
+    frame.loc[validation_ids, "selection_partition"] = "validation"
     dummy = DummyClassifier(strategy="most_frequent").fit(train[FEATURES], train.proxy_class)
     excluded = frame[~frame.exclusion_reason.eq("")]
     report = {"version": VERSION, "status": "offline research candidate; not connected to app",
@@ -158,7 +221,7 @@ def main():
               "geographic_mapping_version": "province-aliases-and-ncr-districts-v2",
               "source_sha256": hashlib.sha256(args.zip.read_bytes()).hexdigest(),
               "threshold_sha256": hashlib.sha256(args.thresholds.read_bytes()).hexdigest(),
-              "records_total": len(frame), "records_usable": len(usable), "training_records": len(train),
+              "records_total": len(frame), "records_usable": len(usable), "training_records": len(train), "model_selection": selection,
               "excluded_records": len(excluded),
               "excluded_domains": excluded.groupby(["W_PROV", "province_name", "exclusion_reason"], dropna=False).size().reset_index(name="records").to_dict("records"),
               "features": FEATURES, "class_distribution": usable.proxy_class.value_counts().to_dict(),
@@ -175,19 +238,21 @@ def main():
                   "No income, income components, per-capita income, deciles, target thresholds, or identifiers are predictors.",
                   "Family size is a shared denominator in income labels and expenditure predictors; association is not causal validation.",
                   "Metrics are unweighted sample-level results, not population poverty prevalence estimates.",
-                  "All Caraga records are withheld from training. No final refit on holdouts.",
+                  "All Caraga records are withheld from training and candidate selection. No final refit on holdouts.",
+                  "Caraga and non-Caraga holdouts were inspected during earlier baseline development; these are reused development holdouts, not a fresh external validation.",
                   "Annual monetary values are in 2025 pesos; current-period values require separate validation.",
                   "FIES PUF contains 170916 rows; the supplied report describes 170914 completed samples. Source difference unresolved.",
                   "No expert humanitarian labels, disaster outcomes, temporal validation, or automatic approval."]}
     root = args.output_root
     for directory in ("datasets", "evaluation", "models"):
         (root / directory).mkdir(parents=True, exist_ok=True)
-    keep = ["W_REGN", "W_PROV", "SEQNO", "URBAN", "province_name", "threshold_area", "threshold_sheet_row", "FSIZE", "TOINC", "PERCAPITA", "TOTEX", "FOOD", "RFACT", "food_threshold", "poverty_threshold", *FEATURES, "proxy_class", "exclusion_reason", "sample_group", "split"]
+    keep = ["W_REGN", "W_PROV", "SEQNO", "URBAN", "province_name", "threshold_area", "threshold_sheet_row", "FSIZE", "TOINC", "PERCAPITA", "TOTEX", "FOOD", "RFACT", "food_threshold", "poverty_threshold", *FEATURES, "proxy_class", "exclusion_reason", "sample_group", "split", "selection_partition"]
     frame[keep].to_csv(root / "datasets/fies2025_prepared.csv", index=False)
     (root / "evaluation/fies2025_evaluation.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     joblib.dump({"pipeline": model, "version": VERSION, "features": FEATURES,
                  "label_kind": "financial_threshold_proxy", "reference_year": 2025,
                  "geographic_mapping_version": "province-aliases-and-ncr-districts-v2",
+                 "selected_candidate": selection["selected_candidate"],
                  "app_ready": False}, root / "models/fies2025_candidate.joblib", compress=3)
     print(json.dumps({k: report[k] for k in ("records_total", "records_usable", "excluded_records", "class_distribution")}, indent=2))
     for name in ("holdout_non_caraga", "holdout_caraga", "holdout_agusan_del_norte_excluding_butuan"):
