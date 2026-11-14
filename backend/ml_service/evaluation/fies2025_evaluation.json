@@ -1,14 +1,15 @@
 {
-  "version": "fies2025-financial-proxy-v1",
+  "version": "fies2025-financial-proxy-v2",
   "status": "offline research candidate; not connected to app",
   "source": "PSA FIES 2025 Volume 1 PUF",
-  "threshold_source": "2025 official poverty workbook, tab16",
+  "threshold_source": "2025 official poverty workbook, tab16 including NCR footnote a/",
+  "geographic_mapping_version": "province-aliases-and-ncr-districts-v2",
   "source_sha256": "703afd4ad5e29b90d3f7be99e6caf1ccde7c0b9a44e17b3c3a4c7b577259b990",
   "threshold_sha256": "6e4f469815fa9e3076e4e6604e38d36a57cd1d15359737f9e7de7863d6830498",
   "records_total": 170916,
-  "records_usable": 124518,
-  "training_records": 94438,
-  "excluded_records": 46398,
+  "records_usable": 146516,
+  "training_records": 111715,
+  "excluded_records": 24400,
   "excluded_domains": [
     {
       "W_PROV": 301,
@@ -113,108 +114,6 @@
       "records": 1617
     },
     {
-      "W_PROV": 801,
-      "province_name": "CITY OF CALOOCAN",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1504
-    },
-    {
-      "W_PROV": 802,
-      "province_name": "CITY OF LAS PI\u00d1AS",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1540
-    },
-    {
-      "W_PROV": 803,
-      "province_name": "CITY OF MAKATI",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 917
-    },
-    {
-      "W_PROV": 804,
-      "province_name": "CITY OF MALABON",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1540
-    },
-    {
-      "W_PROV": 805,
-      "province_name": "CITY OF MANDALUYONG",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1213
-    },
-    {
-      "W_PROV": 806,
-      "province_name": "CITY OF MANILA",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1496
-    },
-    {
-      "W_PROV": 807,
-      "province_name": "CITY OF MARIKINA",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1462
-    },
-    {
-      "W_PROV": 808,
-      "province_name": "CITY OF MUNTINLUPA",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1457
-    },
-    {
-      "W_PROV": 809,
-      "province_name": "CITY OF NAVOTAS",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1606
-    },
-    {
-      "W_PROV": 810,
-      "province_name": "CITY OF PARA\u00d1AQUE",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1445
-    },
-    {
-      "W_PROV": 811,
-      "province_name": "PASAY CITY",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1289
-    },
-    {
-      "W_PROV": 812,
-      "province_name": "CITY OF PASIG",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1306
-    },
-    {
-      "W_PROV": 813,
-      "province_name": "QUEZON CITY",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1412
-    },
-    {
-      "W_PROV": 814,
-      "province_name": "CITY OF SAN JUAN",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 496
-    },
-    {
-      "W_PROV": 815,
-      "province_name": "CITY OF TAGUIG",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1316
-    },
-    {
-      "W_PROV": 816,
-      "province_name": "CITY OF VALENZUELA",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 1452
-    },
-    {
-      "W_PROV": 817,
-      "province_name": "PATEROS",
-      "exclusion_reason": "No verified province/urban-rural threshold mapping",
-      "records": 547
-    },
-    {
       "W_PROV": 999,
       "province_name": "BARMM63",
       "exclusion_reason": "No verified province/urban-rural threshold mapping",
@@ -227,9 +126,9 @@
     "nonfood_per_person"
   ],
   "class_distribution": {
-    "Low": 113622,
-    "Medium": 8844,
-    "High": 2052
+    "Low": 135497,
+    "Medium": 8966,
+    "High": 2053
   },
   "label_definition": {
     "High": "income per person < food threshold",
@@ -237,45 +136,45 @@
     "Low": "income per person >= poverty threshold"
   },
   "holdout_non_caraga": {
-    "records": 23331,
+    "records": 28052,
     "class_counts": {
-      "Low": 21303,
-      "Medium": 1627,
-      "High": 401
+      "Low": 25718,
+      "Medium": 1840,
+      "High": 494
     },
-    "balanced_accuracy": 0.8178886894487616,
-    "macro_f1": 0.694458585837657,
+    "balanced_accuracy": 0.8110605911853531,
+    "macro_f1": 0.695709637239617,
     "classification_report": {
       "Low": {
-        "precision": 0.9913202375513933,
-        "recall": 0.9167722855935784,
-        "f1-score": 0.9525899912203687,
-        "support": 21303.0
+        "precision": 0.991356993736952,
+        "recall": 0.923205536977992,
+        "f1-score": 0.9560682934686318,
+        "support": 25718.0
       },
       "Medium": {
-        "precision": 0.3994629070157771,
-        "recall": 0.7314074984634297,
-        "f1-score": 0.5167173252279635,
-        "support": 1627.0
+        "precision": 0.39640179910044976,
+        "recall": 0.7184782608695652,
+        "f1-score": 0.5109178743961352,
+        "support": 1840.0
       },
       "High": {
-        "precision": 0.49615975422427033,
-        "recall": 0.8054862842892768,
-        "f1-score": 0.6140684410646388,
-        "support": 401.0
+        "precision": 0.5097783572359843,
+        "recall": 0.791497975708502,
+        "f1-score": 0.6201427438540841,
+        "support": 494.0
       },
-      "accuracy": 0.901933050447902,
+      "accuracy": 0.9074575787822615,
       "macro avg": {
-        "precision": 0.6289809662638136,
-        "recall": 0.8178886894487616,
-        "f1-score": 0.694458585837657,
-        "support": 23331.0
+        "precision": 0.6325123833577954,
+        "recall": 0.8110605911853531,
+        "f1-score": 0.695709637239617,
+        "support": 28052.0
       },
       "weighted avg": {
-        "precision": 0.9415362064084666,
-        "recall": 0.901933050447902,
-        "f1-score": 0.916375856841984,
-        "support": 23331.0
+        "precision": 0.943851739046996,
+        "recall": 0.9074575787822615,
+        "f1-score": 0.9209540772771666,
+        "support": 28052.0
       }
     },
     "confusion_matrix_order": [
@@ -285,19 +184,19 @@
     ],
     "confusion_matrix": [
       [
-        19530,
-        1715,
-        58
+        23743,
+        1914,
+        61
       ],
       [
-        167,
-        1190,
-        270
+        203,
+        1322,
+        315
       ],
       [
         4,
-        74,
-        323
+        99,
+        391
       ]
     ]
   },
@@ -308,38 +207,38 @@
       "Medium": 491,
       "High": 103
     },
-    "balanced_accuracy": 0.8135668343946528,
-    "macro_f1": 0.6636552029457459,
+    "balanced_accuracy": 0.8196722339674843,
+    "macro_f1": 0.6619897058411747,
     "classification_report": {
       "Low": {
-        "precision": 0.9963689179375453,
-        "recall": 0.8916328188464663,
-        "f1-score": 0.9410957729572151,
+        "precision": 0.9961503208065995,
+        "recall": 0.882859463850528,
+        "f1-score": 0.9360895779500431,
         "support": 6155.0
       },
       "Medium": {
-        "precision": 0.3626062322946176,
-        "recall": 0.7820773930753564,
-        "f1-score": 0.49548387096774194,
+        "precision": 0.345045045045045,
+        "recall": 0.780040733197556,
+        "f1-score": 0.47845096814490945,
         "support": 491.0
       },
       "High": {
-        "precision": 0.4340659340659341,
-        "recall": 0.7669902912621359,
-        "f1-score": 0.5543859649122806,
+        "precision": 0.44565217391304346,
+        "recall": 0.7961165048543689,
+        "f1-score": 0.5714285714285714,
         "support": 103.0
       },
-      "accuracy": 0.8817602607793747,
+      "accuracy": 0.8740554156171285,
       "macro avg": {
-        "precision": 0.597680361432699,
-        "recall": 0.8135668343946528,
-        "f1-score": 0.6636552029457459,
+        "precision": 0.5956158465882293,
+        "recall": 0.8196722339674843,
+        "f1-score": 0.6619897058411747,
         "support": 6749.0
       },
       "weighted avg": {
-        "precision": 0.9416801216729944,
-        "recall": 0.8817602607793747,
-        "f1-score": 0.9027750507605253,
+        "precision": 0.9403799845302682,
+        "recall": 0.8740554156171285,
+        "f1-score": 0.8972303927246716,
         "support": 6749.0
       }
     },
@@ -350,19 +249,19 @@
     ],
     "confusion_matrix": [
       [
-        5488,
-        651,
-        16
+        5434,
+        706,
+        15
       ],
       [
-        20,
-        384,
+        21,
+        383,
         87
       ],
       [
         0,
-        24,
-        79
+        21,
+        82
       ]
     ]
   },
@@ -373,19 +272,19 @@
       "Medium": 86,
       "High": 14
     },
-    "balanced_accuracy": 0.8579195102059347,
-    "macro_f1": 0.6344652993012069,
+    "balanced_accuracy": 0.8511152835270103,
+    "macro_f1": 0.6257077532174925,
     "classification_report": {
       "Low": {
-        "precision": 0.997504159733777,
-        "recall": 0.8777452415812591,
-        "f1-score": 0.9338006230529595,
+        "precision": 0.9974789915966387,
+        "recall": 0.8689604685212299,
+        "f1-score": 0.9287949921752738,
         "support": 1366.0
       },
       "Medium": {
-        "precision": 0.2857142857142857,
-        "recall": 0.7674418604651163,
-        "f1-score": 0.416403785488959,
+        "precision": 0.2674897119341564,
+        "recall": 0.7558139534883721,
+        "f1-score": 0.3951367781155015,
         "support": 86.0
       },
       "High": {
@@ -394,17 +293,17 @@
         "f1-score": 0.5531914893617021,
         "support": 14.0
       },
-      "accuracy": 0.8717598908594816,
+      "accuracy": 0.8628922237380627,
       "macro avg": {
-        "precision": 0.5590526131291522,
-        "recall": 0.8579195102059346,
-        "f1-score": 0.6344652993012069,
+        "precision": 0.5529693658233964,
+        "recall": 0.8511152835270103,
+        "f1-score": 0.6257077532174925,
         "support": 1466.0
       },
       "weighted avg": {
-        "precision": 0.9499844899610639,
-        "recall": 0.8717598908594816,
-        "f1-score": 0.8998138182083608,
+        "precision": 0.948891929919848,
+        "recall": 0.8628922237380627,
+        "f1-score": 0.8939020484859624,
         "support": 1466.0
       }
     },
@@ -415,14 +314,14 @@
     ],
     "confusion_matrix": [
       [
-        1199,
-        164,
-        3
+        1187,
+        177,
+        2
       ],
       [
         3,
-        66,
-        17
+        65,
+        18
       ],
       [
         0,
@@ -432,45 +331,45 @@
     ]
   },
   "majority_baseline_non_caraga": {
-    "records": 23331,
+    "records": 28052,
     "class_counts": {
-      "Low": 21303,
-      "Medium": 1627,
-      "High": 401
+      "Low": 25718,
+      "Medium": 1840,
+      "High": 494
     },
     "balanced_accuracy": 0.3333333333333333,
-    "macro_f1": 0.31818792848501143,
+    "macro_f1": 0.31886429855557624,
     "classification_report": {
       "Low": {
-        "precision": 0.9130770219879131,
+        "precision": 0.916797376301155,
         "recall": 1.0,
-        "f1-score": 0.9545637854550343,
-        "support": 21303.0
+        "f1-score": 0.9565928956667287,
+        "support": 25718.0
       },
       "Medium": {
         "precision": 0.0,
         "recall": 0.0,
         "f1-score": 0.0,
-        "support": 1627.0
+        "support": 1840.0
       },
       "High": {
         "precision": 0.0,
         "recall": 0.0,
         "f1-score": 0.0,
-        "support": 401.0
+        "support": 494.0
       },
-      "accuracy": 0.9130770219879131,
+      "accuracy": 0.916797376301155,
       "macro avg": {
-        "precision": 0.3043590073293044,
+        "precision": 0.3055991254337183,
         "recall": 0.3333333333333333,
-        "f1-score": 0.31818792848501143,
-        "support": 23331.0
+        "f1-score": 0.31886429855557624,
+        "support": 28052.0
       },
       "weighted avg": {
-        "precision": 0.8337096480823158,
-        "recall": 0.9130770219879131,
-        "f1-score": 0.8715902585207919,
-        "support": 23331.0
+        "precision": 0.8405174291926816,
+        "recall": 0.916797376301155,
+        "f1-score": 0.8770018569355814,
+        "support": 28052.0
       }
     },
     "confusion_matrix_order": [
@@ -480,17 +379,17 @@
     ],
     "confusion_matrix": [
       [
-        21303,
+        25718,
         0,
         0
       ],
       [
-        1627,
+        1840,
         0,
         0
       ],
       [
-        401,
+        494,
         0,
         0
       ]
@@ -562,9 +461,9 @@
     ]
   },
   "feature_importance": {
-    "average_family_size": 0.1010444752680462,
-    "food_per_person": 0.43955975639295214,
-    "nonfood_per_person": 0.45939576833900164
+    "average_family_size": 0.09943611011167065,
+    "food_per_person": 0.43174056715065373,
+    "nonfood_per_person": 0.4688233227376758
   },
   "versions": {
     "sklearn": "1.8.0",

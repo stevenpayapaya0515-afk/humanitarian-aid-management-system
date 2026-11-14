@@ -1,6 +1,6 @@
 """Build an offline FIES 2025 financial proxy; never modifies the app or database.
 Run: python -m ml_service.build_fies_baseline --zip PATH --thresholds PATH
-Only exact province matches and documented spelling aliases are accepted.
+Only exact province matches, documented spelling aliases, and the published NCR district mapping are accepted.
 HUCs and other unmatched domains are excluded and listed, never silently guessed.
 """
 import argparse
@@ -20,13 +20,33 @@ from sklearn.dummy import DummyClassifier
 from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
 from sklearn.model_selection import GroupShuffleSplit
 
-VERSION = "fies2025-financial-proxy-v1"
+VERSION = "fies2025-financial-proxy-v2"
 CLASSES = ["Low", "Medium", "High"]
 # No income, income components, deciles, survey weights or identifiers as predictors.
 FEATURES = ["average_family_size", "food_per_person", "nonfood_per_person"]
 ALIASES = {"Mountain Province": "Mt. Province", "Samar (Western)": "Samar",
            "Compostela Valley": "Davao de Oro", "North Cotabato": "Cotabato",
            "Dinagat Island": "Dinagat Islands", "City of Isabela": "Isabela City"}
+
+
+# PSA threshold workbook tab16, footnote a/: NCR cities grouped into districts.
+# Codes are from the supplied FIES 2025 W_PROV_VS21 dictionary, not PSGC IDs.
+NCR_DISTRICTS = {
+    806: "1st District",
+    805: "2nd District", 807: "2nd District", 812: "2nd District",
+    813: "2nd District", 814: "2nd District",
+    801: "3rd District", 804: "3rd District", 809: "3rd District", 816: "3rd District",
+    802: "4th District", 803: "4th District", 808: "4th District", 810: "4th District",
+    811: "4th District", 817: "4th District", 815: "4th District",
+}
+
+
+def threshold_area(province_code, province_name, region_code):
+    if province_code in NCR_DISTRICTS:
+        if region_code != 13:
+            raise ValueError("NCR province code conflicts with region code")
+        return NCR_DISTRICTS[province_code]
+    return ALIASES.get(province_name, province_name)
 
 
 def classify_income(income, food, poverty):
@@ -71,7 +91,7 @@ def prepare(zip_path, threshold_path):
                 thresholds[(str(row[0]).strip(), urban)] = (float(row[fidx]), float(row[pidx]), number)
     book.close()
     frame["province_name"] = frame.W_PROV.map(names)
-    frame["threshold_area"] = frame.province_name.replace(ALIASES)
+    frame["threshold_area"] = [threshold_area(p, n, r) for p, n, r in zip(frame.W_PROV, frame.province_name, frame.W_REGN)]
     matched = [thresholds.get((name, urban)) for name, urban in zip(frame.threshold_area, frame.URBAN)]
     frame["food_threshold"] = [t[0] if t else np.nan for t in matched]
     frame["poverty_threshold"] = [t[1] if t else np.nan for t in matched]
@@ -134,7 +154,8 @@ def main():
     dummy = DummyClassifier(strategy="most_frequent").fit(train[FEATURES], train.proxy_class)
     excluded = frame[~frame.exclusion_reason.eq("")]
     report = {"version": VERSION, "status": "offline research candidate; not connected to app",
-              "source": "PSA FIES 2025 Volume 1 PUF", "threshold_source": "2025 official poverty workbook, tab16",
+              "source": "PSA FIES 2025 Volume 1 PUF", "threshold_source": "2025 official poverty workbook, tab16 including NCR footnote a/",
+              "geographic_mapping_version": "province-aliases-and-ncr-districts-v2",
               "source_sha256": hashlib.sha256(args.zip.read_bytes()).hexdigest(),
               "threshold_sha256": hashlib.sha256(args.thresholds.read_bytes()).hexdigest(),
               "records_total": len(frame), "records_usable": len(usable), "training_records": len(train),
@@ -166,6 +187,7 @@ def main():
     (root / "evaluation/fies2025_evaluation.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     joblib.dump({"pipeline": model, "version": VERSION, "features": FEATURES,
                  "label_kind": "financial_threshold_proxy", "reference_year": 2025,
+                 "geographic_mapping_version": "province-aliases-and-ncr-districts-v2",
                  "app_ready": False}, root / "models/fies2025_candidate.joblib", compress=3)
     print(json.dumps({k: report[k] for k in ("records_total", "records_usable", "excluded_records", "class_distribution")}, indent=2))
     for name in ("holdout_non_caraga", "holdout_caraga", "holdout_agusan_del_norte_excluding_butuan"):

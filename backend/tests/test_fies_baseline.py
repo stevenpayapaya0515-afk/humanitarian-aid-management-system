@@ -1,9 +1,24 @@
 """Boundary tests for FIES financial categories; no database needed."""
 import unittest
-from ml_service.build_fies_baseline import classify_income, FEATURES
+from ml_service.build_fies_baseline import classify_income, FEATURES, threshold_area, NCR_DISTRICTS
 
 
 class FiesLabelTests(unittest.TestCase):
+    def test_documented_ncr_districts(self):
+        self.assertEqual(len(NCR_DISTRICTS), 17)
+        self.assertEqual(threshold_area(806, "CITY OF MANILA", 13), "1st District")
+        self.assertEqual(threshold_area(813, "QUEZON CITY", 13), "2nd District")
+        self.assertEqual(threshold_area(801, "CITY OF CALOOCAN", 13), "3rd District")
+        self.assertEqual(threshold_area(815, "CITY OF TAGUIG", 13), "4th District")
+
+    def test_region_mismatch_rejected(self):
+        with self.assertRaises(ValueError):
+            threshold_area(806, "CITY OF MANILA", 16)
+
+    def test_unmapped_city_not_guessed(self):
+        self.assertEqual(threshold_area(304, "City of Butuan", 16), "City of Butuan")
+        self.assertEqual(threshold_area(2, "Agusan del Norte", 16), "Agusan del Norte")
+
     def test_threshold_boundaries(self):
         self.assertEqual(classify_income(99, 100, 150), "High")
         self.assertEqual(classify_income(100, 100, 150), "Medium")
