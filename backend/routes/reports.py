@@ -87,7 +87,7 @@ def get_reports_summary(
                     FROM latest_assessment la
                     JOIN public.vulnerability_classifications vc
                         ON vc.assessment_id = la.assessment_id
-                        AND vc.model_version = 'apis2019-proxy-v1'
+                        AND vc.model_version = 'apis2022-rf-multidomain-v5-focused'
                     ORDER BY
                         la.household_id,
                         vc.created_at DESC,

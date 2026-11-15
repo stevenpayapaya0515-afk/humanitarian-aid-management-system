@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/vulnerability_service.dart';
@@ -25,6 +26,38 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   final _apisAge12to17Controller = TextEditingController(text: '0');
   final _apisMonthlyIncomeController = TextEditingController();
 
+  // Format peso amounts while preserving the typed numerical value.
+  static final TextInputFormatter _pesoIncomeFormatter =
+      TextInputFormatter.withFunction((oldValue, newValue) {
+    final raw = newValue.text.replaceAll(',', '');
+    if (raw.startsWith('.') ||
+        !RegExp(r'^\d{0,12}(\.\d{0,2})?$').hasMatch(raw)) {
+      return oldValue;
+    }
+
+    final parts = raw.split('.');
+    final whole = parts.first.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
+    final formatted = parts.length == 2 ? '$whole.${parts[1]}' : whole;
+
+    var caret = newValue.selection.extentOffset;
+    if (caret < 0) caret = newValue.text.length;
+    if (caret > newValue.text.length) caret = newValue.text.length;
+    final beforeCaret = newValue.text.substring(0, caret).replaceAll(',', '').length;
+    var nextCaret = 0;
+    var entered = 0;
+    while (nextCaret < formatted.length && entered < beforeCaret) {
+      if (formatted[nextCaret] != ',') entered++;
+      nextCaret++;
+    }
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: nextCaret),
+    );
+  });
+
   List<Map<String, dynamic>> _households = [];
   List<Map<String, dynamic>> _assessments = [];
 
@@ -34,6 +67,111 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     'apis2022_ws1': {96}, 'apis2022_ws11a': {15, 71, 96},
   };
   final Map<String, int?> _apisAnswers = {};
+  final Map<String, dynamic> _expandedAnswers = {};
+  List<Map<String, dynamic>> _expandedCatalog = [];
+  String? _expandedLoadError;
+
+  Future<void> _loadExpandedCatalog() async {
+    try {
+      final result = await VulnerabilityService.fetchApis2022FeatureCatalog();
+      if (!mounted) return;
+      setState(() {
+        _expandedCatalog = (result['assessment'] as List)
+            .map((entry) => Map<String, dynamic>.from(entry as Map))
+            .toList();
+        _expandedLoadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _expandedLoadError = error.toString());
+    }
+  }
+
+  Widget _expandedField(Map<String, dynamic> spec) {
+    final name = spec['name'] as String;
+    final label = spec['label'] as String;
+    if (spec['kind'] == 'code') {
+      return DropdownButtonFormField<String>(
+        key: ValueKey('$_selectedHousehold-$name'),
+        initialValue: _expandedAnswers[name]?.toString() ?? '',
+        isExpanded: true,
+        decoration: InputDecoration(labelText: label),
+        items: const [
+          DropdownMenuItem(value: '', child: Text('Select answer')),
+          DropdownMenuItem(value: '1', child: Text('Yes')),
+          DropdownMenuItem(value: '2', child: Text('No')),
+        ],
+        onChanged: _isSaving ? null : (value) => setState(() {
+          if (value == null || value.isEmpty) {
+            _expandedAnswers.remove(name);
+          } else {
+            _expandedAnswers[name] = value;
+          }
+          _clearFormError();
+        }),
+      );
+    }
+    return TextFormField(
+      key: ValueKey('$_selectedHousehold-$name'),
+      initialValue: _expandedAnswers[name]?.toString() ?? '',
+      enabled: !_isSaving,
+      keyboardType: TextInputType.number,
+      decoration: const InputDecoration(
+        labelText: 'Number of bedrooms',
+        helperText: 'Enter the confirmed number. Leave blank if unknown.',
+      ),
+      validator: (value) {
+        if ((value ?? '').trim().isEmpty) return null;
+        final count = int.tryParse(value!.trim());
+        if (count == null || count < 0 || count > 30) {
+          return 'Enter a whole number from 0 to 30.';
+        }
+        return null;
+      },
+      onChanged: (value) {
+        if (value.trim().isEmpty) {
+          _expandedAnswers.remove(name);
+        } else {
+          _expandedAnswers[name] = int.tryParse(value.trim()) ?? value.trim();
+        }
+      },
+    );
+  }
+
+  Widget _bedroomInput() {
+    final matches = _expandedCatalog.where((spec) => spec['name'] == 'I7');
+    if (matches.isEmpty) return const Text('Loading bedroom question...');
+    return _expandedField(matches.first);
+  }
+
+  List<Widget> _assetCards() {
+    if (_expandedLoadError != null) {
+      return [Text('Household assets unavailable: $_expandedLoadError',
+          style: const TextStyle(color: Colors.red))];
+    }
+    if (_expandedCatalog.isEmpty) {
+      return [const Text('Loading household asset questions...')];
+    }
+    const headings = <String, IconData>{
+      'Transportation and livelihood assets': Icons.directions_car_outlined,
+      'Home appliances and equipment': Icons.kitchen_outlined,
+      'Communication and technology': Icons.devices_outlined,
+    };
+    return headings.entries.map((heading) {
+      final fields = _expandedCatalog
+          .where((spec) => spec['section'] == heading.key)
+          .map(_expandedField).toList();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 18),
+        child: _sectionCard(
+          title: heading.key,
+          subtitle: 'Does the household currently own or subscribe to each item?',
+          icon: heading.value,
+          child: _fieldGrid(fields),
+        ),
+      );
+    }).toList();
+  }
   bool _apisSingleFamily = false;
   String? _assessmentOrigin;
 
@@ -95,6 +233,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     }
 
     _loadData();
+    _loadExpandedCatalog();
   }
 
   @override
@@ -431,6 +570,15 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       return;
     }
 
+    if (_includeApis2022 && _expandedCatalog.isEmpty) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Household Asset Questions Not Loaded',
+        message: _expandedLoadError ?? 'Check the FastAPI connection and reload the assessment.',
+      );
+      return;
+    }
+
     // Validate household population.
     if (!_validatePopulation()) {
       await _showFeedbackDialog(
@@ -475,6 +623,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
         'data_origin': _assessmentOrigin,
         'apis_single_family': _includeApis2022 ? _apisSingleFamily : null,
+        'apis2022_extended_answers': _includeApis2022
+            ? Map<String, dynamic>.from(_expandedAnswers)
+            : <String, dynamic>{},
         if (_includeApis2022) ...{
           for (final entry in _apisAnswers.entries)
             entry.key: entry.value == -1 ? null : entry.value,
@@ -485,7 +636,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
           'apis2022_mem_age_6_11': _number(_apisAge6to11Controller),
           'apis2022_mem_age_12_17': _number(_apisAge12to17Controller),
           'apis2022_monthly_household_income_php':
-              _apisMonthlyIncomeController.text.trim(),
+              _apisMonthlyIncomeController.text.trim().replaceAll(',', ''),
         },
       };
 
@@ -802,6 +953,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                     setState(() {
                       _selectedHousehold = household;
                       _apisAnswers.clear();
+                      _expandedAnswers.clear();
                       _includeApis2022 = true;
                       _apisSingleFamily = false;
                       _apisAge6to11Controller.text = '0';
@@ -1225,7 +1377,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
             // APIS 2022 member record.
             _sectionCard(
-              title: 'APIS 2022 • Household Members',
+              title: 'Household Members',
               subtitle:
                   'Counts from the household member roster. All age groups must equal the registered household size.',
               icon: Icons.groups_outlined,
@@ -1237,11 +1389,11 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                       controller: _age0to5Controller,
                     ),
                     _numberField(
-                      label: 'Age 6–11 years (MEM_AGE_6_11)',
+                      label: 'Age 6–11 years',
                       controller: _apisAge6to11Controller,
                     ),
                     _numberField(
-                      label: 'Age 12–17 years (MEM_AGE_12_17)',
+                      label: 'Age 12–17 years',
                       controller: _apisAge12to17Controller,
                     ),
                     _numberField(
@@ -1262,99 +1414,97 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
             const SizedBox(height: 18),
 
-            // APIS 2022 inputs used by the current Random Forest.
             _sectionCard(
-              title: 'APIS 2022 • Household Conditions',
-              subtitle: 'Record the APIS 2022-equivalent answers. Survey identifiers and research-only fields are not requested.',
-              icon: Icons.fact_check_outlined,
+              title: 'Housing structure and electricity',
+              subtitle: 'Record the household’s observed living conditions.',
+              icon: Icons.home_outlined,
+              child: _fieldGrid([
+                _apisQuestion('apis2022_i2', 'Roof material', apis2022Options['I2']!),
+                _apisQuestion('apis2022_i3', 'Wall material', apis2022Options['I3']!),
+                _apisQuestion('apis2022_i4', 'Floor material', apis2022Options['I4']!),
+                _apisQuestion('apis2022_i8', 'Electricity access', apis2022Options['I8']!),
+                _bedroomInput(),
+              ]),
+            ),
+            const SizedBox(height: 18),
+            ..._assetCards(),
+            _sectionCard(
+              title: 'Water and sanitation',
+              subtitle: 'Main drinking-water source and toilet facility.',
+              icon: Icons.water_drop_outlined,
+              child: _fieldGrid([
+                _apisQuestion('apis2022_ws1', 'Drinking water source', apis2022Options['WS1']!),
+                _apisQuestion('apis2022_ws11a', 'Toilet facility', apis2022Options['WS11A']!),
+              ]),
+            ),
+            const SizedBox(height: 18),
+            _sectionCard(
+              title: 'Disaster preparedness and recovery',
+              subtitle: 'Record disaster experience and any applicable follow-up answers.',
+              icon: Icons.health_and_safety_outlined,
+              child: _fieldGrid([
+                _apisQuestion('apis2022_g15_kit', 'Does the household have an emergency go bag?', apis2022Options['G15_KIT']!),
+                _apisQuestion('apis2022_g16_nat_disas', 'Has the household experienced a natural disaster?', apis2022Options['G16_NAT_DISAS']!),
+                if (_apisAnswers['apis2022_g16_nat_disas'] == 1) ...[
+                  _apisQuestion('apis2022_g16a_evac', 'Was the household displaced or evacuated?', apis2022Options['G16A_EVAC']!),
+                  _apisQuestion('apis2022_g16b_recov', 'Has the household recovered from the disaster?', apis2022Options['G16B_RECOV']!),
+                ],
+              ]),
+            ),
+            const SizedBox(height: 18),
+            _sectionCard(
+              title: 'Household income',
+              subtitle: 'Use the verified monthly family income for this assessment.',
+              icon: Icons.payments_outlined,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Verified APIS 2022 answers available'),
-                    subtitle: const Text('Turn off when source answers are not verified; save for staff review. Do not guess codes.'),
-                    value: _includeApis2022,
-                    onChanged: _isSaving ? null : (value) => setState(() {
-                      _includeApis2022 = value;
-                      if (!value) _apisAnswers.clear();
-                    }),
+                  TextFormField(
+                    controller: _apisMonthlyIncomeController,
+                    enabled: !_isSaving,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [_pesoIncomeFormatter],
+                    decoration: const InputDecoration(
+                      labelText: 'Average monthly family income',
+                      hintText: 'e.g., 15,000.00',
+                      prefixText: '₱ ',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      helperText: 'Enter the verified monthly family income in pesos.',
+                    ),
+                    validator: (value) {
+                      final amount = (value ?? '').trim().replaceAll(',', '');
+                      if (!RegExp(r'^\d{1,12}(\.\d{1,2})?$').hasMatch(amount)) {
+                        return 'Enter a verified amount with up to two decimal places.';
+                      }
+                      return null;
+                    },
                   ),
-                  if (_includeApis2022) ...[
-                    const SizedBox(height: 16),
-                    const Text('Housing and electricity',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                    const SizedBox(height: 10),
-                    _fieldGrid([
-                      _apisQuestion('apis2022_i2', 'Roof material (I2)', apis2022Options['I2']!),
-                      _apisQuestion('apis2022_i3', 'Wall material (I3)', apis2022Options['I3']!),
-                      _apisQuestion('apis2022_i4', 'Floor material (I4)', apis2022Options['I4']!),
-                      _apisQuestion('apis2022_i8', 'Electricity access (I8)', apis2022Options['I8']!),
-                    ]),
-                    const SizedBox(height: 20),
-                    const Text('Water and sanitation',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                    const SizedBox(height: 10),
-                    _fieldGrid([
-                      _apisQuestion('apis2022_ws1', 'Drinking water source (WS1)', apis2022Options['WS1']!),
-                      _apisQuestion('apis2022_ws11a', 'Toilet facility (WS11A)', apis2022Options['WS11A']!),
-                    ]),
-                    const SizedBox(height: 20),
-                    const Text('Disaster preparedness and recovery',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                    const SizedBox(height: 10),
-                    _fieldGrid([
-                      _apisQuestion('apis2022_g15_kit', 'Emergency preparedness kit (G15)', apis2022Options['G15_KIT']!),
-                      _apisQuestion('apis2022_g16_nat_disas', 'Experienced natural disaster (G16)', apis2022Options['G16_NAT_DISAS']!),
-                      if (_apisAnswers['apis2022_g16_nat_disas'] == 1) ...[
-                        _apisQuestion('apis2022_g16a_evac', 'Evacuation (G16A)', apis2022Options['G16A_EVAC']!),
-                        _apisQuestion('apis2022_g16b_recov', 'Recovery (G16B)', apis2022Options['G16B_RECOV']!),
-                      ],
-                    ]),
-                    const SizedBox(height: 20),
-                    const Text('Household income',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _apisMonthlyIncomeController,
-                      enabled: !_isSaving,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Verified monthly household income (PHP)',
-                        helperText: 'Used as an experimental K5-equivalent; exact APIS K5 meaning requires codebook verification.',
-                        helperMaxLines: 2,
-                      ),
-                      validator: (value) {
-                        if (!_includeApis2022) return null;
-                        if (!RegExp(r'^\d{1,12}(\.\d{1,2})?$').hasMatch((value ?? '').trim())) {
-                          return 'Enter a verified nonnegative monthly amount (up to 2 decimals).';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      value: _apisSingleFamily,
-                      onChanged: _isSaving ? null : (value) => setState(() => _apisSingleFamily = value ?? false),
-                      title: const Text('Income describes one family sharing income and expenses'),
-                      subtitle: const Text('Required by the current research prediction contract.'),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _assessmentOrigin,
-                    validator: (value) => value == null ? 'Select the assessment data source.' : null,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Assessment data source'),
-                    items: const [
-                      DropdownMenuItem(value: 'lgu_authorized', child: Text('Verified LGU household assessment')),
-                      DropdownMenuItem(value: 'synthetic', child: Text('Practice entry — not verified for decisions')),
-                    ],
-                    onChanged: _isSaving ? null : (value) => setState(() => _assessmentOrigin = value),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _apisSingleFamily,
+                    onChanged: _isSaving ? null : (value) => setState(() => _apisSingleFamily = value ?? false),
+                    title: const Text('The income covers this one family'),
+                    subtitle: const Text('Confirm the same family is represented by the member counts.'),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            _sectionCard(
+              title: 'Assessment information source',
+              subtitle: 'Specify how the answers were obtained.',
+              icon: Icons.verified_user_outlined,
+              child: DropdownButtonFormField<String>(
+                initialValue: _assessmentOrigin,
+                validator: (value) => value == null ? 'Select the assessment source.' : null,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Information source'),
+                items: const [
+                  DropdownMenuItem(value: 'lgu_authorized', child: Text('Verified household assessment')),
+                  DropdownMenuItem(value: 'synthetic', child: Text('Practice entry (not for actual aid decisions)')),
+                ],
+                onChanged: _isSaving ? null : (value) => setState(() => _assessmentOrigin = value),
               ),
             ),
             const SizedBox(height: 18),

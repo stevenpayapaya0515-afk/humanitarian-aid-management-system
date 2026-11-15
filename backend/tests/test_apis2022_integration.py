@@ -96,11 +96,10 @@ class IntegrationTests(unittest.TestCase):
             "apis2022_mem_age_6_11": 1, "apis2022_mem_age_12_17": 1,
             "apis2022_monthly_household_income_php": 20000,
         })
+        # 16-field saved assessments must not silently use the older model.
         response, calls = self.call(None)
-        self.assertEqual(response.status_code, 201, response.text)
-        self.assertEqual(response.json()["proxy_details"]["raw_answers"]["I2"], 1)
-        self.assertTrue(any("INSERT INTO public.vulnerability_classifications" in sql
-                            for sql, _ in calls))
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertFalse(any("INSERT" in sql for sql, _ in calls))
         response, calls = self.call(answers())
         self.assertEqual(response.status_code, 409, response.text)
         self.assertFalse(any("INSERT" in sql for sql, _ in calls))
@@ -152,6 +151,85 @@ class IntegrationTests(unittest.TestCase):
         for origin in ["synthetic", "psa_apis2019", "lgu_authorized"]:
             result = VulnerabilityPredictionResponse(**dict(response.json(), model_training_data_origin=origin))
             self.assertEqual(result.model_training_data_origin, origin)
+
+
+
+class APIS2022ExpandedContractTests(unittest.TestCase):
+    def test_catalog_covers_exact_focused_model_inputs(self):
+        from schemas.assessments import (
+            APIS2022_CATALOG, APIS2022_SOCIAL_KEYS, APIS2022_ASSESSMENT_KEYS,
+        )
+        from ml_service.label_apis2022_vulnerability import V2_FEATURES
+        baseline = {"I2", "I3", "I4", "I8", "WS1", "WS11A", "G15_KIT", "G16_NAT_DISAS",
+                    "G16A_EVAC", "G16B_RECOV", "FSIZE", "MEM_AGE_0_5", "MEM_AGE_6_11",
+                    "MEM_AGE_12_17", "MEM_AGE_60_PLUS", "K5_PER_CAPITA"}
+        self.assertEqual(set(APIS2022_CATALOG) | baseline, set(V2_FEATURES))
+        self.assertEqual(len(APIS2022_ASSESSMENT_KEYS), 24)
+        self.assertEqual(len(APIS2022_SOCIAL_KEYS), 9)
+
+    def test_extended_validation_preserves_unknowns_and_rejects_invention(self):
+        from schemas.assessments import validate_apis2022_group, APIS2022_ASSESSMENT_KEYS
+        values = validate_apis2022_group({"I9A": "1", "I7": 2, "I9B": ""}, APIS2022_ASSESSMENT_KEYS)
+        self.assertEqual(values, {"I9A": "1", "I7": 2})
+        for wrong in ({"I9A": "4"}, {"REG": "16"}, {"I7": -1}, {"I7": 1.3},
+                      {"WS14": "1"}, {"I7": "NaN"}):
+            with self.subTest(wrong=wrong), self.assertRaises(ValueError):
+                validate_apis2022_group(wrong, APIS2022_ASSESSMENT_KEYS)
+
+    def test_expanded_model_accepts_saved_survey_answer_shape(self):
+        import csv
+        from pathlib import Path
+        from ml_service import predict_apis2022_vulnerability as model
+        from schemas.assessments import (
+            validate_apis2022_group, APIS2022_ASSESSMENT_KEYS, APIS2022_SOCIAL_KEYS,
+        )
+        from ml_service.label_apis2022_vulnerability import V2_FEATURES
+        path = Path(__file__).resolve().parents[1] / "ml_service/datasets/apis2022_vulnerability_proxy_labels.csv"
+        with path.open(encoding="utf-8", newline="") as f:
+            row = next(r for r in csv.DictReader(f) if r["v2_proxy_class"] in ("Low", "Medium", "High"))
+        saved = {
+            "household_size": int(row["FSIZE"]),
+            "age_0_5_count": int(row["MEM_AGE_0_5"]),
+            "age_6_17_count": int(row["MEM_AGE_6_11"]) + int(row["MEM_AGE_12_17"]),
+            "age_18_59_count": int(row["MEM_AGE_18_59"]),
+            "age_60_plus_count": int(row["MEM_AGE_60_PLUS"]),
+            "apis_single_family": True,
+            "apis2022_mem_age_6_11": int(row["MEM_AGE_6_11"]),
+            "apis2022_mem_age_12_17": int(row["MEM_AGE_12_17"]),
+            "apis2022_monthly_household_income_php": float(row["K5"]),
+            "apis2022_extended_answers": validate_apis2022_group(
+                {k: row[k] for k in APIS2022_ASSESSMENT_KEYS}, APIS2022_ASSESSMENT_KEYS),
+            "apis2022_social_answers": validate_apis2022_group(
+                {k: row[k] for k in APIS2022_SOCIAL_KEYS}, APIS2022_SOCIAL_KEYS),
+        }
+        for name in model.CODE_KEYS:
+            saved["apis2022_" + name.lower()] = int(row[name]) if row[name] else None
+
+        class Pipeline:
+            classes_ = ["Low", "Medium", "High"]
+            def predict(self, df):
+                self.checked = list(df.columns) == V2_FEATURES
+                return ["Medium"]
+            def predict_proba(self, df): return [[0.1, 0.8, 0.1]]
+        pipeline = Pipeline()
+        bundle = {"pipeline": pipeline, "income_cutoff": 2500, "version": "test-v2",
+                  "label_version": "test-v2"}
+        with patch.object(model, "load_expanded_candidate", return_value=bundle):
+            result = model.predict_expanded_saved_assessment(saved, recorded_by=3)
+        self.assertTrue(pipeline.checked)
+        self.assertEqual(result["proxy_details"]["feature_count"], len(V2_FEATURES))
+        self.assertTrue(result["proxy_details"]["requires_staff_review"])
+        self.assertFalse(result["proxy_details"]["app_ready"])
+        self.assertEqual(result["predicted_class_score"], 0.8)
+
+    def test_social_inputs_never_silently_fill_missing_counts(self):
+        from schemas.vulnerability import APIS2022SocialInputs
+        from pydantic import ValidationError
+        self.assertEqual(APIS2022SocialInputs(answers={"G1_CODE1_COUNT": 0}).answers,
+                         {"G1_CODE1_COUNT": 0})
+        for wrong in ({"G1_CODE1_COUNT": 6}, {"G13_PHEALTH": 9}, {"I9A": "1"}):
+            with self.subTest(wrong=wrong), self.assertRaises(ValidationError):
+                APIS2022SocialInputs(answers=wrong)
 
 
 if __name__ == "__main__": unittest.main()

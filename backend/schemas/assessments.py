@@ -5,6 +5,224 @@ from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
+from ml_service.label_apis2022_vulnerability import V2_FEATURES
+
+
+# APIS 2022 survey-code choices observed in the approved 43,517-household data.
+# Blank means unknown / survey skip. Do not infer 'No' from a blank.
+APIS2022_CATALOG = {'I7': {'name': 'I7',
+        'label': 'Number of bedrooms',
+        'section': 'Housing and electricity',
+        'kind': 'number',
+        'options': [],
+        'max': 30},
+ 'I9A': {'name': 'I9A',
+         'label': 'Car',
+         'section': 'Transportation and livelihood assets',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9B': {'name': 'I9B',
+         'label': 'Electric jeep',
+         'section': 'Transportation and livelihood assets',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9C': {'name': 'I9C',
+         'label': 'Motorcycle or tricycle',
+         'section': 'Transportation and livelihood assets',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9D': {'name': 'I9D',
+         'label': 'Electric tricycle',
+         'section': 'Transportation and livelihood assets',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9E': {'name': 'I9E',
+         'label': 'Motorboat or banca',
+         'section': 'Transportation and livelihood assets',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9F': {'name': 'I9F',
+         'label': 'Tractor',
+         'section': 'Transportation and livelihood assets',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9G': {'name': 'I9G',
+         'label': 'Washing machine',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9H': {'name': 'I9H',
+         'label': 'Stove with oven or range',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9I': {'name': 'I9I',
+         'label': 'Induction stove',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9J': {'name': 'I9J',
+         'label': 'Refrigerator or freezer',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9K': {'name': 'I9K',
+         'label': 'Personal computer',
+         'section': 'Communication and technology',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9L': {'name': 'I9L',
+         'label': 'Air conditioner',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9M': {'name': 'I9M',
+         'label': 'Basic mobile phone',
+         'section': 'Communication and technology',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9N': {'name': 'I9N',
+         'label': 'Smartphone',
+         'section': 'Communication and technology',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9O': {'name': 'I9O',
+         'label': 'Microwave or oven toaster',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9P': {'name': 'I9P',
+         'label': 'Landline telephone',
+         'section': 'Communication and technology',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9Q': {'name': 'I9Q',
+         'label': 'Video or game console',
+         'section': 'Communication and technology',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9R': {'name': 'I9R',
+         'label': 'Television',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9S': {'name': 'I9S',
+         'label': 'Radio',
+         'section': 'Home appliances and equipment',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9T': {'name': 'I9T',
+         'label': 'Draft animals',
+         'section': 'Transportation and livelihood assets',
+         'kind': 'code',
+         'options': ['1', '2']},
+ 'I9BA': {'name': 'I9BA',
+          'label': 'Cable television subscription',
+          'section': 'Communication and technology',
+          'kind': 'code',
+          'options': ['1', '2']},
+ 'I9BB': {'name': 'I9BB',
+          'label': 'Broadband internet connection',
+          'section': 'Communication and technology',
+          'kind': 'code',
+          'options': ['1', '2']},
+ 'I9BC': {'name': 'I9BC',
+          'label': 'Video streaming subscription',
+          'section': 'Communication and technology',
+          'kind': 'code',
+          'options': ['1', '2']},
+ 'G13_PHEALTH': {'name': 'G13_PHEALTH',
+                 'label': 'PhilHealth coverage',
+                 'section': 'Social protection and services',
+                 'kind': 'code',
+                 'options': ['1', '2', '3']},
+ 'G13A_ASSISTANCE': {'name': 'G13A_ASSISTANCE',
+                     'label': 'PhilHealth benefits received',
+                     'section': 'Social protection and services',
+                     'kind': 'code',
+                     'options': ['1', '2']},
+ 'G14_AWARE': {'name': 'G14_AWARE',
+               'label': 'Aware of LCPU/LSWDO',
+               'section': 'Social protection and services',
+               'kind': 'code',
+               'options': ['1', '2']},
+ 'G14A_CONSULT': {'name': 'G14A_CONSULT',
+                  'label': 'Used LCPU/LSWDO services',
+                  'section': 'Social protection and services',
+                  'kind': 'code',
+                  'options': ['1', '2']},
+ 'G1_CODE1_COUNT': {'name': 'G1_CODE1_COUNT',
+                    'label': 'Social-insurance programs recorded as received (0–5)',
+                    'section': 'Social protection and services',
+                    'kind': 'number',
+                    'options': [],
+                    'max': 5},
+ 'G5_CODE1_COUNT': {'name': 'G5_CODE1_COUNT',
+                    'label': 'Social-assistance programs recorded as received (0–8)',
+                    'section': 'Social protection and services',
+                    'kind': 'number',
+                    'options': [],
+                    'max': 8},
+ 'G9_CODE1_COUNT': {'name': 'G9_CODE1_COUNT',
+                    'label': 'Labor intervention programs recorded as received (0–4)',
+                    'section': 'Social protection and services',
+                    'kind': 'number',
+                    'options': [],
+                    'max': 4},
+ 'G11_CODE1_COUNT': {'name': 'G11_CODE1_COUNT',
+                     'label': 'Government feeding programs recorded as received (0–2)',
+                     'section': 'Social protection and services',
+                     'kind': 'number',
+                     'options': [],
+                     'max': 2},
+ 'H1_CODE1_COUNT': {'name': 'H1_CODE1_COUNT',
+                    'label': 'Government-services programs recorded as received (0–12)',
+                    'section': 'Social protection and services',
+                    'kind': 'number',
+                    'options': [],
+                    'max': 12}}
+APIS2022_SOCIAL_KEYS = frozenset(['G11_CODE1_COUNT', 'G13A_ASSISTANCE', 'G13_PHEALTH', 'G14A_CONSULT', 'G14_AWARE', 'G1_CODE1_COUNT', 'G5_CODE1_COUNT', 'G9_CODE1_COUNT', 'H1_CODE1_COUNT'])
+APIS2022_ASSESSMENT_KEYS = frozenset(["I7", *["I9" + key for key in "ABCDEFGHIJKLMNOPQRST"], "I9BA", "I9BB", "I9BC"])
+assert set(APIS2022_CATALOG) | {
+    "I2", "I3", "I4", "I8", "WS1", "WS11A", "G15_KIT", "G16_NAT_DISAS",
+    "G16A_EVAC", "G16B_RECOV", "FSIZE", "MEM_AGE_0_5", "MEM_AGE_6_11",
+    "MEM_AGE_12_17", "MEM_AGE_60_PLUS", "K5_PER_CAPITA",
+} == set(V2_FEATURES)
+
+
+def validate_apis2022_group(answers: dict, allowed: frozenset[str]) -> dict:
+    if not isinstance(answers, dict):
+        raise ValueError("APIS 2022 answers must be a mapping")
+    unknown = set(answers) - allowed
+    if unknown:
+        raise ValueError(f"Unrecognized APIS 2022 answers: {sorted(unknown)}")
+    result = {}
+    for key, raw in answers.items():
+        if raw is None or raw == "":
+            continue  # Unknown remains absent, never a fabricated zero/no.
+        spec = APIS2022_CATALOG[key]
+        if spec["kind"] == "code":
+            code = str(raw).strip().upper()
+            if code not in spec["options"]:
+                raise ValueError(f"Unsupported survey code for {key}: {code}")
+            result[key] = code
+        else:
+            if isinstance(raw, bool):
+                raise ValueError(f"Invalid numeric value for {key}")
+            try:
+                from decimal import Decimal, InvalidOperation
+                number = Decimal(str(raw))
+            except (InvalidOperation, ValueError, TypeError):
+                raise ValueError(f"Invalid numeric value for {key}") from None
+            if (not number.is_finite() or number < 0 or number > 1_000_000_000_000
+                    or ("max" in spec and number > spec["max"])):
+                raise ValueError(f"Out-of-range value for {key}")
+            if key == "I7" and number > 30:
+                raise ValueError("Unreasonable bedroom count")
+            if number != number.to_integral_value():
+                raise ValueError(f"{key} requires a whole number")
+            result[key] = int(number)
+    return result
 
 
 class AssessmentCreate(BaseModel):
@@ -53,6 +271,14 @@ class AssessmentCreate(BaseModel):
     apis2022_monthly_household_income_php: Decimal | None = Field(
         default=None, ge=0, max_digits=14, decimal_places=2
     )
+
+    apis2022_extended_answers: dict[str, str | int | float | None] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_extended_survey_answers(self):
+        self.apis2022_extended_answers = validate_apis2022_group(
+            self.apis2022_extended_answers, APIS2022_ASSESSMENT_KEYS)
+        return self
 
     # Optional financial history adapted from FIES concepts, not an imported PSA record.
     financial_reference_year: int | None = Field(default=None, ge=1900, strict=True)

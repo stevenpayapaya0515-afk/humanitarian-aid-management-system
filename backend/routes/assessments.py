@@ -3,10 +3,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 from core.dependencies import get_current_user
 from database import get_connection
-from schemas.assessments import AssessmentCreate, AssessmentResponse
+from schemas.assessments import (AssessmentCreate, AssessmentResponse,
+                                 APIS2022_CATALOG, APIS2022_ASSESSMENT_KEYS,
+                                 APIS2022_SOCIAL_KEYS)
 
 router = APIRouter(prefix="/assessments", tags=["Household Assessment"])
 
@@ -37,11 +40,23 @@ ASSESSMENT_SELECT = """
            a.financial_reference_year, a.financial_single_family, a.average_family_size, a.annual_family_income, a.annual_family_expenditure, a.annual_food_expenditure,
            a.financial_residence_classification, a.annual_housing_utilities_expenditure, a.annual_health_expenditure, a.annual_education_expenditure, a.annual_transport_expenditure,
            a.apis2022_i2, a.apis2022_i3, a.apis2022_i4, a.apis2022_i8, a.apis2022_ws1, a.apis2022_ws11a, a.apis2022_g15_kit, a.apis2022_g16_nat_disas, a.apis2022_g16a_evac, a.apis2022_g16b_recov, a.apis2022_mem_age_6_11, a.apis2022_mem_age_12_17, a.apis2022_monthly_household_income_php,
+           a.apis2022_extended_answers, a.apis2022_social_answers,
            a.recorded_by, a.created_at,
            h.household_head, h.barangay
     FROM public.household_assessments a
     JOIN public.households h ON h.household_id = a.household_id
 """
+
+
+@router.get("/apis2022/feature-catalog")
+def apis2022_feature_catalog(current_user: dict = Depends(require_assessment_read)):
+    """Exact additional survey fields, grouped by existing AidTrack screens."""
+    return {
+        "assessment": [APIS2022_CATALOG[name] for name in APIS2022_CATALOG
+                       if name in APIS2022_ASSESSMENT_KEYS],
+        "social": [APIS2022_CATALOG[name] for name in APIS2022_CATALOG
+                   if name in APIS2022_SOCIAL_KEYS],
+    }
 
 
 @router.get("", response_model=list[AssessmentResponse])
@@ -105,12 +120,12 @@ def create_assessment(
                         financial_reference_year, financial_single_family, average_family_size, annual_family_income, annual_family_expenditure, annual_food_expenditure,
                         financial_residence_classification, annual_housing_utilities_expenditure, annual_health_expenditure, annual_education_expenditure, annual_transport_expenditure,
                         apis2022_i2, apis2022_i3, apis2022_i4, apis2022_i8, apis2022_ws1, apis2022_ws11a, apis2022_g15_kit, apis2022_g16_nat_disas, apis2022_g16a_evac, apis2022_g16b_recov, apis2022_mem_age_6_11, apis2022_mem_age_12_17, apis2022_monthly_household_income_php,
-                        data_origin, recorded_by
+                        apis2022_extended_answers, data_origin, recorded_by
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) RETURNING assessment_id;
                     """,
                     (
@@ -126,6 +141,7 @@ def create_assessment(
                         data.financial_reference_year, data.financial_single_family, data.average_family_size, data.annual_family_income, data.annual_family_expenditure, data.annual_food_expenditure,
                         data.financial_residence_classification, data.annual_housing_utilities_expenditure, data.annual_health_expenditure, data.annual_education_expenditure, data.annual_transport_expenditure,
                         data.apis2022_i2, data.apis2022_i3, data.apis2022_i4, data.apis2022_i8, data.apis2022_ws1, data.apis2022_ws11a, data.apis2022_g15_kit, data.apis2022_g16_nat_disas, data.apis2022_g16a_evac, data.apis2022_g16b_recov, data.apis2022_mem_age_6_11, data.apis2022_mem_age_12_17, data.apis2022_monthly_household_income_php,
+                        Jsonb(data.apis2022_extended_answers),
                         data.data_origin, current_user["user_id"],
                     ),
                 )
