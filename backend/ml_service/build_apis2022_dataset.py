@@ -6,7 +6,7 @@ CSV extracts in --input-dir. Optionally copies EXISTING draft proxy labels into
 an explicitly labelled comparison file; it never generates ground-truth labels.
 
 Usage:
-    python build_apis2022_expanded.py --input-dir ./original-apis-2022 \
+    python build_apis2022_dataset.py --input-dir ./original-apis-2022 \
        --labels ./apis2022_proxy_draft.csv --output-dir ./datasets
 
 The source's coded responses are preserved verbatim. Program CODE1 counts are

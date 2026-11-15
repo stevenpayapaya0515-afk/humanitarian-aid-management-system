@@ -8,7 +8,7 @@
 - `datasets/apis2022_household_indicators_draft_labels.csv` — **43,517 household rows; 88 columns**. Same columns plus three `baseline_*` columns copied, unchanged, from the user's existing Astra draft proxy label file. Use **only for comparison/experimental rule-agreement modeling**, NOT as validated humanitarian outcomes.
 - `metadata/feature_dictionary.csv` — every exported column, source, purpose, and model-use caution.
 - `metadata/quality_report.json` — row counts, key checks, Caraga record counts, original file hashes, and quality flags.
-- `build_apis2022_expanded.py` — reproducible Python standard-library builder. The original 11 source files are *not* bundled because the derived dataset is already provided; keep them locally if you want to re-run the builder.
+- `build_apis2022_dataset.py` — reproducible Python standard-library builder. The original 11 source files are *not* bundled because the derived dataset is already provided; keep them locally if you want to re-run the builder.
 
 ## Source data included
 
@@ -60,7 +60,7 @@ The previous labels were constructed using a *living-conditions rule*. Newly add
 Place the 11 original CSV files in a separate folder, and your existing baseline labelled CSV in any accessible path:
 
 ```powershell
-.\.venv\Scripts\python.exe .\build_apis2022_expanded.py `
+.\.venv\Scripts\python.exe .\build_apis2022_dataset.py `
   --input-dir "C:\path\to\original-apis-puf-2022" `
   --labels "C:\path\to\apis2022_proxy_draft.csv" `
   --output-dir ".\datasets"
