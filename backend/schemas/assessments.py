@@ -18,11 +18,11 @@ class AssessmentCreate(BaseModel):
     senior_citizens_count: int = Field(ge=0, strict=True)
     pwd_count: int = Field(ge=0, strict=True)
 
-    monthly_income_range: str = Field(min_length=1, max_length=30)
-    employment_status: str = Field(min_length=1, max_length=40)
-    livelihood_type: str = Field(min_length=1, max_length=50)
+    monthly_income_range: str | None = Field(default=None, max_length=30)
+    employment_status: str | None = Field(default=None, max_length=40)
+    livelihood_type: str | None = Field(default=None, max_length=50)
     previous_humanitarian_assistance: bool
-    beneficiary_status: str = Field(min_length=1, max_length=30)
+    beneficiary_status: str | None = Field(default=None, max_length=30)
 
     disaster_affected: bool
     housing_damage_level: Literal["None", "Minor", "Major", "Destroyed"]
