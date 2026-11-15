@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg.rows import dict_row
 from core.dependencies import get_current_user
 from database import get_connection
-from ml_service.apis_rules import VERSION
+from ml_service.predict_apis2022_vulnerability import MODEL_VERSION as VERSION
 from schemas.distributions import DistributionBeneficiary, DistributionCreate, DistributionResponse
 
 router = APIRouter(prefix="/distributions", tags=["Aid Distribution"])

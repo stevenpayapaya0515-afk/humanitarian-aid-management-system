@@ -3,12 +3,16 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from database import get_connection
-from ml_service.predict import load_model
+from ml_service.predict_apis2022_vulnerability import load_candidate
 
 def main():
     with get_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute('SET TRANSACTION READ ONLY')
+            cursor.execute("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid='public.vulnerability_classifications'::regclass AND conname='vc_training_origin_check'")
+            origin_check = cursor.fetchone()
+            if not origin_check or "psa_apis2022" not in origin_check[0]:
+                raise RuntimeError('Run database/24_connect_apis2022_predictions.sql first.')
             cursor.execute('SELECT assessment_id, classification_id, assessment_data_origin, beneficiary_status_at_distribution FROM public.aid_distributions LIMIT 0')
             cursor.execute("SELECT COUNT(*) FROM pg_constraint WHERE conrelid='public.aid_distributions'::regclass AND conname IN ('distribution_delivery_source_check','distribution_snapshot_check')")
             if cursor.fetchone()[0] != 2:
@@ -17,7 +21,7 @@ def main():
             if not all(cursor.fetchone()):
                 raise RuntimeError('Application database role lacks required review/distribution permissions.')
     print('PASS: distribution migration and application table permissions')
-    load_model()
+    load_candidate()
     print('PASS: APIS model loads in this backend environment')
     print('No household records, reviews, or deliveries were changed.')
 

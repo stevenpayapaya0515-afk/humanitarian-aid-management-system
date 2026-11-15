@@ -48,6 +48,7 @@ class BeneficiaryCandidate(BaseModel):
 
     model_training_data_origin: Literal[
         "psa_apis2019",
+        "psa_apis2022",
         "synthetic",
         "lgu_authorized",
     ]

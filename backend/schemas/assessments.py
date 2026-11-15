@@ -81,7 +81,15 @@ class AssessmentCreate(BaseModel):
 
     @model_validator(mode="after")
     def check_apis_codes(self):
-        from ml_service.apis_rules import VALID
+        # Historical assessment codes; never reinterpret as APIS 2022 inputs.
+        VALID = {
+            "roof_material": {1, 2, 3, 4, 5, 6},
+            "wall_material": {1, 2, 3, 4, 5, 6},
+            "electricity": {1, 2},
+            "drinking_water_source": {11, 12, 13, 14, 21, 31, 32, 41, 42, 51, 61, 71, 72, 81, 91, 92},
+            "toilet_facility": {11, 12, 13, 14, 21, 22, 23, 31, 41, 51, 95},
+            "working_adult_present": {0, 1},
+        }
         for name, codes in VALID.items():
             value = getattr(self, name)
             if value is not None and value not in codes:

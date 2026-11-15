@@ -20,25 +20,31 @@ or reset records when installing a code update.
 - `ml_service/models/`: locally built models, excluded from Git.
 - Python training and inference scripts stay directly in `ml_service/`.
 
-The running API still uses the APIS model through `ml_service/predict.py`.
-Keep `apis_rules.py` and `build_apis_baseline.py` until the coordinated FIES
-assessment/API migration is complete. A fresh GitHub checkout does not include
-local model binaries. Rebuild the APIS model from your authorized source ZIP:
+The prediction endpoint uses `ml_service/predict_apis2022_vulnerability.py`.
+Run migration `24_connect_apis2022_predictions.sql` after migration 23.
+`POST /vulnerability/assessments/{id}/predict` now requires an
+`APIS2022PredictionRequest` JSON body (see authenticated Swagger at `/docs`).
+It records the original answers, household size, saved age counts, recorder,
+label version, income cutoff, and rule/model disagreement in `proxy_details`.
+Historical classifications remain readable. New results are always preliminary.
+Manual beneficiary review and delivery confirmation remain required.
+
+Flutter Review & Classify opens the APIS 2022 answer form and sends the explicit
+request body. Missing/unsupported answers remain blocked. Failed requests retain
+the form values. An old request without answers receives 422 and saves nothing.
+The separate `/preview-apis2022` endpoint remains read-only.
+
+Local model binaries are excluded from Git. Use your existing locally trained
+`models/apis2022_vulnerability_candidate.joblib`. If it is missing or incompatible,
+rebuild with the current prepared APIS 2022 dataset in the backend environment:
 
 ```powershell
-.\.venv\Scripts\python.exe -m ml_service.build_apis_baseline --zip "PATH_TO_APIS_2019_ZIP"
+.\.venv\Scripts\python.exe -m ml_service.train_apis2022_vulnerability
 ```
 
-The FIES builder creates an offline research candidate, not the active API model:
-
-```powershell
-.\.venv\Scripts\python.exe -m ml_service.build_fies_baseline --zip "PATH_TO_FIES_2025_ZIP" --thresholds "PATH_TO_2025_POVERTY_WORKBOOK"
-.\.venv\Scripts\python.exe -m unittest tests.test_fies_baseline -v
-```
-
-Review `ml_service/evaluation/fies2025_evaluation.json` for geography exclusions,
-holdout metrics, source hashes, and limitations before considering app integration.
-The published NCR district mapping is supported; unmatched cities are not guessed.
+This is survey-based Random Forest research with researcher-defined proxy labels,
+not a validated PSA/LGU aid eligibility model. `app_ready=False` remains recorded.
+No APIS 2019 or FIES predictor is used by this endpoint.
 
 Authentication uses Google reCAPTCHA via `services/recaptcha.py`.
 Numbered SQL migrations, including the former local CAPTCHA migration, remain
