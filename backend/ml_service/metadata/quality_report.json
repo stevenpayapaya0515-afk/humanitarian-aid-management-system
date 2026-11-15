@@ -1,0 +1,64 @@
+{
+  "row_grain": "One row per unique (REG, HHID) APIS PUF household",
+  "survey_year": 2022,
+  "household_rows": 43517,
+  "columns_without_label": 85,
+  "input_sources": 11,
+  "household_key_match_for_all_11_sources": true,
+  "member_count_vs_fsize_mismatch_households": 2411,
+  "caraga_reg_16_rows": 2126,
+  "baseline_label_file_included": true,
+  "baseline_proxy_distribution": {
+    "High": 2598,
+    "Low": 33616,
+    "Medium": 6575,
+    "Needs review": 728
+  },
+  "baseline_labels_are_ground_truth": false,
+  "relabelled_with_expanded_features": false,
+  "assumed_code1_means_yes": false,
+  "codebook_validated": false,
+  "model_trained_or_validated": false,
+  "source_sha256": {
+    "APIS PUF 2022 Household Record.CSV": "c95b1a1d299d444bb10fb7e622aa507bdd6655134dfa3d6122440d95d342513d",
+    "APIS PUF 2022 Member Record.CSV": "3459f3ad7432487b875326a8df2447ea1c246d8788dd65bc3d56a8c0cbb61ee9",
+    "APIS PUF 2022 RTG1 - Social Protection - Social Insurance.CSV": "4d91892fcf5d0cc5b879757238d0a024ad91947352d311e10481f044418e7acd",
+    "APIS PUF 2022 RTG2 - Social Protection - Social Assistance.CSV": "da9d6d29c35ac3300c73fcbaa862c01034505e9edea7eaca401ec73eb5e3bca2",
+    "APIS PUF 2022 RTG3 - Social Protection - Labor Market Intervention.CSV": "40836cf1b07b4110ea10da64fedf12868a413635bfaf80c2a2d3b324cb406fd3",
+    "APIS PUF 2022 RTG4 - Government Feeding Program.CSV": "494a42bb4c3f1fdad7d72ef1e4aeb5bb6a1b41c1b7355bc0b1314f3f6d4a501b",
+    "APIS PUF 2022 RTG5 - Social Protection - Philhealth, Children, Disaster Preparedness and Recovery.CSV": "b17f93cfd0950b2202c50c7d14db20986cdb944fc8964ffb718f219dad6e2fc1",
+    "APIS PUF 2022 RTH - Access to Government Services.CSV": "a4d23459493aece38d533f455a49c7b2eb9ab7f5d019516783950285a3dba732",
+    "APIS PUF 2022 RTI - Housing.CSV": "d640c22790b0ded2101e542876630b750b2b5840009de74641846e2d529ebc1a",
+    "APIS PUF 2022 RTJ - Water Sanitation and Hygiene.CSV": "aa83ef8a9128d1905d7d7b7f1d291579e797d4acf16ae773d2e82713235bbb66",
+    "APIS PUF 2022 RTK - Other Relevant Information.CSV": "6ecb136d113d64a3bc6e66a8a46f387e962f62116b2c0427fc290e3c6c8a2f38"
+  },
+  "sample": [
+    {
+      "REG": "14",
+      "HHID": "00001",
+      "FSIZE": "5",
+      "MEMBER_ROWS": 5,
+      "G16_NAT_DISAS": "2",
+      "G15_KIT": "2",
+      "G5_CODE1_COUNT": 1
+    },
+    {
+      "REG": "14",
+      "HHID": "00002",
+      "FSIZE": "6",
+      "MEMBER_ROWS": 6,
+      "G16_NAT_DISAS": "2",
+      "G15_KIT": "2",
+      "G5_CODE1_COUNT": 1
+    },
+    {
+      "REG": "14",
+      "HHID": "00003",
+      "FSIZE": "3",
+      "MEMBER_ROWS": 3,
+      "G16_NAT_DISAS": "2",
+      "G15_KIT": "2",
+      "G5_CODE1_COUNT": 0
+    }
+  ]
+}

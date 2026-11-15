@@ -1,0 +1,89 @@
+column,source,description,model_use_guidance
+REG,Household,Region code; 16 corresponds to Caraga,Split / filter only; not recommended as a model input
+HHID,Household,Household identifier (leading zeros preserved),Identifier; not model feature
+FSIZE,Household,Household size,Candidate demographic feature
+CHLD_6_11,Household,Original coded child-age 6-11 field; exact meaning requires codebook,Review coding
+CHLD_12_15,Household,Original coded child-age 12-15 field; exact meaning requires codebook,Review coding
+EDUC_6_11,Household Record,Original APIS household field; exact coding requires questionnaire/codebook,Review before use
+EDUC_12_15,Household Record,Original APIS household field; exact coding requires questionnaire/codebook,Review before use
+H04_SEX,Household,Household reference person sex code,Sensitive/fairness review before model use
+H05_AGE,Household,Household reference person age,Candidate demographic feature after fairness review
+H06_STATUS,Household Record,Original APIS household field; exact coding requires questionnaire/codebook,Review before use
+H12_HGC,Household,Household reference person education code,Verify codebook
+URB,Household Record,Original APIS household field; exact coding requires questionnaire/codebook,Review before use
+RPSU,Household,Survey PSU field,Survey split / geography controls; not model feature
+REP,Household,Survey replicate/stratum-like field; verify codebook,Sampling metadata; not model feature
+RFACT,Household,Survey expansion/sampling factor,Survey analysis only; not direct model feature
+MEMBER_ROWS,Member Record,Number of member record rows,Audit roster coverage
+MEM_AGE_0_5,Member Record,Count of members in an age bracket using available member rows,Candidate only after checking roster completeness
+MEM_AGE_6_11,Member Record,Count of members in an age bracket using available member rows,Candidate only after checking roster completeness
+MEM_AGE_12_17,Member Record,Count of members in an age bracket using available member rows,Candidate only after checking roster completeness
+MEM_AGE_18_59,Member Record,Count of members in an age bracket using available member rows,Candidate only after checking roster completeness
+MEM_AGE_60_PLUS,Member Record,Count of members in an age bracket using available member rows,Candidate only after checking roster completeness
+MEM_AGE_UNKNOWN,Member Record,Count of members in an age bracket using available member rows,Candidate only after checking roster completeness
+MEM_D44_DISEASE_CODE1_COUNT,Member Record,Count of members where raw D44_DISEASE response is coded 1,Review health variable semantics and privacy before model use
+MEM_ROSTER_MATCHES_FSIZE,Member Record,"1 if member rows equal FSIZE, otherwise 0",Quality flag only; never use as model feature
+MEM_ROSTER_SHORTFALL,Member Record,FSIZE minus member record rows,Quality flag only; never use as model feature
+G13_PHEALTH,RTG5 social protection/disaster,Original PhilHealth response code,Review carefully; aid receipt not a vulnerability ground truth
+G13A_ASSISTANCE,RTG5 social protection/disaster,Original APIS social protection/disaster field; blank preserved,Codebook needed
+G14_AWARE,RTG5 social protection/disaster,Original APIS social protection/disaster field; blank preserved,Codebook needed
+G14A_CONSULT,RTG5 social protection/disaster,Original APIS social protection/disaster field; blank preserved,Codebook needed
+G15_KIT,RTG5 social protection/disaster,Disaster preparedness kit response code,Candidate after codebook validation
+G15A_TYPE,RTG5 social protection/disaster,Original APIS social protection/disaster field; blank preserved,Codebook needed
+G16_NAT_DISAS,RTG5 social protection/disaster,Natural disaster experience response code,Candidate after codebook validation
+G16A_EVAC,RTG5 social protection/disaster,"Evacuation response code, conditional; blank preserved",Candidate after codebook validation
+G16B_RECOV,RTG5 social protection/disaster,"Recovery response code, conditional; blank preserved",Candidate after codebook validation
+G16C_HELP,RTG5 social protection/disaster,Original combined disaster help code string,"Categorical, codebook needed"
+I1,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I2,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I3,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I4,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I5,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I6,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I7,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I8,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+WS1,RTJ WASH,Original water source response code,Candidate after codebook validation
+WS11A,RTJ WASH,Original sanitation response code,Candidate after codebook validation
+WS14,RTJ WASH,Original APIS water/sanitation response code,Potential feature after codebook validation
+WS15,RTJ WASH,Original APIS water/sanitation response code,Potential feature after codebook validation
+K4,RTK other relevant information,Raw coded numeric K4,Verify exact financial variable definition
+K5,RTK other relevant information,Raw coded numeric K5,Verify exact financial variable definition
+G1_RESPONSE_1,RTG1 social insurance,Original G1 response for category G1CODE=1; preserves 1/2 code,Categorical; program codebook needed
+G1_RESPONSE_2,RTG1 social insurance,Original G1 response for category G1CODE=2; preserves 1/2 code,Categorical; program codebook needed
+G1_RESPONSE_3,RTG1 social insurance,Original G1 response for category G1CODE=3; preserves 1/2 code,Categorical; program codebook needed
+G1_RESPONSE_4,RTG1 social insurance,Original G1 response for category G1CODE=4; preserves 1/2 code,Categorical; program codebook needed
+G1_RESPONSE_5,RTG1 social insurance,Original G1 response for category G1CODE=5; preserves 1/2 code,Categorical; program codebook needed
+G1_CODE1_COUNT,RTG1 social insurance,Count of categories with G1 response exactly equal to 1,"Neutral code count, not confirmed aid receipt"
+G5_RESPONSE_1,RTG2 social assistance,Original G5 response for category G5CODE=1; preserves 1/2 code,Categorical; program codebook needed
+G5_RESPONSE_2,RTG2 social assistance,Original G5 response for category G5CODE=2; preserves 1/2 code,Categorical; program codebook needed
+G5_RESPONSE_3,RTG2 social assistance,Original G5 response for category G5CODE=3; preserves 1/2 code,Categorical; program codebook needed
+G5_RESPONSE_4,RTG2 social assistance,Original G5 response for category G5CODE=4; preserves 1/2 code,Categorical; program codebook needed
+G5_RESPONSE_5,RTG2 social assistance,Original G5 response for category G5CODE=5; preserves 1/2 code,Categorical; program codebook needed
+G5_RESPONSE_6,RTG2 social assistance,Original G5 response for category G5CODE=6; preserves 1/2 code,Categorical; program codebook needed
+G5_RESPONSE_7,RTG2 social assistance,Original G5 response for category G5CODE=7; preserves 1/2 code,Categorical; program codebook needed
+G5_RESPONSE_8,RTG2 social assistance,Original G5 response for category G5CODE=8; preserves 1/2 code,Categorical; program codebook needed
+G5_CODE1_COUNT,RTG2 social assistance,Count of categories with G5 response exactly equal to 1,"Neutral code count, not confirmed aid receipt"
+G9_RESPONSE_1,RTG3 labor intervention,Original G9 response for category G9CODE=1; preserves 1/2 code,Categorical; program codebook needed
+G9_RESPONSE_2,RTG3 labor intervention,Original G9 response for category G9CODE=2; preserves 1/2 code,Categorical; program codebook needed
+G9_RESPONSE_3,RTG3 labor intervention,Original G9 response for category G9CODE=3; preserves 1/2 code,Categorical; program codebook needed
+G9_RESPONSE_4,RTG3 labor intervention,Original G9 response for category G9CODE=4; preserves 1/2 code,Categorical; program codebook needed
+G9_CODE1_COUNT,RTG3 labor intervention,Count of categories with G9 response exactly equal to 1,"Neutral code count, not confirmed aid receipt"
+G11_RESPONSE_1,RTG4 feeding programs,Original G11 response for category G11CODE=1; preserves 1/2 code,Categorical; program codebook needed
+G11_RESPONSE_2,RTG4 feeding programs,Original G11 response for category G11CODE=2; preserves 1/2 code,Categorical; program codebook needed
+G11_CODE1_COUNT,RTG4 feeding programs,Count of categories with G11 response exactly equal to 1,"Neutral code count, not confirmed aid receipt"
+H1_RESPONSE_01,RTH government services,Original H1 response for category H1CODE=01; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_02,RTH government services,Original H1 response for category H1CODE=02; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_03,RTH government services,Original H1 response for category H1CODE=03; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_04,RTH government services,Original H1 response for category H1CODE=04; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_05,RTH government services,Original H1 response for category H1CODE=05; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_06,RTH government services,Original H1 response for category H1CODE=06; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_07,RTH government services,Original H1 response for category H1CODE=07; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_08,RTH government services,Original H1 response for category H1CODE=08; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_09,RTH government services,Original H1 response for category H1CODE=09; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_10,RTH government services,Original H1 response for category H1CODE=10; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_11,RTH government services,Original H1 response for category H1CODE=11; preserves 1/2 code,Categorical; program codebook needed
+H1_RESPONSE_12,RTH government services,Original H1 response for category H1CODE=12; preserves 1/2 code,Categorical; program codebook needed
+H1_CODE1_COUNT,RTH government services,Count of categories with H1 response exactly equal to 1,"Neutral code count, not confirmed aid receipt"
+baseline_proxy_class,Existing Astra draft,Unchanged pre-existing proxy label: Low/Medium/High/Needs review,NOT verified humanitarian target; comparison only
+baseline_deprivation_count,Existing Astra draft,Unchanged existing rubric deprivation count,Comparison only
+baseline_label_version,Existing Astra draft,Unchanged existing rubric label version,Comparison only

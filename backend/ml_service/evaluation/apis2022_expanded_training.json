@@ -1,0 +1,437 @@
+{
+  "model_version": "apis2022-rf-expanded-proxy-research-v1",
+  "label_version": "apis2022-expanded-research-proxy-draft-v1",
+  "app_ready": false,
+  "data_type": "PSA APIS PUF 2022 research survey, NOT real Cabadbaran household registry",
+  "label_kind": "researcher_defined_proxy",
+  "independent_ground_truth": false,
+  "evaluation_target": "Agreement with revised experimental proxy rubric, not humanitarian validity",
+  "source_sha256": "1a451473f18c4161f250e64fb0a6dc869c2b9f8dc2fe9700720a641c2e7478f4",
+  "sklearn_version": "1.9.1",
+  "random_seed": 42,
+  "features": [
+    "I2",
+    "I3",
+    "I4",
+    "I8",
+    "WS1",
+    "WS11A",
+    "G15_KIT",
+    "G16_NAT_DISAS",
+    "G16A_EVAC",
+    "G16B_RECOV",
+    "FSIZE",
+    "MEM_AGE_0_5",
+    "MEM_AGE_6_11",
+    "MEM_AGE_12_17",
+    "MEM_AGE_60_PLUS",
+    "K5_PER_CAPITA"
+  ],
+  "excluded_model_features": [
+    "REG",
+    "HHID",
+    "RPSU",
+    "REP",
+    "RFACT",
+    "MEM_ROSTER_MATCHES_FSIZE",
+    "MEM_ROSTER_SHORTFALL",
+    "baseline_proxy_class",
+    "baseline_deprivation_count",
+    "baseline_label_version",
+    "expanded_proxy_class",
+    "expanded_proxy_score",
+    "all proxy domain flags",
+    "G1/G5/G9/G11/H1 social protection responses",
+    "G13_PHEALTH (requires codebook and fairness review)"
+  ],
+  "total_households": 43517,
+  "valid_proxy_households": 40396,
+  "needs_review": 3121,
+  "all_class_counts": {
+    "Medium": 20828,
+    "Low": 12795,
+    "High": 6773,
+    "Needs review": 3121
+  },
+  "caraga_total": 2126,
+  "caraga_class_counts": {
+    "Medium": 1053,
+    "High": 710,
+    "Low": 258,
+    "Needs review": 105
+  },
+  "training_records": 30734,
+  "non_caraga_holdout_records": 7641,
+  "caraga_holdout_records": 2021,
+  "train_only_income_proxy_cutoff_php_per_person_month": 2500.0,
+  "income_cutoff_method": "25th percentile of K5/FSIZE in non-Caraga training groups only; NOT official poverty threshold",
+  "proxy_domains": [
+    "shelter_materials",
+    "housing_security",
+    "water",
+    "sanitation",
+    "income_relative",
+    "dependency_pressure",
+    "disaster_disruption",
+    "preparedness_gap"
+  ],
+  "label_thresholds": {
+    "Low": "0 of 8",
+    "Medium": "1-2 of 8",
+    "High": ">=3 of 8"
+  },
+  "conditional_disaster_mappings_assumed": {
+    "1": "yes",
+    "2": "no",
+    "G16A/G16B_blank_when_G16_2": "survey skip; NOT a negative answer"
+  },
+  "roster_policy": "Incomplete member rosters => Needs review; no silent age-count imputation",
+  "split": "Caraga (REG=16) withheld; other REG:RPSU sample groups separated using seed 42",
+  "evaluations": {
+    "non_caraga_holdout": {
+      "random_forest": {
+        "records": 7641,
+        "classification_report": {
+          "Low": {
+            "precision": 0.9703372612759041,
+            "recall": 0.9555822328931572,
+            "f1-score": 0.9629032258064516,
+            "support": 2499.0
+          },
+          "Medium": {
+            "precision": 0.9563420304830793,
+            "recall": 0.9301507537688443,
+            "f1-score": 0.9430645777607948,
+            "support": 3980.0
+          },
+          "High": {
+            "precision": 0.8433919022154316,
+            "recall": 0.9500860585197934,
+            "f1-score": 0.8935653581545933,
+            "support": 1162.0
+          },
+          "accuracy": 0.9414998036906164,
+          "macro avg": {
+            "precision": 0.9233570646581383,
+            "recall": 0.9452730150605984,
+            "f1-score": 0.9331777205739465,
+            "support": 7641.0
+          },
+          "weighted avg": {
+            "precision": 0.94374237503278,
+            "recall": 0.9414998036906164,
+            "f1-score": 0.9420252750888526,
+            "support": 7641.0
+          }
+        },
+        "balanced_accuracy": 0.9452730150605984,
+        "confusion_matrix": [
+          [
+            2388,
+            111,
+            0
+          ],
+          [
+            73,
+            3702,
+            205
+          ],
+          [
+            0,
+            58,
+            1104
+          ]
+        ]
+      },
+      "majority_baseline": {
+        "records": 7641,
+        "classification_report": {
+          "Low": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 2499.0
+          },
+          "Medium": {
+            "precision": 0.5208742311215809,
+            "recall": 1.0,
+            "f1-score": 0.6849668703209707,
+            "support": 3980.0
+          },
+          "High": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 1162.0
+          },
+          "accuracy": 0.5208742311215809,
+          "macro avg": {
+            "precision": 0.17362474370719364,
+            "recall": 0.3333333333333333,
+            "f1-score": 0.22832229010699023,
+            "support": 7641.0
+          },
+          "weighted avg": {
+            "precision": 0.27130996464649815,
+            "recall": 0.5208742311215809,
+            "f1-score": 0.3567815919221913,
+            "support": 7641.0
+          }
+        },
+        "balanced_accuracy": 0.3333333333333333,
+        "confusion_matrix": [
+          [
+            0,
+            2499,
+            0
+          ],
+          [
+            0,
+            3980,
+            0
+          ],
+          [
+            0,
+            1162,
+            0
+          ]
+        ]
+      },
+      "exact_rubric": {
+        "records": 7641,
+        "classification_report": {
+          "Low": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2499.0
+          },
+          "Medium": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 3980.0
+          },
+          "High": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 1162.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 7641.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 7641.0
+          }
+        },
+        "balanced_accuracy": 1.0,
+        "confusion_matrix": [
+          [
+            2499,
+            0,
+            0
+          ],
+          [
+            0,
+            3980,
+            0
+          ],
+          [
+            0,
+            0,
+            1162
+          ]
+        ]
+      }
+    },
+    "caraga_holdout": {
+      "random_forest": {
+        "records": 2021,
+        "classification_report": {
+          "Low": {
+            "precision": 0.961038961038961,
+            "recall": 0.8604651162790697,
+            "f1-score": 0.9079754601226994,
+            "support": 258.0
+          },
+          "Medium": {
+            "precision": 0.937952430196484,
+            "recall": 0.8613485280151947,
+            "f1-score": 0.898019801980198,
+            "support": 1053.0
+          },
+          "High": {
+            "precision": 0.8335358444714459,
+            "recall": 0.9661971830985916,
+            "f1-score": 0.8949771689497716,
+            "support": 710.0
+          },
+          "accuracy": 0.8980702622464126,
+          "macro avg": {
+            "precision": 0.910842411902297,
+            "recall": 0.8960036091309519,
+            "f1-score": 0.9003241436842231,
+            "support": 2021.0
+          },
+          "weighted avg": {
+            "precision": 0.904216927520869,
+            "recall": 0.8980702622464126,
+            "f1-score": 0.8982218259035838,
+            "support": 2021.0
+          }
+        },
+        "balanced_accuracy": 0.8960036091309519,
+        "confusion_matrix": [
+          [
+            222,
+            36,
+            0
+          ],
+          [
+            9,
+            907,
+            137
+          ],
+          [
+            0,
+            24,
+            686
+          ]
+        ]
+      },
+      "majority_baseline": {
+        "records": 2021,
+        "classification_report": {
+          "Low": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 258.0
+          },
+          "Medium": {
+            "precision": 0.5210291934685799,
+            "recall": 1.0,
+            "f1-score": 0.6851008458035134,
+            "support": 1053.0
+          },
+          "High": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 710.0
+          },
+          "accuracy": 0.5210291934685799,
+          "macro avg": {
+            "precision": 0.17367639782285996,
+            "recall": 0.3333333333333333,
+            "f1-score": 0.22836694860117113,
+            "support": 2021.0
+          },
+          "weighted avg": {
+            "precision": 0.27147142044651884,
+            "recall": 0.5210291934685799,
+            "f1-score": 0.35695754113364647,
+            "support": 2021.0
+          }
+        },
+        "balanced_accuracy": 0.3333333333333333,
+        "confusion_matrix": [
+          [
+            0,
+            258,
+            0
+          ],
+          [
+            0,
+            1053,
+            0
+          ],
+          [
+            0,
+            710,
+            0
+          ]
+        ]
+      },
+      "exact_rubric": {
+        "records": 2021,
+        "classification_report": {
+          "Low": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 258.0
+          },
+          "Medium": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 1053.0
+          },
+          "High": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 710.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2021.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2021.0
+          }
+        },
+        "balanced_accuracy": 1.0,
+        "confusion_matrix": [
+          [
+            258,
+            0,
+            0
+          ],
+          [
+            0,
+            1053,
+            0
+          ],
+          [
+            0,
+            0,
+            710
+          ]
+        ]
+      }
+    }
+  },
+  "sensitivity": {
+    "changed_if_high_at_4": 4086,
+    "changed_if_income_quantile_20": 1534,
+    "changed_if_income_quantile_30": 149
+  },
+  "limitations": [
+    "All reported RF metrics measure rule reproduction (proxy-label agreement).",
+    "No independently verified LGU humanitarian classification labels were supplied.",
+    "The revised 8-domain rubric and its cutoffs are experimental and require LGU/instructor review.",
+    "Disaster response values assumed 1=yes, 2=no; verify APIS 2022 codebook.",
+    "K5 is treated as monthly income following the source preparer's notes; verify official definition.",
+    "Member age totals missing some household members; incomplete rosters are not classified.",
+    "Assistance received is NOT interpreted as low vulnerability.",
+    "Sampling weights not used; metrics are unweighted sample counts, not population estimates.",
+    "Caraga regional holdout does not identify Agusan del Norte or Cabadbaran.",
+    "Never use experimental proxy alone for eligibility, aid prioritization, or household denial."
+  ]
+}
