@@ -87,6 +87,24 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(len(writes), 1)
         self.assertIn("vulnerability_classifications", writes[0])
 
+    def test_saved_apis2022_answers_predict_without_reentry(self):
+        self.assessment.update({
+            "apis2022_i2": 1, "apis2022_i3": 1, "apis2022_i4": 1,
+            "apis2022_i8": 1, "apis2022_ws1": 11, "apis2022_ws11a": 12,
+            "apis2022_g15_kit": 1, "apis2022_g16_nat_disas": 2,
+            "apis2022_g16a_evac": None, "apis2022_g16b_recov": None,
+            "apis2022_mem_age_6_11": 1, "apis2022_mem_age_12_17": 1,
+            "apis2022_monthly_household_income_php": 20000,
+        })
+        response, calls = self.call(None)
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertEqual(response.json()["proxy_details"]["raw_answers"]["I2"], 1)
+        self.assertTrue(any("INSERT INTO public.vulnerability_classifications" in sql
+                            for sql, _ in calls))
+        response, calls = self.call(answers())
+        self.assertEqual(response.status_code, 409, response.text)
+        self.assertFalse(any("INSERT" in sql for sql, _ in calls))
+
     def test_preview_still_writes_nothing(self):
         response, calls = self.call(answers(), path="preview-apis2022")
         self.assertEqual(response.status_code, 200, response.text)
@@ -94,10 +112,13 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(any("INSERT" in sql for sql, args in calls))
 
     def test_missing_and_invalid_answers_rejected_before_database(self):
-        for payload in [None, {}, dict(answers(), I3=999), dict(answers(), MEM_AGE_0_5=True)]:
+        for payload in [{}, dict(answers(), I3=999), dict(answers(), MEM_AGE_0_5=True)]:
             response, calls = self.call(payload)
             self.assertEqual(response.status_code, 422, response.text)
             self.assertEqual(calls, [])
+        response, calls = self.call(None)
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertFalse(any("INSERT" in sql for sql, _ in calls))
 
     def test_age_mismatch_saves_nothing(self):
         response, calls = self.call(dict(answers(), MEM_AGE_18_59=3))

@@ -16,17 +16,17 @@ class AssessmentCreate(BaseModel):
     age_18_59_count: int = Field(ge=0, strict=True)
     age_60_plus_count: int = Field(ge=0, strict=True)
     senior_citizens_count: int = Field(ge=0, strict=True)
-    pwd_count: int = Field(ge=0, strict=True)
+    pwd_count: int | None = Field(default=None, ge=0, strict=True)
 
     monthly_income_range: str | None = Field(default=None, max_length=30)
     employment_status: str | None = Field(default=None, max_length=40)
     livelihood_type: str | None = Field(default=None, max_length=50)
-    previous_humanitarian_assistance: bool
+    previous_humanitarian_assistance: bool | None = None
     beneficiary_status: str | None = Field(default=None, max_length=30)
 
-    disaster_affected: bool
-    housing_damage_level: Literal["None", "Minor", "Major", "Destroyed"]
-    displaced: bool
+    disaster_affected: bool | None = None
+    housing_damage_level: Literal["None", "Minor", "Major", "Destroyed"] | None = None
+    displaced: bool | None = None
     data_origin: Literal["synthetic", "lgu_authorized"] = "synthetic"
 
     roof_material: int | None = Field(default=None, strict=True)
@@ -36,6 +36,23 @@ class AssessmentCreate(BaseModel):
     toilet_facility: int | None = Field(default=None, strict=True)
     working_adult_present: int | None = Field(default=None, strict=True)
     apis_single_family: bool | None = Field(default=None, strict=True)
+
+    # Verified APIS 2022-style answers for the current model; not PSA PUF identifiers.
+    apis2022_i2: int | None = Field(default=None, strict=True)
+    apis2022_i3: int | None = Field(default=None, strict=True)
+    apis2022_i4: int | None = Field(default=None, strict=True)
+    apis2022_i8: int | None = Field(default=None, strict=True)
+    apis2022_ws1: int | None = Field(default=None, strict=True)
+    apis2022_ws11a: int | None = Field(default=None, strict=True)
+    apis2022_g15_kit: int | None = Field(default=None, strict=True)
+    apis2022_g16_nat_disas: int | None = Field(default=None, strict=True)
+    apis2022_g16a_evac: int | None = Field(default=None, strict=True)
+    apis2022_g16b_recov: int | None = Field(default=None, strict=True)
+    apis2022_mem_age_6_11: int | None = Field(default=None, ge=0, strict=True)
+    apis2022_mem_age_12_17: int | None = Field(default=None, ge=0, strict=True)
+    apis2022_monthly_household_income_php: Decimal | None = Field(
+        default=None, ge=0, max_digits=14, decimal_places=2
+    )
 
     # Optional financial history adapted from FIES concepts, not an imported PSA record.
     financial_reference_year: int | None = Field(default=None, ge=1900, strict=True)
@@ -51,6 +68,46 @@ class AssessmentCreate(BaseModel):
     annual_health_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     annual_education_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     annual_transport_expenditure: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+
+    @model_validator(mode="after")
+    def validate_apis2022_inputs(self):
+        required = (
+            "i2", "i3", "i4", "i8", "ws1", "ws11a", "g15_kit",
+            "g16_nat_disas", "mem_age_6_11", "mem_age_12_17",
+            "monthly_household_income_php",
+        )
+        all_fields = (*required, "g16a_evac", "g16b_recov")
+        supplied = any(getattr(self, f"apis2022_{name}") is not None for name in all_fields)
+        if not supplied:
+            return self
+        missing = [name for name in required if getattr(self, f"apis2022_{name}") is None]
+        if missing:
+            raise ValueError(f"APIS 2022 input is incomplete: {', '.join(missing)}")
+        if self.apis_single_family is not True:
+            raise ValueError("Confirm a single family before recording APIS 2022 monthly income.")
+        if self.apis2022_mem_age_6_11 + self.apis2022_mem_age_12_17 != self.age_6_17_count:
+            raise ValueError("APIS ages 6–11 and 12–17 must match the saved age 6–17 total.")
+        # Apply the same code validation as the prediction endpoint.
+        from schemas.vulnerability import APIS2022PredictionRequest
+        APIS2022PredictionRequest.model_validate({
+            "I2": self.apis2022_i2,
+            "I3": self.apis2022_i3,
+            "I4": self.apis2022_i4,
+            "I8": self.apis2022_i8,
+            "WS1": self.apis2022_ws1,
+            "WS11A": self.apis2022_ws11a,
+            "G15_KIT": self.apis2022_g15_kit,
+            "G16_NAT_DISAS": self.apis2022_g16_nat_disas,
+            "G16A_EVAC": self.apis2022_g16a_evac,
+            "G16B_RECOV": self.apis2022_g16b_recov,
+            "MEM_AGE_0_5": self.age_0_5_count,
+            "MEM_AGE_6_11": self.apis2022_mem_age_6_11,
+            "MEM_AGE_12_17": self.apis2022_mem_age_12_17,
+            "MEM_AGE_18_59": self.age_18_59_count,
+            "MEM_AGE_60_PLUS": self.age_60_plus_count,
+            "monthly_household_income_php": self.apis2022_monthly_household_income_php,
+        })
+        return self
 
     @model_validator(mode="after")
     def check_financial_history(self):
@@ -108,7 +165,7 @@ class AssessmentCreate(BaseModel):
             raise ValueError("An assessment must include at least one person.")
         if self.senior_citizens_count != self.age_60_plus_count:
             raise ValueError("Senior citizen count must match the age 60+ count.")
-        if self.pwd_count > total:
+        if self.pwd_count is not None and self.pwd_count > total:
             raise ValueError("PWD count cannot exceed household population.")
         return self
 

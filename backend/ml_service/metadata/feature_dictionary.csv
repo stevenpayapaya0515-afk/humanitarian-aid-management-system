@@ -6,6 +6,8 @@ CHLD_6_11,Household,Original coded child-age 6-11 field; exact meaning requires 
 CHLD_12_15,Household,Original coded child-age 12-15 field; exact meaning requires codebook,Review coding
 EDUC_6_11,Household Record,Original APIS household field; exact coding requires questionnaire/codebook,Review before use
 EDUC_12_15,Household Record,Original APIS household field; exact coding requires questionnaire/codebook,Review before use
+HHMELEM_6_11,Household Record,Members aged 6-11 attending grades 1-6,School participation context
+HHMHS_12_15,Household Record,Members aged 12-15 attending grades 7-10,School participation context
 H04_SEX,Household,Household reference person sex code,Sensitive/fairness review before model use
 H05_AGE,Household,Household reference person age,Candidate demographic feature after fairness review
 H06_STATUS,Household Record,Original APIS household field; exact coding requires questionnaire/codebook,Review before use
@@ -24,6 +26,9 @@ MEM_AGE_UNKNOWN,Member Record,Count of members in an age bracket using available
 MEM_D44_DISEASE_CODE1_COUNT,Member Record,Count of members where raw D44_DISEASE response is coded 1,Review health variable semantics and privacy before model use
 MEM_ROSTER_MATCHES_FSIZE,Member Record,"1 if member rows equal FSIZE, otherwise 0",Quality flag only; never use as model feature
 MEM_ROSTER_SHORTFALL,Member Record,FSIZE minus member record rows,Quality flag only; never use as model feature
+MEM_SCHOOL_AGE_NOT_ATTENDING_COUNT,Member Record,Count of age 6-17 members with C08_CURSCH=4,School nonattendance; verified C08 codebook
+MEM_RECENT_ILLNESS_COUNT,Member Record,Members reporting D44c illness/injury in previous month,Health hardship context; not a medical diagnosis
+MEM_ILLNESS_ABSENCE_7D_COUNT,Member Record,Members with 7+ work/school absence days due to illness/injury,"Research severity threshold, not an official cutoff"
 G13_PHEALTH,RTG5 social protection/disaster,Original PhilHealth response code,Review carefully; aid receipt not a vulnerability ground truth
 G13A_ASSISTANCE,RTG5 social protection/disaster,Original APIS social protection/disaster field; blank preserved,Codebook needed
 G14_AWARE,RTG5 social protection/disaster,Original APIS social protection/disaster field; blank preserved,Codebook needed
@@ -34,6 +39,7 @@ G16_NAT_DISAS,RTG5 social protection/disaster,Natural disaster experience respon
 G16A_EVAC,RTG5 social protection/disaster,"Evacuation response code, conditional; blank preserved",Candidate after codebook validation
 G16B_RECOV,RTG5 social protection/disaster,"Recovery response code, conditional; blank preserved",Candidate after codebook validation
 G16C_HELP,RTG5 social protection/disaster,Original combined disaster help code string,"Categorical, codebook needed"
+G15A_ITEM_COUNT,RTG5 disaster,Count of explicitly listed go-bag item types,Unknown preserved; count not an official readiness score
 I1,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
 I2,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
 I3,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
@@ -42,7 +48,34 @@ I5,RTI Housing,Original APIS household housing response code,Potential feature a
 I6,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
 I7,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
 I8,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9A,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9B,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9C,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9D,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9E,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9F,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9G,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9H,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9I,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9J,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9K,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9L,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9M,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9N,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9O,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9P,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9Q,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9R,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9S,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9T,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9BA,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9BB,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
+I9BC,RTI Housing,Original APIS household housing response code,Potential feature after codebook validation
 WS1,RTJ WASH,Original water source response code,Candidate after codebook validation
+WS2,RTJ WASH,Original APIS water/sanitation response code,Potential feature after codebook validation
+WS7,RTJ WASH,Original APIS water/sanitation response code,Potential feature after codebook validation
+WS8,RTJ WASH,Reason for insufficient drinking-water access,Coded optional survey response
+WS9,RTJ WASH,Original APIS water/sanitation response code,Potential feature after codebook validation
 WS11A,RTJ WASH,Original sanitation response code,Candidate after codebook validation
 WS14,RTJ WASH,Original APIS water/sanitation response code,Potential feature after codebook validation
 WS15,RTJ WASH,Original APIS water/sanitation response code,Potential feature after codebook validation
@@ -84,6 +117,3 @@ H1_RESPONSE_10,RTH government services,Original H1 response for category H1CODE=
 H1_RESPONSE_11,RTH government services,Original H1 response for category H1CODE=11; preserves 1/2 code,Categorical; program codebook needed
 H1_RESPONSE_12,RTH government services,Original H1 response for category H1CODE=12; preserves 1/2 code,Categorical; program codebook needed
 H1_CODE1_COUNT,RTH government services,Count of categories with H1 response exactly equal to 1,"Neutral code count, not confirmed aid receipt"
-baseline_proxy_class,Existing Astra draft,Unchanged pre-existing proxy label: Low/Medium/High/Needs review,NOT verified humanitarian target; comparison only
-baseline_deprivation_count,Existing Astra draft,Unchanged existing rubric deprivation count,Comparison only
-baseline_label_version,Existing Astra draft,Unchanged existing rubric label version,Comparison only

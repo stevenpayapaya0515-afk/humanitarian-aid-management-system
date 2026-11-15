@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/vulnerability_service.dart';
+import '../vulnerability_classification/vulnerability_classification.dart' show apis2022Options;
 
 class HouseholdAssessmentScreen extends StatefulWidget {
   const HouseholdAssessmentScreen({super.key});
@@ -18,31 +19,20 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
   // Household population controllers.
   final _age0to5Controller = TextEditingController(text: '0');
-  final _age6to17Controller = TextEditingController(text: '0');
   final _age18to59Controller = TextEditingController(text: '0');
   final _age60PlusController = TextEditingController(text: '0');
-  final _pwdController = TextEditingController(text: '0');
-
-  bool _includeFinancialHistory = false;
-  bool _financialSingleFamily = false;
-  String? _financialResidence;
-  final _financialYear = TextEditingController();
-  final _familyAverage = TextEditingController();
-  final Map<String, TextEditingController> _financialAmounts = {
-    'annual_family_income': TextEditingController(),
-    'annual_family_expenditure': TextEditingController(),
-    'annual_food_expenditure': TextEditingController(),
-    'annual_housing_utilities_expenditure': TextEditingController(),
-    'annual_health_expenditure': TextEditingController(),
-    'annual_education_expenditure': TextEditingController(),
-    'annual_transport_expenditure': TextEditingController(),
-  };
-
-  static const List<String> _damageOptions = ['Minor', 'Major', 'Destroyed'];
+  final _apisAge6to11Controller = TextEditingController(text: '0');
+  final _apisAge12to17Controller = TextEditingController(text: '0');
+  final _apisMonthlyIncomeController = TextEditingController();
 
   List<Map<String, dynamic>> _households = [];
   List<Map<String, dynamic>> _assessments = [];
 
+  bool _includeApis2022 = true;
+  static const _unclassifiedApisCodes = <String, Set<int>>{
+    'apis2022_i2': {8}, 'apis2022_i3': {9}, 'apis2022_i4': {7},
+    'apis2022_ws1': {96}, 'apis2022_ws11a': {15, 71, 96},
+  };
   final Map<String, int?> _apisAnswers = {};
   bool _apisSingleFamily = false;
   String? _assessmentOrigin;
@@ -60,21 +50,26 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
           )).toList(),
       onChanged: _isSaving ? null : (value) => setState(() {
         _apisAnswers[name] = value;
+        if (name == 'apis2022_g16_nat_disas' && value != 1) {
+          _apisAnswers.remove('apis2022_g16a_evac');
+          _apisAnswers.remove('apis2022_g16b_recov');
+        }
         _clearFormError();
       }),
-      validator: (value) => value == null ? 'Select an answer or Unknown.' : null,
+      validator: (value) {
+        if (!_includeApis2022) return null;
+        if (value == null || value == -1) return 'A verified answer is required.';
+        if (_unclassifiedApisCodes[name]?.contains(value) ?? false) {
+          return 'Not supported by the current research model; staff review required.';
+        }
+        return null;
+      },
     );
   }
 
   Map<String, dynamic>? _selectedHousehold;
 
   DateTime _assessmentDate = DateTime.now();
-
-  String _housingDamageLevel = 'Minor';
-
-  bool _previousAssistance = false;
-  bool _disasterAffected = false;
-  bool _displaced = false;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -91,10 +86,10 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     // Update the population total while staff enters values.
     for (final controller in [
       _age0to5Controller,
-      _age6to17Controller,
+      _apisAge6to11Controller,
+      _apisAge12to17Controller,
       _age18to59Controller,
       _age60PlusController,
-      _pwdController,
     ]) {
       controller.addListener(_onFormChanged);
     }
@@ -105,16 +100,12 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   @override
   void dispose() {
     _age0to5Controller.dispose();
-    _age6to17Controller.dispose();
+    _apisAge6to11Controller.dispose();
+    _apisAge12to17Controller.dispose();
+    _apisMonthlyIncomeController.dispose();
     _age18to59Controller.dispose();
     _age60PlusController.dispose();
-    _pwdController.dispose();
 
-    _financialYear.dispose();
-    _familyAverage.dispose();
-    for (final controller in _financialAmounts.values) {
-      controller.dispose();
-    }
     super.dispose();
   }
 
@@ -136,14 +127,14 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
   int get _ageGroupTotal =>
       _number(_age0to5Controller) +
-      _number(_age6to17Controller) +
+      _number(_apisAge6to11Controller) +
+      _number(_apisAge12to17Controller) +
       _number(_age18to59Controller) +
       _number(_age60PlusController);
 
   int get _expectedHouseholdSize =>
       (_selectedHousehold?['household_size'] as num?)?.toInt() ?? 0;
 
-  int get _pwdCount => _number(_pwdController);
 
   String _formatDate(DateTime date) {
     return '${date.year.toString().padLeft(4, '0')}-'
@@ -412,10 +403,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       return false;
     }
 
-    if (_pwdCount > _expectedHouseholdSize) {
-      setState(() {
-        _formError = 'PWD count cannot exceed household population.';
-      });
+    if (_includeApis2022 && !_apisSingleFamily) {
+      setState(() => _formError =
+          'Confirm one family sharing income before recording APIS 2022 answers.');
       return false;
     }
 
@@ -471,7 +461,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
         'age_0_5_count': _number(_age0to5Controller),
 
-        'age_6_17_count': _number(_age6to17Controller),
+        'age_6_17_count': _number(_apisAge6to11Controller) + _number(_apisAge12to17Controller),
 
         'age_18_59_count': _number(_age18to59Controller),
 
@@ -479,35 +469,24 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
         'senior_citizens_count': _number(_age60PlusController),
 
-        'pwd_count': _pwdCount,
 
 
 
 
-        'previous_humanitarian_assistance': _previousAssistance,
-
-
-        'disaster_affected': _disasterAffected,
-
-        'housing_damage_level': _disasterAffected
-            ? _housingDamageLevel
-            : 'None',
-
-        'displaced': _displaced,
-
-        if (_includeFinancialHistory) ...{
-          'financial_reference_year': int.parse(_financialYear.text.trim()),
-          'financial_single_family': _financialSingleFamily,
-          'financial_residence_classification': _financialResidence,
-          'average_family_size': _familyAverage.text.trim(),
-          for (final entry in _financialAmounts.entries)
-            entry.key: entry.value.text.trim().isEmpty
-                ? null : entry.value.text.trim(),
-        },
         'data_origin': _assessmentOrigin,
-        'apis_single_family': _apisSingleFamily,
-        for (final entry in _apisAnswers.entries)
-          entry.key: entry.value == -1 ? null : entry.value,
+        'apis_single_family': _includeApis2022 ? _apisSingleFamily : null,
+        if (_includeApis2022) ...{
+          for (final entry in _apisAnswers.entries)
+            entry.key: entry.value == -1 ? null : entry.value,
+          'apis2022_g16a_evac': _apisAnswers['apis2022_g16_nat_disas'] == 1
+              ? _apisAnswers['apis2022_g16a_evac'] : null,
+          'apis2022_g16b_recov': _apisAnswers['apis2022_g16_nat_disas'] == 1
+              ? _apisAnswers['apis2022_g16b_recov'] : null,
+          'apis2022_mem_age_6_11': _number(_apisAge6to11Controller),
+          'apis2022_mem_age_12_17': _number(_apisAge12to17Controller),
+          'apis2022_monthly_household_income_php':
+              _apisMonthlyIncomeController.text.trim(),
+        },
       };
 
       // Save assessment only.
@@ -742,29 +721,6 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     );
   }
 
-  Widget _dropdownField({
-    required String label,
-    required String? value,
-    required List<String> options,
-    required ValueChanged<String?> onChanged,
-    String? Function(String?)? validator,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label),
-      items: options.map((option) {
-        return DropdownMenuItem<String>(
-          value: option,
-          child: Text(option, overflow: TextOverflow.ellipsis),
-        );
-      }).toList(),
-      onChanged: onChanged,
-      validator:
-          validator ??
-          (value) => value == null ? 'Please select $label.' : null,
-    );
-  }
 
   // ==========================================
   // HOUSEHOLD SELECTOR
@@ -845,16 +801,12 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
                     setState(() {
                       _selectedHousehold = household;
-                      _includeFinancialHistory = false;
-                      _financialSingleFamily = false;
-                      _financialResidence = null;
-                      _financialYear.clear();
-                      _familyAverage.clear();
-                      for (final controller in _financialAmounts.values) {
-                        controller.clear();
-                      }
                       _apisAnswers.clear();
+                      _includeApis2022 = true;
                       _apisSingleFamily = false;
+                      _apisAge6to11Controller.text = '0';
+                      _apisAge12to17Controller.text = '0';
+                      _apisMonthlyIncomeController.clear();
                       _clearFormError();
                     });
                   },
@@ -1038,200 +990,6 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     );
   }
 
-  String? _validateFinancialNumber(String? raw, {bool familySize = false, bool allowNegative = false}) {
-    final text = (raw ?? '').trim();
-    if (text.isEmpty) return familySize ? 'Enter the average family size.' : null;
-    if (!RegExp(r'^-?\d+(\.\d{1,2})?$').hasMatch(text)) {
-      return 'Use digits and up to two decimal places; no commas.';
-    }
-    final value = double.tryParse(text);
-    if (value == null || !value.isFinite || (!allowNegative && value < 0)) {
-      return 'Enter a valid amount.';
-    }
-    if (familySize && (value < 1 || value > 99999.99)) {
-      return 'Enter a family size from 1 to 99999.99.';
-    }
-    if (!familySize && value.abs() > 999999999999.99) {
-      return 'Amount is too large.';
-    }
-    return null;
-  }
-
-  // Compare currency in cents so decimal rounding cannot reject valid totals.
-  int? _financialCents(String key) {
-    final text = _financialAmounts[key]!.text.trim();
-    if (text.isEmpty || _validateFinancialNumber(text) != null) return null;
-    final parts = text.split('.');
-    return int.parse(parts.first) * 100 +
-        int.parse(parts.length == 1 ? '00' : parts[1].padRight(2, '0'));
-  }
-
-  String? _validateExpenseTotal() {
-    const components = [
-      'annual_food_expenditure',
-      'annual_housing_utilities_expenditure',
-      'annual_health_expenditure',
-      'annual_education_expenditure',
-      'annual_transport_expenditure',
-    ];
-    final hasDetails = components.skip(1).any(
-      (key) => _financialAmounts[key]!.text.trim().isNotEmpty,
-    );
-    final total = _financialCents('annual_family_expenditure');
-    if (hasDetails &&
-        _financialAmounts['annual_family_expenditure']!.text.trim().isEmpty) {
-      return 'Enter total expenditure when recording expense details.';
-    }
-    if (total != null) {
-      final knownSum = components.fold<int>(
-        0, (sum, key) => sum + (_financialCents(key) ?? 0),
-      );
-      if (knownSum > total) {
-        return 'Known expense categories exceed total expenditure.';
-      }
-    }
-    return null;
-  }
-
-  Widget _buildFinancialHistory() {
-    return _sectionCard(
-      title: 'Annual Family Financial Information',
-      subtitle: 'Selected FIES-style annual figures for staff review (not a full FIES survey).',
-      icon: Icons.account_balance_wallet_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Add financial information'),
-            subtitle: const Text('Optional. Amounts below are in PHP for a full calendar year. Leave unknown values blank; enter 0 only if confirmed.'),
-            value: _includeFinancialHistory,
-            onChanged: _isSaving ? null : (value) => setState(() {
-              _includeFinancialHistory = value;
-            }),
-          ),
-          if (_includeFinancialHistory) ...[
-            const SizedBox(height: 12),
-            _fieldGrid([
-              TextFormField(
-                controller: _financialYear,
-                enabled: !_isSaving,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Completed calendar year',
-                  helperText: 'January to December, before the assessment year.',
-                  helperMaxLines: 2,
-                ),
-                validator: (value) {
-                  final year = int.tryParse((value ?? '').trim());
-                  return year == null || year < 1900 || year >= _assessmentDate.year
-                      ? 'Enter a completed year before ${_assessmentDate.year}.' : null;
-                },
-              ),
-              TextFormField(
-                controller: _familyAverage,
-                enabled: !_isSaving,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Average family members during that year',
-                  helperText: 'Recorded average family size for the selected year; include members sharing income and expenses.',
-                  helperMaxLines: 3,
-                ),
-                validator: (value) => _validateFinancialNumber(value, familySize: true),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: _financialResidence ?? 'Unknown',
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Residence classification during that year',
-                  helperText: 'Use the recorded area classification; leave Unknown if unverified.',
-                  helperMaxLines: 3,
-                ),
-                items: const ['Unknown', 'Urban', 'Rural']
-                    .map((value) => DropdownMenuItem(
-                          value: value, child: Text(value)))
-                    .toList(),
-                onChanged: _isSaving ? null : (value) => setState(() {
-                  _financialResidence = value == 'Unknown' ? null : value;
-                }),
-              ),
-              for (final entry in const {
-                'annual_family_income': 'Total annual family income',
-                'annual_family_expenditure': 'Total annual family expenditure',
-                'annual_food_expenditure': 'Annual food expenditure',
-                'annual_housing_utilities_expenditure': 'Annual housing and utilities',
-                'annual_health_expenditure': 'Annual health expenditure',
-                'annual_education_expenditure': 'Annual education expenditure',
-                'annual_transport_expenditure': 'Annual transport expenditure',
-              }.entries)
-                TextFormField(
-                  controller: _financialAmounts[entry.key],
-                  enabled: !_isSaving,
-                  keyboardType: TextInputType.numberWithOptions(
-                    decimal: true, signed: entry.key == 'annual_family_income'),
-                  decoration: InputDecoration(
-                    labelText: entry.value,
-                    prefixText: 'PHP ',
-                    helperText: entry.key == 'annual_family_income'
-                        ? 'All income sources, including net business income and in-kind receipts.'
-                        : entry.key == 'annual_food_expenditure'
-                            ? 'Part of total expenditure, including food received in kind.'
-                            : entry.key == 'annual_family_expenditure'
-                                ? 'All family consumption, including in-kind items and estimated housing rental value.'
-                                : 'Part of total annual expenditure, not an additional amount. Leave blank if unknown.',
-                    helperMaxLines: 3,
-                  ),
-                  validator: (value) {
-                    final error = _validateFinancialNumber(value,
-                        allowNegative: entry.key == 'annual_family_income');
-                    if (error != null) return error;
-                    if (entry.key == 'annual_family_income' &&
-                        const ['annual_family_income', 'annual_family_expenditure',
-                          'annual_food_expenditure'].every(
-                            (key) => _financialAmounts[key]!.text.trim().isEmpty)) {
-                      return 'Record income, total expenditure, or food expenditure.';
-                    }
-                    if (entry.key == 'annual_family_expenditure') {
-                      return _validateExpenseTotal();
-                    }
-                    return null;
-                  },
-                ),
-            ]),
-            const SizedBox(height: 12),
-            FormField<bool>(
-              initialValue: _financialSingleFamily,
-              validator: (_) => _financialSingleFamily ? null
-                  : 'Confirm that the figures refer to one family.',
-              builder: (field) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text('These figures describe one family during the selected year.'),
-                    value: _financialSingleFamily,
-                    onChanged: _isSaving ? null : (value) {
-                      setState(() => _financialSingleFamily = value ?? false);
-                      field.didChange(value);
-                    },
-                  ),
-                  if (field.hasError)
-                    Text(field.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Selected FIES-style financial questions. The active APIS classification still uses living-condition answers; FIES machine learning is not yet activated.',
-              style: TextStyle(fontSize: 12, color: AppColors.greyText),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Future<void> _showFinancialHistory(Map<String, dynamic> assessment) async {
     String amount(String key) {
       final value = double.tryParse('${assessment[key]}');
@@ -1389,7 +1147,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   ),
                   SizedBox(height: 5),
                   Text(
-                    'Record household information for vulnerability assessment.',
+                    'Record APIS 2022-compatible household inputs for Vulnerability Management.',
                     style: TextStyle(fontSize: 12, color: AppColors.greyText),
                   ),
                 ],
@@ -1465,13 +1223,11 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
             const SizedBox(height: 18),
 
-            // ======================================
-            // POPULATION AND DEMOGRAPHICS
-            // ======================================
+            // APIS 2022 member record.
             _sectionCard(
-              title: 'Household Population and Demographics',
+              title: 'APIS 2022 • Household Members',
               subtitle:
-                  'Enter the number of household members in each age group.',
+                  'Counts from the household member roster. All age groups must equal the registered household size.',
               icon: Icons.groups_outlined,
               child: Column(
                 children: [
@@ -1481,8 +1237,12 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                       controller: _age0to5Controller,
                     ),
                     _numberField(
-                      label: 'Age 6–17 years',
-                      controller: _age6to17Controller,
+                      label: 'Age 6–11 years (MEM_AGE_6_11)',
+                      controller: _apisAge6to11Controller,
+                    ),
+                    _numberField(
+                      label: 'Age 12–17 years (MEM_AGE_12_17)',
+                      controller: _apisAge12to17Controller,
                     ),
                     _numberField(
                       label: 'Age 18–59 years',
@@ -1493,10 +1253,6 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                       controller: _age60PlusController,
                       helperText: 'Automatically used as senior citizen count.',
                     ),
-                    _numberField(
-                      label: 'Persons with Disability (PWD)',
-                      controller: _pwdController,
-                    ),
                   ]),
                   const SizedBox(height: 18),
                   _buildPopulationSummary(),
@@ -1506,153 +1262,101 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
             const SizedBox(height: 18),
 
-            // ======================================
-            // FAMILY FINANCIAL HISTORY (FIES-STYLE)
-            // ======================================
-            _buildFinancialHistory(),
-            const SizedBox(height: 18),
+            // APIS 2022 inputs used by the current Random Forest.
             _sectionCard(
-              title: 'Household Living Conditions (APIS)',
-              subtitle: 'Coded answers used by the current APIS classifier. Select Unknown if unverified.',
+              title: 'APIS 2022 • Household Conditions',
+              subtitle: 'Record the APIS 2022-equivalent answers. Survey identifiers and research-only fields are not requested.',
               icon: Icons.fact_check_outlined,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _fieldGrid([
-                    _apisQuestion("roof_material", "Roof material", {1: "Strong material", 2: "Light material", 3: "Salvaged / makeshift", 4: "Mixed, predominantly strong", 5: "Mixed, predominantly light", 6: "Mixed, predominantly salvaged"}),
-                    _apisQuestion("wall_material", "Outer wall material", {1: "Strong material", 2: "Light material", 3: "Salvaged / makeshift", 4: "Mixed, predominantly strong", 5: "Mixed, predominantly light", 6: "Mixed, predominantly salvaged"}),
-                    _apisQuestion("electricity", "Electricity available", {1: "Yes", 2: "No"}),
-                    _apisQuestion("drinking_water_source", "Main drinking water source", {11: "Piped into dwelling", 12: "Piped into yard / plot", 13: "Piped from neighbor", 14: "Public tap / standpipe", 21: "Tube well / borehole", 31: "Protected dug well", 32: "Unprotected dug well", 41: "Protected spring", 42: "Unprotected spring", 51: "Rainwater", 61: "Tanker truck", 71: "Cart with small tank / drum", 72: "Water refilling station", 81: "Surface water", 91: "Bottled water", 92: "Sachet water"}),
-                    _apisQuestion("toilet_facility", "Toilet facility", {11: "Flush to sewer", 12: "Flush to septic tank", 13: "Flush to pit", 14: "Flush to open drain", 21: "Ventilated improved pit", 22: "Pit with slab", 23: "Pit without slab / open pit", 31: "Composting toilet", 41: "Bucket toilet", 51: "Hanging toilet", 95: "No toilet / open field"}),
-                    _apisQuestion("working_adult_present", "Working family member aged 18+", {1: "Yes", 0: "No"}),
-                  ]),
-                  const SizedBox(height: 16),
-                  CheckboxListTile(
+                  SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    value: _apisSingleFamily,
-                    onChanged: _isSaving ? null : (value) => setState(() => _apisSingleFamily = value ?? false),
-                    title: const Text('This household contains one family'),
-                    subtitle: const Text('Multi-family households require a separate staff review.'),
-                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text('Verified APIS 2022 answers available'),
+                    subtitle: const Text('Turn off when source answers are not verified; save for staff review. Do not guess codes.'),
+                    value: _includeApis2022,
+                    onChanged: _isSaving ? null : (value) => setState(() {
+                      _includeApis2022 = value;
+                      if (!value) _apisAnswers.clear();
+                    }),
                   ),
-                  const SizedBox(height: 12),
+                  if (_includeApis2022) ...[
+                    const SizedBox(height: 16),
+                    const Text('Housing and electricity',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                    const SizedBox(height: 10),
+                    _fieldGrid([
+                      _apisQuestion('apis2022_i2', 'Roof material (I2)', apis2022Options['I2']!),
+                      _apisQuestion('apis2022_i3', 'Wall material (I3)', apis2022Options['I3']!),
+                      _apisQuestion('apis2022_i4', 'Floor material (I4)', apis2022Options['I4']!),
+                      _apisQuestion('apis2022_i8', 'Electricity access (I8)', apis2022Options['I8']!),
+                    ]),
+                    const SizedBox(height: 20),
+                    const Text('Water and sanitation',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                    const SizedBox(height: 10),
+                    _fieldGrid([
+                      _apisQuestion('apis2022_ws1', 'Drinking water source (WS1)', apis2022Options['WS1']!),
+                      _apisQuestion('apis2022_ws11a', 'Toilet facility (WS11A)', apis2022Options['WS11A']!),
+                    ]),
+                    const SizedBox(height: 20),
+                    const Text('Disaster preparedness and recovery',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                    const SizedBox(height: 10),
+                    _fieldGrid([
+                      _apisQuestion('apis2022_g15_kit', 'Emergency preparedness kit (G15)', apis2022Options['G15_KIT']!),
+                      _apisQuestion('apis2022_g16_nat_disas', 'Experienced natural disaster (G16)', apis2022Options['G16_NAT_DISAS']!),
+                      if (_apisAnswers['apis2022_g16_nat_disas'] == 1) ...[
+                        _apisQuestion('apis2022_g16a_evac', 'Evacuation (G16A)', apis2022Options['G16A_EVAC']!),
+                        _apisQuestion('apis2022_g16b_recov', 'Recovery (G16B)', apis2022Options['G16B_RECOV']!),
+                      ],
+                    ]),
+                    const SizedBox(height: 20),
+                    const Text('Household income',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _apisMonthlyIncomeController,
+                      enabled: !_isSaving,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Verified monthly household income (PHP)',
+                        helperText: 'Used as an experimental K5-equivalent; exact APIS K5 meaning requires codebook verification.',
+                        helperMaxLines: 2,
+                      ),
+                      validator: (value) {
+                        if (!_includeApis2022) return null;
+                        if (!RegExp(r'^\d{1,12}(\.\d{1,2})?$').hasMatch((value ?? '').trim())) {
+                          return 'Enter a verified nonnegative monthly amount (up to 2 decimals).';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: _apisSingleFamily,
+                      onChanged: _isSaving ? null : (value) => setState(() => _apisSingleFamily = value ?? false),
+                      title: const Text('Income describes one family sharing income and expenses'),
+                      subtitle: const Text('Required by the current research prediction contract.'),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: _assessmentOrigin,
-                    validator: (value) => value == null ? 'Select where this information came from.' : null,
+                    validator: (value) => value == null ? 'Select the assessment data source.' : null,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Assessment data source'),
                     items: const [
-                      DropdownMenuItem(value: 'synthetic', child: Text('Practice record')),
-                      DropdownMenuItem(value: 'lgu_authorized', child: Text('Actual household — authorized LGU collection')),
+                      DropdownMenuItem(value: 'lgu_authorized', child: Text('Verified LGU household assessment')),
+                      DropdownMenuItem(value: 'synthetic', child: Text('Practice entry — not verified for decisions')),
                     ],
-                    onChanged: _isSaving ? null : (value) => setState(() => _assessmentOrigin = value!),
+                    onChanged: _isSaving ? null : (value) => setState(() => _assessmentOrigin = value),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 18),
-
-            _sectionCard(
-              title: 'Assistance and Disaster Information',
-              subtitle:
-                  'Record previous assistance and disaster-related conditions.',
-              icon: Icons.health_and_safety_outlined,
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    activeThumbColor: AppColors.primaryGreen,
-                    title: const Text(
-                      'Previously received humanitarian assistance',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Has this household previously received assistance?',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    value: _previousAssistance,
-                    onChanged: (value) {
-                      setState(() {
-                        _previousAssistance = value;
-                        _clearFormError();
-                      });
-                    },
-                  ),
-                  const Divider(),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    activeThumbColor: AppColors.primaryGreen,
-                    title: const Text(
-                      'Household affected by disaster',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Was the household affected by a disaster?',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    value: _disasterAffected,
-                    onChanged: (value) {
-                      setState(() {
-                        _disasterAffected = value;
-
-                        if (!value) {
-                          _housingDamageLevel = 'Minor';
-                          _displaced = false;
-                        }
-
-                        _clearFormError();
-                      });
-                    },
-                  ),
-                  if (_disasterAffected) ...[
-                    const SizedBox(height: 12),
-                    _dropdownField(
-                      label: 'Housing Damage Level',
-                      value: _housingDamageLevel,
-                      options: _damageOptions,
-                      onChanged: (value) {
-                        if (value == null) return;
-
-                        setState(() {
-                          _housingDamageLevel = value;
-                          _clearFormError();
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      activeThumbColor: AppColors.primaryGreen,
-                      title: const Text(
-                        'Household displaced',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: const Text(
-                        'Has the household been displaced?',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      value: _displaced,
-                      onChanged: (value) {
-                        setState(() {
-                          _displaced = value;
-                          _clearFormError();
-                        });
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
             const SizedBox(height: 18),
 
             // ======================================

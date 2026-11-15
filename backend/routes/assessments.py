@@ -36,6 +36,7 @@ ASSESSMENT_SELECT = """
            a.roof_material, a.wall_material, a.electricity, a.drinking_water_source, a.toilet_facility, a.working_adult_present, a.apis_single_family,
            a.financial_reference_year, a.financial_single_family, a.average_family_size, a.annual_family_income, a.annual_family_expenditure, a.annual_food_expenditure,
            a.financial_residence_classification, a.annual_housing_utilities_expenditure, a.annual_health_expenditure, a.annual_education_expenditure, a.annual_transport_expenditure,
+           a.apis2022_i2, a.apis2022_i3, a.apis2022_i4, a.apis2022_i8, a.apis2022_ws1, a.apis2022_ws11a, a.apis2022_g15_kit, a.apis2022_g16_nat_disas, a.apis2022_g16a_evac, a.apis2022_g16b_recov, a.apis2022_mem_age_6_11, a.apis2022_mem_age_12_17, a.apis2022_monthly_household_income_php,
            a.recorded_by, a.created_at,
            h.household_head, h.barangay
     FROM public.household_assessments a
@@ -103,11 +104,13 @@ def create_assessment(
                         roof_material, wall_material, electricity, drinking_water_source, toilet_facility, working_adult_present, apis_single_family,
                         financial_reference_year, financial_single_family, average_family_size, annual_family_income, annual_family_expenditure, annual_food_expenditure,
                         financial_residence_classification, annual_housing_utilities_expenditure, annual_health_expenditure, annual_education_expenditure, annual_transport_expenditure,
+                        apis2022_i2, apis2022_i3, apis2022_i4, apis2022_i8, apis2022_ws1, apis2022_ws11a, apis2022_g15_kit, apis2022_g16_nat_disas, apis2022_g16a_evac, apis2022_g16b_recov, apis2022_mem_age_6_11, apis2022_mem_age_12_17, apis2022_monthly_household_income_php,
                         data_origin, recorded_by
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                        , %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) RETURNING assessment_id;
                     """,
                     (
@@ -122,6 +125,7 @@ def create_assessment(
                         data.roof_material, data.wall_material, data.electricity, data.drinking_water_source, data.toilet_facility, data.working_adult_present, data.apis_single_family,
                         data.financial_reference_year, data.financial_single_family, data.average_family_size, data.annual_family_income, data.annual_family_expenditure, data.annual_food_expenditure,
                         data.financial_residence_classification, data.annual_housing_utilities_expenditure, data.annual_health_expenditure, data.annual_education_expenditure, data.annual_transport_expenditure,
+                        data.apis2022_i2, data.apis2022_i3, data.apis2022_i4, data.apis2022_i8, data.apis2022_ws1, data.apis2022_ws11a, data.apis2022_g15_kit, data.apis2022_g16_nat_disas, data.apis2022_g16a_evac, data.apis2022_g16b_recov, data.apis2022_mem_age_6_11, data.apis2022_mem_age_12_17, data.apis2022_monthly_household_income_php,
                         data.data_origin, current_user["user_id"],
                     ),
                 )

@@ -17,6 +17,51 @@ class HistoricalAssessmentTests(unittest.TestCase):
             with self.subTest(extra=extra), self.assertRaises(ValidationError):
                 AssessmentCreate(**base, **extra)
 
+class APIS2022AssessmentTests(unittest.TestCase):
+    def test_saved_apis2022_inputs_validate_and_do_not_infer_missing(self):
+        from pydantic import ValidationError
+        base = dict(household_id=2, assessment_date='2026-11-15',
+                    age_0_5_count=0, age_6_17_count=2, age_18_59_count=2,
+                    age_60_plus_count=0, senior_citizens_count=0, pwd_count=0,
+                    previous_humanitarian_assistance=False, disaster_affected=False,
+                    housing_damage_level='None', displaced=False)
+        raw = dict(apis_single_family=True, apis2022_i2=1, apis2022_i3=1,
+                   apis2022_i4=1, apis2022_i8=1, apis2022_ws1=11,
+                   apis2022_ws11a=12, apis2022_g15_kit=1,
+                   apis2022_g16_nat_disas=2, apis2022_mem_age_6_11=1,
+                   apis2022_mem_age_12_17=1,
+                   apis2022_monthly_household_income_php='10000.00')
+        saved = AssessmentCreate(**base, **raw)
+        self.assertEqual(saved.apis2022_mem_age_12_17, 1)
+        self.assertEqual(str(saved.apis2022_monthly_household_income_php), '10000.00')
+        self.assertIsNone(AssessmentCreate(**base).apis2022_i2)
+        for changes in [dict(apis2022_i3=9), dict(apis2022_i2=None),
+                        dict(apis2022_mem_age_12_17=0),
+                        dict(apis2022_g16_nat_disas=1),
+                        dict(apis_single_family=False)]:
+            with self.subTest(changes=changes), self.assertRaises(ValidationError):
+                AssessmentCreate(**base, **(raw | changes))
+
+
+class APIS2022OnlyFormTests(unittest.TestCase):
+    def test_legacy_context_can_remain_unknown(self):
+        assessment = AssessmentCreate.model_validate({
+            "household_id": 1,
+            "assessment_date": "2026-11-15",
+            "age_0_5_count": 1,
+            "age_6_17_count": 2,
+            "age_18_59_count": 1,
+            "age_60_plus_count": 0,
+            "senior_citizens_count": 0,
+            "data_origin": "lgu_authorized",
+        })
+        self.assertIsNone(assessment.pwd_count)
+        self.assertIsNone(assessment.previous_humanitarian_assistance)
+        self.assertIsNone(assessment.disaster_affected)
+        self.assertIsNone(assessment.housing_damage_level)
+        self.assertIsNone(assessment.displaced)
+
+
 class FinancialAssessmentTests(unittest.TestCase):
     def setUp(self):
         self.base = dict(household_id=1, assessment_date='2026-11-14',

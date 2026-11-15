@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AidTrack APIS PUF 2022: reproducible household-level feature assembly.
 
-Builds the 85-column household-indicators CSV from 11 APIS PUF 2022 extracts.
+Builds household indicators from 11 original APIS PUF 2022 extracts.
 Does not create vulnerability labels. The training script creates those.
 
 Usage:
@@ -33,11 +33,15 @@ SOURCES = {
  'j': 'APIS PUF 2022 RTJ - Water Sanitation and Hygiene.CSV',
  'k': 'APIS PUF 2022 RTK - Other Relevant Information.CSV',
 }
-HH_FIELDS = ['REG','HHID','FSIZE','CHLD_6_11','CHLD_12_15','EDUC_6_11','EDUC_12_15','H04_SEX','H05_AGE','H06_STATUS','H12_HGC','URB','RPSU','REP','RFACT']
-MEM_FIELDS = ['MEMBER_ROWS','MEM_AGE_0_5','MEM_AGE_6_11','MEM_AGE_12_17','MEM_AGE_18_59','MEM_AGE_60_PLUS','MEM_AGE_UNKNOWN','MEM_D44_DISEASE_CODE1_COUNT','MEM_ROSTER_MATCHES_FSIZE','MEM_ROSTER_SHORTFALL']
+HH_FIELDS = ['REG','HHID','FSIZE','CHLD_6_11','CHLD_12_15','EDUC_6_11','EDUC_12_15','HHMELEM_6_11','HHMHS_12_15','H04_SEX','H05_AGE','H06_STATUS','H12_HGC','URB','RPSU','REP','RFACT']
+MEM_FIELDS = ['MEMBER_ROWS','MEM_AGE_0_5','MEM_AGE_6_11','MEM_AGE_12_17','MEM_AGE_18_59','MEM_AGE_60_PLUS','MEM_AGE_UNKNOWN','MEM_D44_DISEASE_CODE1_COUNT','MEM_ROSTER_MATCHES_FSIZE','MEM_ROSTER_SHORTFALL',
+    'MEM_SCHOOL_AGE_NOT_ATTENDING_COUNT','MEM_RECENT_ILLNESS_COUNT',
+    'MEM_ILLNESS_ABSENCE_7D_COUNT']
 G5_FIELDS = ['G13_PHEALTH','G13A_ASSISTANCE','G14_AWARE','G14A_CONSULT','G15_KIT','G15A_TYPE','G16_NAT_DISAS','G16A_EVAC','G16B_RECOV','G16C_HELP']
-HOUSING_FIELDS = ['I1','I2','I3','I4','I5','I6','I7','I8']
-WATER_FIELDS = ['WS1','WS11A','WS14','WS15']
+HOUSING_FIELDS = ['I1','I2','I3','I4','I5','I6','I7','I8',
+    'I9A', 'I9B', 'I9C', 'I9D', 'I9E', 'I9F', 'I9G', 'I9H', 'I9I', 'I9J', 'I9K', 'I9L', 'I9M', 'I9N', 'I9O', 'I9P', 'I9Q', 'I9R', 'I9S', 'I9T', 'I9BA', 'I9BB', 'I9BC']
+WATER_FIELDS = ['WS1','WS2','WS7','WS8','WS9','WS11A','WS14','WS15']
+G5_DERIVED_FIELDS = ['G15A_ITEM_COUNT']
 FIN_FIELDS = ['K4','K5']
 PROGRAM_SPECS = {
   'g1': ('G1CODE','G1',['1','2','3','4','5']),
@@ -88,6 +92,29 @@ def aggregate_members(path):
         elif 60 <= age <= 130: rec['MEM_AGE_60_PLUS']+=1
         else: rec['MEM_AGE_UNKNOWN']+=1
         if row['D44_DISEASE']=='1': rec['MEM_D44_DISEASE_CODE1_COUNT']+=1
+        # APIS 2022 C08: 1/2/3 attending, 4 not attending.
+        if 6 <= age <= 17:
+            attendance = row['C08_CURSCH'].strip()
+            if attendance not in {'1', '2', '3', '4'}:
+                raise ValueError(f'Unrecognized school attendance code {attendance!r}: {key(row)}')
+            if attendance == '4':
+                rec['MEM_SCHOOL_AGE_NOT_ATTENDING_COUNT'] += 1
+        # APIS 2022 D44c: sickness/injury in the previous month (1=yes).
+        recent_ill = row['D44_TIMES_ILL'].strip()
+        if recent_ill not in {'1', '2'}:
+            raise ValueError(f'Unrecognized recent illness code {recent_ill!r}: {key(row)}')
+        if recent_ill == '1':
+            rec['MEM_RECENT_ILLNESS_COUNT'] += 1
+        # D46=1 means absent due to sickness/injury; D47 is days absent.
+        absence = row['D46_REASON_ILL'].strip()
+        days = row['D47_DAYS_ILL'].strip()
+        if absence == '1':
+            if not days.isdigit() or not 1 <= int(days) <= 30:
+                raise ValueError(f'Invalid reported D47 illness days {days!r}: {key(row)}')
+            if int(days) >= 7:  # Research severity proxy, not an official cutoff.
+                rec['MEM_ILLNESS_ABSENCE_7D_COUNT'] += 1
+        elif absence not in {'', '2'} or days:
+            raise ValueError(f'Inconsistent D46/D47 responses: {key(row)}')
     return table
 
 
@@ -141,7 +168,7 @@ def build(source_dir: Path, output_dir: Path):
         program_fields.extend(cols)
     verify_keysets(hh,tables)
     keys=list(hh)
-    fields=HH_FIELDS+MEM_FIELDS+G5_FIELDS+HOUSING_FIELDS+WATER_FIELDS+FIN_FIELDS+program_fields
+    fields=HH_FIELDS+MEM_FIELDS+G5_FIELDS+G5_DERIVED_FIELDS+HOUSING_FIELDS+WATER_FIELDS+FIN_FIELDS+program_fields
     assert len(fields)==len(set(fields)), 'Duplicate output field name'
     unlabeled=output_dir/'apis2022_household_indicators.csv'
     member_size_mismatch=0
@@ -152,6 +179,15 @@ def build(source_dir: Path, output_dir: Path):
             d = dict(hh[k])
             for tab in tables.values():
                 d.update(tab[k])
+            # APIS 2022 G15A: selected emergency-kit items A-L and X.
+            kit = d['G15_KIT'].strip()
+            content = d['G15A_TYPE'].strip()
+            if kit == '2' and not content:
+                d['G15A_ITEM_COUNT'] = 0  # Legitimate questionnaire skip.
+            elif kit == '1' and content and set(content) <= set('ABCDEFGHIJKLX'):
+                d['G15A_ITEM_COUNT'] = len(set(content))
+            else:
+                d['G15A_ITEM_COUNT'] = ''  # Unverified response; no invented count.
             d['MEM_ROSTER_MATCHES_FSIZE'] = 1 if int(d['MEMBER_ROWS']) == int(d['FSIZE']) else 0
             d['MEM_ROSTER_SHORTFALL'] = int(d['FSIZE']) - int(d['MEMBER_ROWS'])
             if not d['MEM_ROSTER_MATCHES_FSIZE']:
@@ -173,6 +209,10 @@ def build(source_dir: Path, output_dir: Path):
         'assumed_code1_means_yes':False,
         'codebook_validated':False,
         'model_trained_or_validated':False,
+        'full_housing_I1_to_I9BC_retained': True,
+        'school_codebook_confirmed_1_2_3_attending_4_not_attending':True,
+        'illness_recent_codebook_confirmed_1_yes_2_no':True,
+        'illness_absence_7_days_threshold_is_research_only':True,
         'source_sha256':source_hashes,
         'sample':output_sample,
     }
@@ -185,6 +225,10 @@ def build(source_dir: Path, output_dir: Path):
      'FSIZE':('Household','Household size','Candidate demographic feature'),
      'CHLD_6_11':('Household','Original coded child-age 6-11 field; exact meaning requires codebook','Review coding'),
      'CHLD_12_15':('Household','Original coded child-age 12-15 field; exact meaning requires codebook','Review coding'),
+     'HHMELEM_6_11':('Household Record','Members aged 6-11 attending grades 1-6','School participation context'),
+     'HHMHS_12_15':('Household Record','Members aged 12-15 attending grades 7-10','School participation context'),
+     'G15A_ITEM_COUNT':('RTG5 disaster','Count of explicitly listed go-bag item types','Unknown preserved; count not an official readiness score'),
+     'WS8':('RTJ WASH','Reason for insufficient drinking-water access','Coded optional survey response'),
      'RFACT':('Household','Survey expansion/sampling factor','Survey analysis only; not direct model feature'),
      'RPSU':('Household','Survey PSU field','Survey split / geography controls; not model feature'),
      'REP':('Household','Survey replicate/stratum-like field; verify codebook','Sampling metadata; not model feature'),
@@ -205,7 +249,10 @@ def build(source_dir: Path, output_dir: Path):
     for f in MEM_FIELDS:
         if f=='MEM_ROSTER_MATCHES_FSIZE': desc='1 if member rows equal FSIZE, otherwise 0'; guide='Quality flag only; never use as model feature'
         elif f=='MEM_ROSTER_SHORTFALL': desc='FSIZE minus member record rows'; guide='Quality flag only; never use as model feature'
-        elif f=='MEMBER_ROWS': desc='Number of member record rows'; guide='Audit roster coverage'
+        elif f=='MEMBER_ROWS': desc='Number of member record rows';guide='Audit roster coverage'
+        elif f=='MEM_SCHOOL_AGE_NOT_ATTENDING_COUNT': desc='Count of age 6-17 members with C08_CURSCH=4';guide='School nonattendance; verified C08 codebook'
+        elif f=='MEM_RECENT_ILLNESS_COUNT': desc='Members reporting D44c illness/injury in previous month';guide='Health hardship context; not a medical diagnosis'
+        elif f=='MEM_ILLNESS_ABSENCE_7D_COUNT': desc='Members with 7+ work/school absence days due to illness/injury';guide='Research severity threshold, not an official cutoff'
         elif f=='MEM_D44_DISEASE_CODE1_COUNT': desc='Count of members where raw D44_DISEASE response is coded 1';guide='Review health variable semantics and privacy before model use'
         else: desc='Count of members in an age bracket using available member rows';guide='Candidate only after checking roster completeness'
         descriptions[f]=('Member Record',desc,guide)
