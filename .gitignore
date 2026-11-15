@@ -145,3 +145,5 @@ backup-login-*/
 /backend/ml_service/datasets/apis2022_households_unlabelled.csv
 
 /backend/ml_service/datasets/apis2022_proxy_draft.csv
+
+/backend/ml_service/models/apis2022_candidate.joblib
