@@ -98,6 +98,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
   @override
   void initState() {
     super.initState();
+    _sizeController.text = '1';
     _loadHouseholds();
   }
 
@@ -255,6 +256,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       controller.clear();
     }
 
+    _sizeController.text = '1';
     setState(() {
       _editingHouseholdId = null;
       _formError = null;
@@ -797,8 +799,8 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Enter the household head, location, and member details. '
-            'Household size includes the household head.',
+            'Register the household head and all other members. The total is '
+            'calculated automatically and used to validate Household Assessment.',
             style: TextStyle(color: AppColors.greyText, fontSize: 13),
           ),
           const SizedBox(height: 20),
@@ -831,10 +833,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                 ),
                 TextFormField(
                   controller: _sizeController,
-                  enabled: !_isSaving,
-                  keyboardType: TextInputType.number,
+                  readOnly: true,
                   decoration: const InputDecoration(
-                    labelText: 'Household size',
+                    labelText: 'Total household members',
+                    helperText: 'Calculated from the head and member names.',
                     prefixIcon: Icon(Icons.groups_outlined),
                   ),
                   validator: (value) {
@@ -896,7 +898,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
             maxLines: 8,
             keyboardType: TextInputType.multiline,
             textInputAction: TextInputAction.newline,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) {
+              _sizeController.text = '${_enteredMembers().length + 1}';
+              setState(() {});
+            },
             decoration: const InputDecoration(
               labelText: 'Member full names',
               alignLabelWithHint: true,

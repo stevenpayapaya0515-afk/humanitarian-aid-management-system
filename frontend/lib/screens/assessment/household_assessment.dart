@@ -69,7 +69,13 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   final Map<String, int?> _apisAnswers = {};
   final Map<String, dynamic> _expandedAnswers = {};
   List<Map<String, dynamic>> _expandedCatalog = [];
+  List<Map<String, dynamic>> _socialCatalog = [];
+  final Map<String, dynamic> _socialAnswers = {};
+  final Map<String, List<int>> _programSelections = {};
   String? _expandedLoadError;
+  int? _editingAssessmentId;
+  int _editorVersion = 0;
+  final GlobalKey _editStartKey = GlobalKey();
 
   Future<void> _loadExpandedCatalog() async {
     try {
@@ -77,6 +83,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       if (!mounted) return;
       setState(() {
         _expandedCatalog = (result['assessment'] as List)
+            .map((entry) => Map<String, dynamic>.from(entry as Map))
+            .toList();
+        _socialCatalog = (result['social'] as List)
             .map((entry) => Map<String, dynamic>.from(entry as Map))
             .toList();
         _expandedLoadError = null;
@@ -92,7 +101,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     final label = spec['label'] as String;
     if (spec['kind'] == 'code') {
       return DropdownButtonFormField<String>(
-        key: ValueKey('$_selectedHousehold-$name'),
+        key: ValueKey('$_editorVersion-${_selectedHousehold?['household_id']}-$name'),
         initialValue: _expandedAnswers[name]?.toString() ?? '',
         isExpanded: true,
         decoration: InputDecoration(labelText: label),
@@ -112,7 +121,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       );
     }
     return TextFormField(
-      key: ValueKey('$_selectedHousehold-$name'),
+      key: ValueKey('$_editorVersion-${_selectedHousehold?['household_id']}-$name'),
       initialValue: _expandedAnswers[name]?.toString() ?? '',
       enabled: !_isSaving,
       keyboardType: TextInputType.number,
@@ -177,7 +186,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
   Widget _apisQuestion(String name, String label, Map<int, String> options) {
     return DropdownButtonFormField<int>(
-      key: ValueKey('$_selectedHousehold-$name'),
+      key: ValueKey('$_editorVersion-${_selectedHousehold?['household_id']}-$name'),
       initialValue: _apisAnswers[name],
       isExpanded: true,
       decoration: InputDecoration(labelText: label),
@@ -501,10 +510,27 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
     if (selected == null || !mounted) return;
 
+    // Feeding responses use rolling six-month periods relative to the
+    // assessment date. Changing that date requires staff to verify again.
+    final feedingPeriodsChanged = selected.year != _assessmentDate.year ||
+        selected.month != _assessmentDate.month ||
+        selected.day != _assessmentDate.day;
     setState(() {
+      if (feedingPeriodsChanged) {
+        _programSelections.remove('G11_CODE1_COUNT');
+        _socialAnswers.remove('G11_CODE1_COUNT');
+      }
       _assessmentDate = selected;
       _clearFormError();
     });
+    if (feedingPeriodsChanged) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(
+          'Assessment date changed. Please verify government feeding support '
+          'for the new assessment date.',
+        )),
+      );
+    }
   }
 
   // ==========================================
@@ -529,6 +555,15 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     if (_selectedHousehold == null) {
       setState(() {
         _formError = 'Please select a registered household.';
+      });
+      return false;
+    }
+
+    if (_selectedHousehold?['members_complete'] != true) {
+      setState(() {
+        _formError =
+            'Complete the household member names in Household Registration '
+            'before saving the assessment.';
       });
       return false;
     }
@@ -570,10 +605,10 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       return;
     }
 
-    if (_includeApis2022 && _expandedCatalog.isEmpty) {
+    if (_includeApis2022 && (_expandedCatalog.isEmpty || _socialCatalog.length != 9)) {
       await _showFeedbackDialog(
         success: false,
-        title: 'Household Asset Questions Not Loaded',
+        title: 'Assessment Questions Not Loaded',
         message: _expandedLoadError ?? 'Check the FastAPI connection and reload the assessment.',
       );
       return;
@@ -626,6 +661,15 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         'apis2022_extended_answers': _includeApis2022
             ? Map<String, dynamic>.from(_expandedAnswers)
             : <String, dynamic>{},
+        'apis2022_social_answers': _includeApis2022
+            ? Map<String, dynamic>.from(_socialAnswers)
+            : <String, dynamic>{},
+        'apis2022_program_selections': _includeApis2022
+            ? <String, List<int>>{
+                for (final entry in _programSelections.entries)
+                  entry.key: List<int>.from(entry.value),
+              }
+            : <String, List<int>>{},
         if (_includeApis2022) ...{
           for (final entry in _apisAnswers.entries)
             entry.key: entry.value == -1 ? null : entry.value,
@@ -642,7 +686,13 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
       // Save assessment only.
       // Vulnerability classification is handled by its own module.
-      await VulnerabilityService.createAssessment(assessmentData);
+      if (_editingAssessmentId == null) {
+        await VulnerabilityService.createAssessment(assessmentData);
+      } else {
+        await VulnerabilityService.updateAssessment(
+          _editingAssessmentId!, assessmentData,
+        );
+      }
 
       if (!mounted) return;
 
@@ -652,10 +702,14 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       if (!mounted) return;
 
       saveSucceeded = true;
-
-      feedbackTitle = 'Assessment Saved Successfully';
-
-      feedbackMessage = 'Household assessment has been saved successfully.';
+      final wasEditing = _editingAssessmentId != null;
+      feedbackTitle = wasEditing
+          ? 'Assessment Updated Successfully'
+          : 'Assessment Saved Successfully';
+      feedbackMessage = wasEditing
+          ? 'The household assessment has been updated.'
+          : 'Household assessment has been saved successfully.';
+      if (wasEditing) _cancelEditAssessment();
     } catch (error) {
       if (!mounted) return;
 
@@ -665,7 +719,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         _formError = message;
       });
 
-      feedbackTitle = 'Assessment Not Saved';
+      feedbackTitle = _editingAssessmentId == null
+          ? 'Assessment Not Saved'
+          : 'Assessment Not Updated';
       feedbackMessage = message;
     } finally {
       if (mounted) {
@@ -885,6 +941,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     final selectedId = (_selectedHousehold?['household_id'] as num?)?.toInt();
 
     return FormField<int>(
+      key: ValueKey('household-$_editorVersion'),
       initialValue: selectedId,
 
       validator: (value) {
@@ -924,7 +981,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
                   trailingIcon: const Icon(Icons.arrow_drop_down),
 
-                  enabled: !_isLoading && !_isSaving && _households.isNotEmpty,
+                  enabled: !_isLoading && !_isSaving && _editingAssessmentId == null && _households.isNotEmpty,
 
                   // Populate using registered households from FastAPI.
                   dropdownMenuEntries: _households.map((household) {
@@ -954,6 +1011,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                       _selectedHousehold = household;
                       _apisAnswers.clear();
                       _expandedAnswers.clear();
+                      _socialAnswers.clear();
+                      _programSelections.clear();
                       _includeApis2022 = true;
                       _apisSingleFamily = false;
                       _apisAge6to11Controller.text = '0';
@@ -1182,6 +1241,130 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     );
   }
 
+  // Open a saved assessment in the full form. A classified assessment is
+  // immutable, because changing its evidence would invalidate the prediction.
+  Future<void> _editSavedAssessment(Map<String, dynamic> assessment) async {
+    if (assessment['has_classification'] == true) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Assessment Locked',
+        message: 'A classification has already been generated. '
+            'Create a new assessment to record updated household information.',
+      );
+      return;
+    }
+    if (_expandedCatalog.isEmpty || _socialCatalog.length != 9) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Assessment Questions Unavailable',
+        message: 'Refresh the page before editing this assessment.',
+      );
+      return;
+    }
+    final householdId = (assessment['household_id'] as num).toInt();
+    final matching = _households.where(
+      (household) => (household['household_id'] as num).toInt() == householdId,
+    );
+    if (matching.isEmpty) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Household Not Found',
+        message: 'Refresh Household Registration before editing this assessment.',
+      );
+      return;
+    }
+    int count(String key) => (assessment[key] as num?)?.toInt() ?? 0;
+    String incomeText() {
+      final raw = assessment['apis2022_monthly_household_income_php'];
+      if (raw == null) return '';
+      final text = raw.toString();
+      final parts = text.split('.');
+      final whole = parts.first.replaceAllMapped(
+        RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',',
+      );
+      return parts.length == 2 ? '$whole.${parts.last}' : whole;
+    }
+    setState(() {
+      _editingAssessmentId = (assessment['assessment_id'] as num).toInt();
+      _selectedHousehold = matching.first;
+      _assessmentDate = DateTime.parse(assessment['assessment_date'].toString());
+      _age0to5Controller.text = count('age_0_5_count').toString();
+      _apisAge6to11Controller.text = count('apis2022_mem_age_6_11').toString();
+      _apisAge12to17Controller.text = count('apis2022_mem_age_12_17').toString();
+      _age18to59Controller.text = count('age_18_59_count').toString();
+      _age60PlusController.text = count('age_60_plus_count').toString();
+      _apisMonthlyIncomeController.text = incomeText();
+      _apisSingleFamily = assessment['apis_single_family'] == true;
+      _assessmentOrigin = assessment['data_origin']?.toString();
+      _includeApis2022 = true;
+      _apisAnswers.clear();
+      for (final key in const [
+        'apis2022_i2', 'apis2022_i3', 'apis2022_i4', 'apis2022_i8',
+        'apis2022_ws1', 'apis2022_ws11a', 'apis2022_g15_kit',
+        'apis2022_g16_nat_disas', 'apis2022_g16a_evac', 'apis2022_g16b_recov',
+      ]) {
+        if (assessment[key] is num) {
+          _apisAnswers[key] = (assessment[key] as num).toInt();
+        }
+      }
+      _expandedAnswers
+        ..clear()
+        ..addAll(Map<String, dynamic>.from(
+          assessment['apis2022_extended_answers'] as Map? ?? {},
+        ));
+      _socialAnswers
+        ..clear()
+        ..addAll(Map<String, dynamic>.from(
+          assessment['apis2022_social_answers'] as Map? ?? {},
+        ));
+      _programSelections.clear();
+      final rawSelections = assessment['apis2022_program_selections'];
+      if (rawSelections is Map) {
+        for (final entry in rawSelections.entries) {
+          if (entry.value is List) {
+            _programSelections[entry.key.toString()] = (entry.value as List)
+                .whereType<num>()
+                .map((code) => code.toInt())
+                .toList();
+          }
+        }
+      }
+      _formError = null;
+      _editorVersion++;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _editStartKey.currentContext != null) {
+        Scrollable.ensureVisible(
+          _editStartKey.currentContext!,
+          duration: const Duration(milliseconds: 350),
+          alignment: 0.03,
+        );
+      }
+    });
+  }
+
+  void _cancelEditAssessment() {
+    setState(() {
+      _editingAssessmentId = null;
+      _selectedHousehold = null;
+      _assessmentDate = DateTime.now();
+      _age0to5Controller.text = '0';
+      _apisAge6to11Controller.text = '0';
+      _apisAge12to17Controller.text = '0';
+      _age18to59Controller.text = '0';
+      _age60PlusController.text = '0';
+      _apisMonthlyIncomeController.clear();
+      _apisAnswers.clear();
+      _expandedAnswers.clear();
+      _socialAnswers.clear();
+      _programSelections.clear();
+      _apisSingleFamily = false;
+      _assessmentOrigin = null;
+      _formError = null;
+      _editorVersion++;
+    });
+  }
+
   // ==========================================
   // ASSESSMENT HISTORY
   // ==========================================
@@ -1251,10 +1434,23 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                     style: const TextStyle(fontSize: 11),
                   ),
                   isThreeLine: true,
-                  trailing: const Icon(
-                    Icons.check_circle_outline,
-                    color: AppColors.primaryGreen,
-                  ),
+                  trailing: assessment['has_classification'] == true
+                      ? const Tooltip(
+                          message: 'Classified assessments cannot be edited. '
+                              'Create a new assessment for updated information.',
+                          child: Chip(
+                            avatar: Icon(Icons.lock_outline, size: 16),
+                            label: Text('Locked'),
+                          ),
+                        )
+                      : TextButton.icon(
+                          onPressed: _isSaving ? null : () => _editSavedAssessment(assessment),
+                          icon: const Icon(Icons.edit_outlined, size: 17),
+                          label: const Text('Edit Assessment'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryGreen,
+                          ),
+                        ),
                 ),
               );
             }),
@@ -1283,6 +1479,30 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Scroll target when editing an existing assessment.
+          SizedBox(key: _editStartKey, height: 1),
+          if (_editingAssessmentId != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.lightGreen,
+                border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                const Icon(Icons.edit_note, color: AppColors.primaryGreen),
+                const SizedBox(width: 10),
+                Expanded(child: Text(
+                  'Editing Assessment #$_editingAssessmentId — update the full '
+                  'questionnaire below. Once classified, the record is locked.',
+                )),
+                TextButton(onPressed: _isSaving ? null : _cancelEditAssessment,
+                  child: const Text('Cancel Edit')),
+              ]),
+            ),
+            const SizedBox(height: 14),
+          ],
           // Screen heading.
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1492,10 +1712,47 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             ),
             const SizedBox(height: 18),
             _sectionCard(
+              title: 'Health coverage and local welfare',
+              subtitle: 'Membership and services used by household members.',
+              icon: Icons.health_and_safety_outlined,
+              child: _socialCatalog.length != 9
+                  ? Text(_expandedLoadError ?? 'Loading social-protection questions...')
+                  : _SocialProtectionFields(
+                      specs: _socialCatalog,
+                      answers: _socialAnswers,
+                      enabled: !_isSaving,
+                      onChanged: (updated) => setState(() {
+                        _socialAnswers..clear()..addAll(updated);
+                        _clearFormError();
+                      }),
+                    ),
+            ),
+            const SizedBox(height: 18),
+            _sectionCard(
+              title: 'Program participation',
+              subtitle: 'Choose applicable programs in separate checklists.',
+              icon: Icons.volunteer_activism_outlined,
+              child: _socialCatalog.length != 9
+                  ? Text(_expandedLoadError ?? 'Loading program questions...')
+                  : _ProgramParticipationFields(
+                      specs: _socialCatalog,
+                      answers: _socialAnswers,
+                      selections: _programSelections,
+                      enabled: !_isSaving,
+                      onChanged: (answers, selections) => setState(() {
+                        _socialAnswers..clear()..addAll(answers);
+                        _programSelections..clear()..addAll(selections);
+                        _clearFormError();
+                      }),
+                    ),
+            ),
+            const SizedBox(height: 18),
+            _sectionCard(
               title: 'Assessment information source',
               subtitle: 'Specify how the answers were obtained.',
               icon: Icons.verified_user_outlined,
               child: DropdownButtonFormField<String>(
+                key: ValueKey('origin-$_editorVersion'),
                 initialValue: _assessmentOrigin,
                 validator: (value) => value == null ? 'Select the assessment source.' : null,
                 isExpanded: true,
@@ -1564,7 +1821,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                 label: Text(
                   _isSaving
                       ? 'Saving Assessment...'
-                      : 'Save Household Assessment',
+                      : (_editingAssessmentId == null
+                          ? 'Save Household Assessment'
+                          : 'Update Household Assessment'),
                 ),
               ),
             ),
@@ -1592,6 +1851,413 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
 
             const SizedBox(height: 30),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// Social Protection belongs to Household Assessment. The trained Random
+// Forest only uses the nine saved responses; detailed program choices are
+// stored separately so staff can reopen the form without losing checkmarks.
+class _SocialProtectionFields extends StatelessWidget {
+  const _SocialProtectionFields({
+    required this.specs,
+    required this.answers,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final List<Map<String, dynamic>> specs;
+  final Map<String, dynamic> answers;
+  final bool enabled;
+  final ValueChanged<Map<String, dynamic>> onChanged;
+
+  bool _hasField(String key) => specs.any((spec) => spec['name'] == key);
+
+  void _set(String key, String? value) {
+    final next = Map<String, dynamic>.from(answers);
+    if (value == null || value.isEmpty) {
+      next.remove(key);
+    } else {
+      next[key] = value;
+    }
+    if (key == 'G13_PHEALTH' && value != '1' && value != '2') {
+      next.remove('G13A_ASSISTANCE');
+    }
+    if (key == 'G14_AWARE' && value != '1') {
+      next.remove('G14A_CONSULT');
+    }
+    onChanged(next);
+  }
+
+  Widget _field(String key, String label, {bool philHealth = false}) {
+    if (!_hasField(key)) return const SizedBox.shrink();
+
+    // Keep all four questions visible. A follow-up is disabled, not hidden,
+    // when the corresponding survey skip condition applies.
+    final coverage = answers['G13_PHEALTH']?.toString();
+    final aware = answers['G14_AWARE']?.toString();
+    final isBenefit = key == 'G13A_ASSISTANCE';
+    final isWelfareUse = key == 'G14A_CONSULT';
+    final canAnswer = (!isBenefit || coverage == '1' || coverage == '2') &&
+        (!isWelfareUse || aware == '1');
+
+    String? helper;
+    if (isBenefit && !canAnswer) {
+      helper = coverage == '3'
+          ? 'Not applicable — household has no PhilHealth coverage.'
+          : 'Select the PhilHealth coverage answer first.';
+    } else if (isWelfareUse && !canAnswer) {
+      helper = aware == '2'
+          ? 'Not applicable — household is not aware of these services.'
+          : 'Select the local welfare awareness answer first.';
+    }
+
+    const yesNo = {'1': 'Yes', '2': 'No'};
+    const coverageOptions = {
+      '1': 'Yes — paying member',
+      '2': 'Yes — non-paying member',
+      '3': 'No',
+    };
+    final options = philHealth ? coverageOptions : yesNo;
+    final current = answers[key]?.toString() ?? '';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('social-$key-$current'),
+        initialValue: options.containsKey(current) ? current : '',
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helper,
+          helperMaxLines: 2,
+        ),
+        items: [
+          const DropdownMenuItem<String>(
+            value: '', child: Text('Select answer'),
+          ),
+          ...options.entries.map((option) => DropdownMenuItem<String>(
+            value: option.key,
+            child: Text(option.value, overflow: TextOverflow.ellipsis),
+          )),
+        ],
+        onChanged: enabled && canAnswer ? (value) => _set(key, value) : null,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Answer using verified household information. Follow-up questions remain visible and become available when applicable.',
+          style: TextStyle(fontSize: 12, color: AppColors.greyText),
+        ),
+        const SizedBox(height: 18),
+        const Text('PhilHealth coverage',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        _field('G13_PHEALTH', 'Is the family covered by PhilHealth?',
+            philHealth: true),
+        _field('G13A_ASSISTANCE', 'Has the family availed of PhilHealth benefits?'),
+        const SizedBox(height: 8),
+        const Divider(height: 20),
+        const SizedBox(height: 8),
+        const Text('Local welfare services',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        _field('G14_AWARE', 'Is the family aware of local welfare services?'),
+        _field('G14A_CONSULT', 'Has the family consulted or used local welfare services?'),
+      ],
+    );
+  }
+}
+
+// Five separate checklists. A selected item corresponds to an original
+// survey code-1 response. Counts are never typed or guessed by staff.
+class _ProgramParticipationFields extends StatelessWidget {
+  const _ProgramParticipationFields({
+    required this.specs,
+    required this.answers,
+    required this.selections,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final List<Map<String, dynamic>> specs;
+  final Map<String, dynamic> answers;
+  final Map<String, List<int>> selections;
+  final bool enabled;
+  final void Function(Map<String, dynamic>, Map<String, List<int>>) onChanged;
+
+  // Names and exact order are from apis_2022_metadata(dictionary).xlsx,
+  // sheet apis_2022_valueset: G1CODE, G5CODE, G9CODE, G11CODE and H1CODE.
+  static const _categories = <String, List<String>>{
+    'G1_CODE1_COUNT': [
+      'Social Security System (SSS)',
+      'Government Service Insurance System (GSIS)',
+      'Overseas Workers Welfare Administration (OWWA)',
+      'Health Maintenance Organization (HMO), excluding PhilHealth',
+      'Life insurance',
+    ],
+    'G5_CODE1_COUNT': [
+      'Regular 4Ps',
+      'Modified 4Ps',
+      'Social pension for indigent senior citizens',
+      'Assistance from a Malasakit Center',
+      'Student financial assistance',
+      'Assistance to Individuals in Crisis Situation (AICS)',
+      'Balik Probinsya Program',
+      'Emergency shelter assistance',
+    ],
+    'G9_CODE1_COUNT': [
+      'Microenterprise development assistance',
+      'Employment facilitation assistance',
+      'Skills training',
+      'DOLE integrated livelihood assistance (Kabuhayan Program)',
+    ],
+    // Two rolling periods relative to the date of the assessment.
+    'G11_CODE1_COUNT': [
+      'Within the past 6 months',
+      'During the preceding 6 months',
+    ],
+    'H1_CODE1_COUNT': [
+      'Police, barangay or other law-enforcement assistance',
+      'Public attorney or prosecutor office assistance',
+      'Court services',
+      'Public school enrolment or other education services',
+      'Government medical check-up, hospital care or vaccination',
+      'SSS or other government institution loans or benefits',
+      'Government employment or livelihood assistance',
+      'Civil registry documents (birth, marriage, CENOMAR, etc.)',
+      'Passport, DFA document authentication or government ID',
+      'Land title or property document registration',
+      'Government permits and clearances',
+      'Government taxes, cedula or similar payments',
+    ],
+  };
+
+  static const _titles = <String, String>{
+    'G1_CODE1_COUNT': 'Social insurance membership',
+    'G5_CODE1_COUNT': 'Social assistance received',
+    'G9_CODE1_COUNT': 'Employment and livelihood support',
+    'G11_CODE1_COUNT': 'Government feeding support',
+    'H1_CODE1_COUNT': 'Government services accessed',
+  };
+
+  static const _questions = <String, String>{
+    'G1_CODE1_COUNT':
+        'Is any household member a member, beneficiary or dependent of these insurance programs?',
+    'G5_CODE1_COUNT':
+        'Has any household member received support from any of these programs?',
+    'G9_CODE1_COUNT':
+        'Has any household member received any of these employment or livelihood services?',
+    'G11_CODE1_COUNT':
+        'Has anyone in the household received support from a government feeding program during either of these periods?',
+    'H1_CODE1_COUNT':
+        'Did anyone in the household visit a government agency for any of these purposes?',
+  };
+
+  // The display uses rolling six-month windows rather than calendar
+  // half-years. Codes 1 and 2 still map to the two checked periods.
+  List<String> _feedingPeriodLabels() => const <String>[
+    'Within the past 6 months',
+    'During the preceding 6 months',
+  ];
+
+  void _apply(String key, List<int> selected) {
+    final nextAnswers = Map<String, dynamic>.from(answers);
+    final nextSelections = <String, List<int>>{
+      for (final entry in selections.entries)
+        entry.key: List<int>.from(entry.value),
+    };
+    if (selected.contains(-1)) {
+      // Not verified is different from a confirmed count of zero.
+      nextAnswers.remove(key);
+      nextSelections.remove(key);
+    } else {
+      nextAnswers[key] = selected.length;
+      nextSelections[key] = selected;
+    }
+    onChanged(nextAnswers, nextSelections);
+  }
+
+  Future<void> _openChecklist(BuildContext context, String key) async {
+    if (!enabled) return;
+    final available = key == 'G11_CODE1_COUNT'
+        ? _feedingPeriodLabels()
+        : _categories[key]!;
+    final checked = <int>{...?selections[key]};
+    final result = await showDialog<List<int>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setModalState) => AlertDialog(
+          title: Text(_titles[key]!),
+          content: SizedBox(
+            width: 530,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.60,
+              ),
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  Text(_questions[key]!,
+                      style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 6),
+                  if (key == 'G11_CODE1_COUNT')
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: Text(
+                        'Use the assessment date as the reference. Tick each '
+                        'period when government feeding-program support was '
+                        'confirmed. Do not count ordinary disaster-relief food packs.',
+                        style: const TextStyle(
+                          fontSize: 11, color: AppColors.greyText,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  ...List.generate(available.length, (index) {
+                    final code = index + 1;
+                    return CheckboxListTile(
+                      key: ValueKey('choice-$key-$code'),
+                      dense: true,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(available[index],
+                          style: const TextStyle(fontSize: 13)),
+                      value: checked.contains(code),
+                      onChanged: (selected) => setModalState(() {
+                        if (selected == true) {
+                          checked.add(code);
+                        } else {
+                          checked.remove(code);
+                        }
+                      }),
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                  Text('${checked.length} of ${available.length} selected',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'If none apply, leave every box unchecked and save. '
+                    'If you have not verified the answers, choose Not verified.',
+                    style: TextStyle(fontSize: 11, color: AppColors.greyText),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(<int>[-1]),
+              child: const Text('Not verified'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final sorted = checked.toList()..sort();
+                Navigator.of(dialogContext).pop(sorted);
+              },
+              child: const Text('Save choices'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result != null) _apply(key, result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Open a group and tick every applicable program or service. '
+          'AidTrack counts the checked categories automatically.',
+          style: TextStyle(fontSize: 12, color: AppColors.greyText),
+        ),
+        const SizedBox(height: 14),
+        for (final entry in _categories.entries) ...[
+          if (specs.any((spec) => spec['name'] == entry.key))
+            _groupRow(context, entry.key, entry.value.length),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  Widget _groupRow(BuildContext context, String key, int maximum) {
+    final count = answers[key] is num
+        ? (answers[key] as num).toInt()
+        : int.tryParse(answers[key]?.toString() ?? '');
+    final detailed = selections.containsKey(key);
+    final status = count == null
+        ? 'Not verified'
+        : detailed
+            ? '$count of $maximum selected'
+            : 'Saved total: $count — choices not recorded';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 6,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 190, maxWidth: 470),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_titles[key]!,
+                    style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600,
+                    )),
+                const SizedBox(height: 4),
+                Text(status,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: count == null
+                          ? AppColors.greyText : AppColors.primaryGreen,
+                    )),
+                if (key == 'G11_CODE1_COUNT') ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    'Past 12 months · two 6-month periods',
+                    style: const TextStyle(
+                      fontSize: 11, color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: enabled ? () => _openChecklist(context, key) : null,
+            icon: const Icon(Icons.checklist_rtl, size: 17),
+            label: Text(key == 'G11_CODE1_COUNT'
+                ? (detailed ? 'Edit periods' : 'Select periods')
+                : (detailed ? 'Edit choices' : 'Select programs')),
+          ),
         ],
       ),
     );

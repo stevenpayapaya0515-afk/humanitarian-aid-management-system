@@ -45,3 +45,31 @@ class AssessmentCleanupTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class HouseholdRegistrationAlignmentTests(unittest.TestCase):
+    def test_head_and_member_names_define_household_size(self):
+        from schemas.households import (HouseholdCreate, registered_member_count,
+                                        registration_matches_size)
+        body = dict(household_head="Household Head", barangay="Dos",
+                    address="Sample address", household_size=3,
+                    household_member=" Member One\r\n\r\n Member Two  ")
+        registered = HouseholdCreate(**body)
+        self.assertEqual(registered.household_member, "Member One\nMember Two")
+        self.assertEqual(registered_member_count(registered.household_member), 2)
+        self.assertTrue(registration_matches_size(3, registered.household_member))
+        self.assertFalse(registration_matches_size(4, registered.household_member))
+
+    def test_incomplete_household_registration_is_rejected(self):
+        from schemas.households import HouseholdCreate
+        from pydantic import ValidationError
+        with self.assertRaises(ValidationError):
+            HouseholdCreate(household_head="Head", barangay="Dos",
+                            address="Sample", household_size=4,
+                            household_member="Member One\nMember Two")
+
+    def test_single_person_household_has_zero_other_members(self):
+        from schemas.households import HouseholdCreate
+        record = HouseholdCreate(household_head="Head", barangay="Dos",
+                                 address="Sample", household_size=1)
+        self.assertEqual(record.household_member, "")

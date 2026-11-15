@@ -3,6 +3,16 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+def registered_member_count(household_member: str | None) -> int:
+    """Count other household members; the head is stored separately."""
+    return sum(1 for name in (household_member or "").splitlines() if name.strip())
+
+
+def registration_matches_size(household_size: int, household_member: str | None) -> bool:
+    """A complete registration lists the head and every other household member."""
+    return household_size == registered_member_count(household_member) + 1
+
+
 # Create/edit request. Names are stored in ONE column in households.
 class HouseholdCreate(BaseModel):
     household_head: str = Field(min_length=1, max_length=100)
@@ -41,8 +51,7 @@ class HouseholdCreate(BaseModel):
 
     @model_validator(mode="after")
     def check_member_count(self):
-        names = self.household_member.splitlines()
-        if self.household_size != len(names) + 1:
+        if not registration_matches_size(self.household_size, self.household_member):
             raise ValueError(
                 "Household size must equal 1 head plus the other members."
             )

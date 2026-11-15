@@ -1,6 +1,6 @@
 """Assessment registration and history. No ML predictions are made here."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -10,6 +10,8 @@ from database import get_connection
 from schemas.assessments import (AssessmentCreate, AssessmentResponse,
                                  APIS2022_CATALOG, APIS2022_ASSESSMENT_KEYS,
                                  APIS2022_SOCIAL_KEYS)
+from schemas.households import registration_matches_size
+from schemas.vulnerability import APIS2022SocialInputs
 
 router = APIRouter(prefix="/assessments", tags=["Household Assessment"])
 
@@ -40,8 +42,10 @@ ASSESSMENT_SELECT = """
            a.financial_reference_year, a.financial_single_family, a.average_family_size, a.annual_family_income, a.annual_family_expenditure, a.annual_food_expenditure,
            a.financial_residence_classification, a.annual_housing_utilities_expenditure, a.annual_health_expenditure, a.annual_education_expenditure, a.annual_transport_expenditure,
            a.apis2022_i2, a.apis2022_i3, a.apis2022_i4, a.apis2022_i8, a.apis2022_ws1, a.apis2022_ws11a, a.apis2022_g15_kit, a.apis2022_g16_nat_disas, a.apis2022_g16a_evac, a.apis2022_g16b_recov, a.apis2022_mem_age_6_11, a.apis2022_mem_age_12_17, a.apis2022_monthly_household_income_php,
-           a.apis2022_extended_answers, a.apis2022_social_answers,
+           a.apis2022_extended_answers, a.apis2022_social_answers, a.apis2022_program_selections,
            a.recorded_by, a.created_at,
+           EXISTS (SELECT 1 FROM public.vulnerability_classifications vc
+                   WHERE vc.assessment_id = a.assessment_id) AS has_classification,
            h.household_head, h.barangay
     FROM public.household_assessments a
     JOIN public.households h ON h.household_id = a.household_id
@@ -88,13 +92,20 @@ def create_assessment(
         with get_connection() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
-                    "SELECT household_size FROM public.households "
+                    "SELECT household_size, household_member FROM public.households "
                     "WHERE household_id = %s FOR SHARE;",
                     (data.household_id,),
                 )
                 household = cursor.fetchone()
                 if household is None:
                     raise HTTPException(status_code=404, detail="Household not found.")
+                if not registration_matches_size(
+                    household["household_size"], household["household_member"]
+                ):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Complete the household member list in Registration before assessing.",
+                    )
 
                 age_total = (
                     data.age_0_5_count + data.age_6_17_count
@@ -120,12 +131,12 @@ def create_assessment(
                         financial_reference_year, financial_single_family, average_family_size, annual_family_income, annual_family_expenditure, annual_food_expenditure,
                         financial_residence_classification, annual_housing_utilities_expenditure, annual_health_expenditure, annual_education_expenditure, annual_transport_expenditure,
                         apis2022_i2, apis2022_i3, apis2022_i4, apis2022_i8, apis2022_ws1, apis2022_ws11a, apis2022_g15_kit, apis2022_g16_nat_disas, apis2022_g16a_evac, apis2022_g16b_recov, apis2022_mem_age_6_11, apis2022_mem_age_12_17, apis2022_monthly_household_income_php,
-                        apis2022_extended_answers, data_origin, recorded_by
+                        apis2022_extended_answers, apis2022_social_answers, apis2022_program_selections, data_origin, recorded_by
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) RETURNING assessment_id;
                     """,
                     (
@@ -142,6 +153,8 @@ def create_assessment(
                         data.financial_residence_classification, data.annual_housing_utilities_expenditure, data.annual_health_expenditure, data.annual_education_expenditure, data.annual_transport_expenditure,
                         data.apis2022_i2, data.apis2022_i3, data.apis2022_i4, data.apis2022_i8, data.apis2022_ws1, data.apis2022_ws11a, data.apis2022_g15_kit, data.apis2022_g16_nat_disas, data.apis2022_g16a_evac, data.apis2022_g16b_recov, data.apis2022_mem_age_6_11, data.apis2022_mem_age_12_17, data.apis2022_monthly_household_income_php,
                         Jsonb(data.apis2022_extended_answers),
+                        Jsonb(data.apis2022_social_answers),
+                        Jsonb(data.apis2022_program_selections),
                         data.data_origin, current_user["user_id"],
                     ),
                 )
@@ -158,3 +171,151 @@ def create_assessment(
         )
 
     return result
+
+
+# The editing form and prediction pipeline both lock the household row first.
+# This prevents a prediction from racing with an assessment update.
+@router.put("/{assessment_id}", response_model=AssessmentResponse)
+def update_assessment(
+    data: AssessmentCreate,
+    assessment_id: int = Path(ge=1),
+    current_user: dict = Depends(require_assessment_write),
+):
+    """Edit the current household questionnaire before classification.
+
+    Preserve legacy-only fields not collected in the current APIS 2022 form,
+    and never overwrite the evidence used by an existing classification.
+    """
+    try:
+        with get_connection() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                # Same household lock/order used by the prediction endpoint.
+                cursor.execute(
+                    """SELECT a.household_id, h.household_size, h.household_member
+                       FROM public.household_assessments a
+                       JOIN public.households h ON h.household_id = a.household_id
+                       WHERE a.assessment_id = %s FOR UPDATE OF h;""",
+                    (assessment_id,),
+                )
+                existing = cursor.fetchone()
+                if existing is None:
+                    raise HTTPException(status_code=404, detail="Assessment not found.")
+                if existing["household_id"] != data.household_id:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Cannot change the registered household of an assessment.",
+                    )
+                if not registration_matches_size(
+                    existing["household_size"], existing["household_member"]
+                ):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Complete the member list in Registration before editing.",
+                    )
+                age_total = (
+                    data.age_0_5_count + data.age_6_17_count
+                    + data.age_18_59_count + data.age_60_plus_count
+                )
+                if age_total != existing["household_size"]:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Age group totals must match registered household size.",
+                    )
+                # Only update fields supported by the live Assessment form.
+                # Never clear historical finance, demographic or other context.
+                current_fields = (
+                    "assessment_date", "age_0_5_count", "age_6_17_count",
+                    "age_18_59_count", "age_60_plus_count", "senior_citizens_count",
+                    "data_origin", "apis_single_family", "apis2022_i2", "apis2022_i3",
+                    "apis2022_i4", "apis2022_i8", "apis2022_ws1", "apis2022_ws11a",
+                    "apis2022_g15_kit", "apis2022_g16_nat_disas",
+                    "apis2022_g16a_evac", "apis2022_g16b_recov",
+                    "apis2022_mem_age_6_11", "apis2022_mem_age_12_17",
+                    "apis2022_monthly_household_income_php",
+                    "apis2022_extended_answers", "apis2022_social_answers",
+                    "apis2022_program_selections",
+                )
+                values = []
+                for field in current_fields:
+                    value = getattr(data, field)
+                    if field in ("apis2022_extended_answers", "apis2022_social_answers",
+                                 "apis2022_program_selections"):
+                        value = Jsonb(value)
+                    values.append(value)
+                assignments = ", ".join(f"{field} = %s" for field in current_fields)
+                cursor.execute(
+                    f"""UPDATE public.household_assessments AS a
+                        SET {assignments}
+                        WHERE a.assessment_id = %s AND NOT EXISTS (
+                            SELECT 1 FROM public.vulnerability_classifications vc
+                            WHERE vc.assessment_id = a.assessment_id
+                        ) RETURNING a.assessment_id;""",
+                    (*values, assessment_id),
+                )
+                if cursor.fetchone() is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="This assessment has already been classified. "
+                               "Create a new assessment for revised answers.",
+                    )
+                cursor.execute(
+                    ASSESSMENT_SELECT + " WHERE a.assessment_id = %s;",
+                    (assessment_id,),
+                )
+                saved = cursor.fetchone()
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="This household already has an assessment on that date.",
+        )
+    return saved
+
+
+@router.put("/{assessment_id}/social-protection")
+def update_assessment_social_protection(
+    data: APIS2022SocialInputs,
+    assessment_id: int = Path(ge=1),
+    current_user: dict = Depends(require_assessment_write),
+):
+    """Edit model social answers for an assessment that has not been classified.
+
+    The values remain inside household_assessments; no new database table.
+    Never silently change the inputs of an existing classification.
+    """
+    answers = data.answers
+    with get_connection() as connection:
+        with connection.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                """SELECT h.household_id FROM public.households h
+                   JOIN public.household_assessments a ON a.household_id = h.household_id
+                   WHERE a.assessment_id = %s FOR UPDATE OF h;""",
+                (assessment_id,),
+            )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Assessment not found.")
+            cursor.execute(
+                """UPDATE public.household_assessments AS a
+                   SET apis2022_social_answers = %s,
+                       apis2022_program_selections = '{}'::jsonb
+                   WHERE a.assessment_id = %s
+                     AND NOT EXISTS (
+                         SELECT 1 FROM public.vulnerability_classifications vc
+                         WHERE vc.assessment_id = a.assessment_id
+                     )
+                   RETURNING a.assessment_id, a.apis2022_social_answers;""",
+                (Jsonb(answers), assessment_id),
+            )
+            saved = cursor.fetchone()
+            if saved is None:
+                cursor.execute(
+                    "SELECT 1 FROM public.household_assessments WHERE assessment_id = %s;",
+                    (assessment_id,),
+                )
+                if cursor.fetchone() is not None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="This assessment already has a classification. "
+                               "Create a new assessment for revised answers.",
+                    )
+                raise HTTPException(status_code=404, detail="Assessment not found.")
+    return saved

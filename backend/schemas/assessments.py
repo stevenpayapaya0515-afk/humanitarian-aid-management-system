@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StrictInt, model_validator
 from ml_service.label_apis2022_vulnerability import V2_FEATURES
 
 
@@ -181,6 +181,14 @@ APIS2022_CATALOG = {'I7': {'name': 'I7',
                     'kind': 'number',
                     'options': [],
                     'max': 12}}
+# Counts are model inputs; category selections are separately audited details.
+APIS2022_PROGRAM_COUNT_MAX = {
+    "G1_CODE1_COUNT": 5,
+    "G5_CODE1_COUNT": 8,
+    "G9_CODE1_COUNT": 4,
+    "G11_CODE1_COUNT": 2,
+    "H1_CODE1_COUNT": 12,
+}
 APIS2022_SOCIAL_KEYS = frozenset(['G11_CODE1_COUNT', 'G13A_ASSISTANCE', 'G13_PHEALTH', 'G14A_CONSULT', 'G14_AWARE', 'G1_CODE1_COUNT', 'G5_CODE1_COUNT', 'G9_CODE1_COUNT', 'H1_CODE1_COUNT'])
 APIS2022_ASSESSMENT_KEYS = frozenset(["I7", *["I9" + key for key in "ABCDEFGHIJKLMNOPQRST"], "I9BA", "I9BB", "I9BC"])
 assert set(APIS2022_CATALOG) | {
@@ -273,11 +281,30 @@ class AssessmentCreate(BaseModel):
     )
 
     apis2022_extended_answers: dict[str, str | int | float | None] = Field(default_factory=dict)
+    apis2022_social_answers: dict[str, str | int | float | None] = Field(default_factory=dict)
+    # The five original numeric counts remain the Random Forest inputs.
+    # Detailed selected categories are persisted for editing and audit only.
+    apis2022_program_selections: dict[str, list[StrictInt]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_extended_survey_answers(self):
         self.apis2022_extended_answers = validate_apis2022_group(
             self.apis2022_extended_answers, APIS2022_ASSESSMENT_KEYS)
+        # Reuse the existing social schema: same values, rules and survey skips
+        # whether entered during assessment creation or edited later.
+        from schemas.vulnerability import APIS2022SocialInputs
+        self.apis2022_social_answers = APIS2022SocialInputs.model_validate(
+            {"answers": self.apis2022_social_answers}
+        ).answers
+        for key, choices in self.apis2022_program_selections.items():
+            maximum = APIS2022_PROGRAM_COUNT_MAX.get(key)
+            if maximum is None:
+                raise ValueError(f"Unknown program selection category: {key}")
+            if (len(choices) != len(set(choices)) or
+                    any(choice < 1 or choice > maximum for choice in choices)):
+                raise ValueError(f"Invalid or duplicate selected category for {key}")
+            if self.apis2022_social_answers.get(key) != len(choices):
+                raise ValueError(f"Program selection total does not match {key}")
         return self
 
     # Optional financial history adapted from FIES concepts, not an imported PSA record.
@@ -397,6 +424,7 @@ class AssessmentCreate(BaseModel):
 
 
 class AssessmentResponse(AssessmentCreate):
+    has_classification: bool = False
     assessment_id: int
     household_head: str
     barangay: str

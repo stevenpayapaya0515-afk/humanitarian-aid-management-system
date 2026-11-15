@@ -4,7 +4,8 @@ from psycopg.rows import dict_row
 
 from core.dependencies import get_current_user
 from database import get_connection
-from schemas.households import HouseholdCreate, HouseholdResponse
+from schemas.households import (HouseholdCreate, HouseholdResponse,
+                                registration_matches_size)
 
 
 router = APIRouter(prefix="/households", tags=["Household Registration"])
@@ -28,13 +29,9 @@ def require_household_write(current_user: dict = Depends(get_current_user)):
     return current_user
 
 def prepare_household(household: dict) -> dict:
-    # Inform Flutter when an older record does not yet have all names.
-    names = [
-        name.strip()
-        for name in household["household_member"].splitlines()
-        if name.strip()
-    ]
-    household["members_complete"] = len(names) + 1 == household["household_size"]
+    household["members_complete"] = registration_matches_size(
+        household["household_size"], household["household_member"]
+    )
     return household
 
 
@@ -94,6 +91,29 @@ def update_household(
 ):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
+            # Assessment age totals and model predictions depend on household size.
+            cursor.execute(
+                "SELECT household_size FROM public.households "
+                "WHERE household_id = %s FOR UPDATE;",
+                (household_id,),
+            )
+            existing = cursor.fetchone()
+            if existing is None:
+                raise HTTPException(status_code=404, detail="Household not found.")
+            if existing["household_size"] != data.household_size:
+                cursor.execute(
+                    "SELECT EXISTS (SELECT 1 FROM public.household_assessments "
+                    "WHERE household_id = %s) AS has_assessment;",
+                    (household_id,),
+                )
+                if cursor.fetchone()["has_assessment"]:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "Household size cannot be changed after an assessment "
+                            "has been saved. Review the assessment history first."
+                        ),
+                    )
             cursor.execute(
                 """
                 UPDATE public.households
