@@ -1,0 +1,46 @@
+{
+  "version": "apis2022-living-conditions-draft-v1",
+  "status": "DRAFT RESEARCH PROXY; NOT VALIDATED FOR AID DECISIONS",
+  "thresholds": {
+    "Low": "0 of 4 domains",
+    "Medium": "1 of 4",
+    "High": "2 to 4"
+  },
+  "threshold_origin": "Researcher-defined; NOT a PSA, UNDP or WHO severity threshold",
+  "households": 43517,
+  "class_counts": {
+    "Low": 33616,
+    "Medium": 6575,
+    "High": 2598,
+    "Needs review": 728
+  },
+  "caraga_class_counts": {
+    "Low": 1551,
+    "Medium": 453,
+    "High": 102,
+    "Needs review": 20
+  },
+  "alternative_high_at_3": {
+    "Low": 33616,
+    "Medium": 8590,
+    "Needs review": 728,
+    "High": 583
+  },
+  "changed_if_high_at_3": 2015,
+  "limitations": [
+    "Four selected living-condition domains, not full MPI or all humanitarian vulnerability.",
+    "Water tests source type only: not collection time, availability or measured quality.",
+    "Sanitation tests facility type only: not shared use or waste treatment.",
+    "Roof code 4 and floor code 4 are project material mappings requiring local review.",
+    "Other/unknown/unmapped categories require review; no missing-to-zero conversion.",
+    "Training RF on these same variables measures rule reproduction, not independent validity.",
+    "Low means none of these four flags, never no need for assistance.",
+    "PSA regional sample does not identify or represent Agusan del Norte separately."
+  ],
+  "sources": [
+    "https://hdr.undp.org/content/2022-global-multidimensional-poverty-index-mpi",
+    "https://washdata.org/topics/drinking-water",
+    "https://www.who.int/teams/environment-climate-change-and-health/water-sanitation-and-health/monitoring-and-evidence/wash-monitoring",
+    "Uploaded APIS_PUF_2022.dcf and 2022 APIS Questionnaire"
+  ]
+}
