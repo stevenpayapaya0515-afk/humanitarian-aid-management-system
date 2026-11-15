@@ -43,3 +43,18 @@ The published NCR district mapping is supported; unmatched cities are not guesse
 Authentication uses Google reCAPTCHA via `services/recaptcha.py`.
 Numbered SQL migrations, including the former local CAPTCHA migration, remain
 as historical schema records. Removing an unused Python helper does not drop tables.
+
+## Current assessment flow
+
+Migration 22 makes the four former socioeconomic/status answers optional.
+Their database columns remain for historical records; the Flutter form no longer
+asks for them. Beneficiary approval belongs to Beneficiary Management.
+
+Financial fields are stored for staff review. They do not yet drive the active
+APIS prediction. The FIES candidate and evaluation files support research and
+future integration; do not describe the current API as FIES-powered.
+
+Keep tests, numbered SQL migrations, training builders, requirements files and
+evaluation reports: these are maintenance/reproducibility files even when they
+are not imported by main.py. The root fix_assessment_form.py was a one-time
+source updater; its changes are already applied and it is no longer needed.

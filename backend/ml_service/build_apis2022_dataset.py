@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """AidTrack APIS PUF 2022: reproducible household-level feature assembly.
 
-Uses only Python's standard library. Requires the eleven original APIS PUF 2022
-CSV extracts in --input-dir. Optionally copies EXISTING draft proxy labels into
-an explicitly labelled comparison file; it never generates ground-truth labels.
+Builds the 85-column household-indicators CSV from 11 APIS PUF 2022 extracts.
+Does not create vulnerability labels. The training script creates those.
 
 Usage:
-    python build_apis2022_dataset.py --input-dir ./original-apis-2022 \
-       --labels ./apis2022_proxy_draft.csv --output-dir ./datasets
+    python -m ml_service.build_apis2022_dataset \
+       --input-dir ./original-apis-2022 --output-dir ./ml_service/datasets
 
 The source's coded responses are preserved verbatim. Program CODE1 counts are
 neutral response-code summaries, NOT verified binary aid-receipt definitions.
@@ -47,8 +46,6 @@ PROGRAM_SPECS = {
   'g4': ('G11CODE','G11',['1','2']),
   'h': ('H1CODE','H1',[f'{i:02d}' for i in range(1,13)]),
 }
-LABELS = ['proxy_class','deprivation_count','label_version']
-LABEL_OUT = ['baseline_proxy_class','baseline_deprivation_count','baseline_label_version']
 
 
 def key(row):
@@ -126,7 +123,7 @@ def source_digest(path):
     return h.hexdigest()
 
 
-def build(source_dir:Path,output_dir:Path,label_path:Path|None):
+def build(source_dir: Path, output_dir: Path):
     output_dir.mkdir(parents=True,exist_ok=True)
     paths={n:source_dir/f for n,f in SOURCES.items()}
     for n,p in paths.items():
@@ -147,36 +144,22 @@ def build(source_dir:Path,output_dir:Path,label_path:Path|None):
     fields=HH_FIELDS+MEM_FIELDS+G5_FIELDS+HOUSING_FIELDS+WATER_FIELDS+FIN_FIELDS+program_fields
     assert len(fields)==len(set(fields)), 'Duplicate output field name'
     unlabeled=output_dir/'apis2022_household_indicators.csv'
-    label_out=output_dir/'apis2022_household_indicators_draft_labels.csv'
-    labels=None
-    if label_path is not None:
-        if not label_path.is_file():raise FileNotFoundError(f'Missing label file: {label_path}')
-        labels=unique_table(label_path,LABELS)
-        verify_keysets(hh,{'baseline_labels':labels})
-    baseline_counts=collections.Counter()
     member_size_mismatch=0
     output_sample=[]
     with unlabeled.open('w',newline='',encoding='utf-8') as fh:
         writer=csv.DictWriter(fh,fieldnames=fields,lineterminator='\n');writer.writeheader()
-        if labels is not None:
-            lf=label_out.open('w',newline='',encoding='utf-8')
-            lw=csv.DictWriter(lf,fieldnames=fields+LABEL_OUT,lineterminator='\n');lw.writeheader()
-        else:lf=None
-        try:
-            for k in keys:
-                d=dict(hh[k])
-                for tab in tables.values(): d.update(tab[k])
-                d['MEM_ROSTER_MATCHES_FSIZE']=1 if int(d['MEMBER_ROWS'])==int(d['FSIZE']) else 0
-                d['MEM_ROSTER_SHORTFALL']=int(d['FSIZE'])-int(d['MEMBER_ROWS'])
-                if not d['MEM_ROSTER_MATCHES_FSIZE']:member_size_mismatch+=1
-                writer.writerow(d)
-                if len(output_sample)<3:output_sample.append({f:d[f] for f in ('REG','HHID','FSIZE','MEMBER_ROWS','G16_NAT_DISAS','G15_KIT','G5_CODE1_COUNT')})
-                if labels is not None:
-                    for orig,renamed in zip(LABELS,LABEL_OUT): d[renamed]=labels[k][orig]
-                    baseline_counts[d['baseline_proxy_class']]+=1
-                    lw.writerow(d)
-        finally:
-            if lf is not None:lf.close()
+        for k in keys:
+            d = dict(hh[k])
+            for tab in tables.values():
+                d.update(tab[k])
+            d['MEM_ROSTER_MATCHES_FSIZE'] = 1 if int(d['MEMBER_ROWS']) == int(d['FSIZE']) else 0
+            d['MEM_ROSTER_SHORTFALL'] = int(d['FSIZE']) - int(d['MEMBER_ROWS'])
+            if not d['MEM_ROSTER_MATCHES_FSIZE']:
+                member_size_mismatch += 1
+            writer.writerow(d)
+            if len(output_sample) < 3:
+                output_sample.append({f: d[f] for f in
+                    ('REG','HHID','FSIZE','MEMBER_ROWS','G16_NAT_DISAS','G15_KIT','G5_CODE1_COUNT')})
     source_hashes={SOURCES[n]:source_digest(p) for n,p in paths.items()}
     quality={
         'row_grain':'One row per unique (REG, HHID) APIS PUF household',
@@ -187,10 +170,6 @@ def build(source_dir:Path,output_dir:Path,label_path:Path|None):
         'household_key_match_for_all_11_sources':True,
         'member_count_vs_fsize_mismatch_households':member_size_mismatch,
         'caraga_reg_16_rows':sum(k[0]=='16' for k in keys),
-        'baseline_label_file_included':labels is not None,
-        'baseline_proxy_distribution':dict(sorted(baseline_counts.items())),
-        'baseline_labels_are_ground_truth':False,
-        'relabelled_with_expanded_features':False,
         'assumed_code1_means_yes':False,
         'codebook_validated':False,
         'model_trained_or_validated':False,
@@ -222,9 +201,6 @@ def build(source_dir:Path,output_dir:Path,label_path:Path|None):
      'G13_PHEALTH':('RTG5 social protection/disaster','Original PhilHealth response code','Review carefully; aid receipt not a vulnerability ground truth'),
      'WS1':('RTJ WASH','Original water source response code','Candidate after codebook validation'),
      'WS11A':('RTJ WASH','Original sanitation response code','Candidate after codebook validation'),
-     'baseline_proxy_class':('Existing Astra draft','Unchanged pre-existing proxy label: Low/Medium/High/Needs review','NOT verified humanitarian target; comparison only'),
-     'baseline_deprivation_count':('Existing Astra draft','Unchanged existing rubric deprivation count','Comparison only'),
-     'baseline_label_version':('Existing Astra draft','Unchanged existing rubric label version','Comparison only'),
     }
     for f in MEM_FIELDS:
         if f=='MEM_ROSTER_MATCHES_FSIZE': desc='1 if member rows equal FSIZE, otherwise 0'; guide='Quality flag only; never use as model feature'
@@ -249,7 +225,7 @@ def build(source_dir:Path,output_dir:Path,label_path:Path|None):
         descriptions.setdefault(f,('RTJ WASH','Original APIS water/sanitation response code','Potential feature after codebook validation'))
     with dictfile.open('w',newline='',encoding='utf-8') as f:
         w=csv.writer(f,lineterminator='\n');w.writerow(['column','source','description','model_use_guidance'])
-        for k in fields+ (LABEL_OUT if labels is not None else []):
+        for k in fields:
             w.writerow([k,*descriptions[k]])
     print(json.dumps({k:v for k,v in quality.items() if k not in ('source_sha256','sample')},indent=2))
     return quality
@@ -258,6 +234,5 @@ if __name__=='__main__':
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--input-dir',type=Path,required=True,help='Folder holding all 11 original APIS PUF CSVs')
     ap.add_argument('--output-dir',type=Path,required=True,help='Destination datasets/ folder')
-    ap.add_argument('--labels',type=Path,help='Existing Astra 25-column draft proxy label CSV/text (optional)')
     args=ap.parse_args()
-    build(args.input_dir,args.output_dir,args.labels)
+    build(args.input_dir,args.output_dir)
