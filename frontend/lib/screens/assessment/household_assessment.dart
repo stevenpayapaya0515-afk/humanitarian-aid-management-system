@@ -396,7 +396,12 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       );
     }
     final max = _numericRanges[name]!;
-    final count = name.endsWith('_count');
+    final programCount = <String>{
+      'social_insurance_program_count',
+      'social_assistance_program_count',
+      'labor_market_program_count',
+      'government_services_accessed_count',
+    }.contains(name);
     return TextFormField(
       controller: _numbers[name],
       enabled: !_saving,
@@ -404,11 +409,16 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       decoration: InputDecoration(
         labelText: _label(name),
+        hintText: name == 'bedroom_count'
+            ? 'e.g. 2'
+            : programCount
+            ? '0 if none (max $max)'
+            : '0 if none',
         helperText: hideHelper
             ? null
-            : count
-            ? 'Number of distinct applicable program/service categories (max $max).'
-            : 'Leave blank when not verified.',
+            : programCount
+            ? 'Count different programs, not people.'
+            : null,
       ),
       validator: (text) {
         final raw = (text ?? '').trim();
@@ -614,7 +624,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       }
       await _message(
         'Assessment Saved',
-        'The APIS 2022 household assessment was saved successfully.',
+        'The household assessment was saved successfully.',
       );
     } catch (error) {
       await _message('Assessment Not Saved', _errorText(error));
@@ -732,7 +742,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'APIS 2022 CARAGA · 46 named model features',
+                      'Record household information for vulnerability assessment.',
                       style: TextStyle(color: AppColors.greyText, fontSize: 12),
                     ),
                   ],
@@ -869,7 +879,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
           ),
           _group(
             'Housing and Electricity',
-            'APIS housing materials and room count.',
+            'Housing materials, number of bedrooms, and electricity access.',
             Icons.home_outlined,
             _housingFields,
           ),
@@ -899,7 +909,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
           ),
           _card(
             title: 'Household Income',
-            subtitle: 'Average monthly family income (APIS K5); PHP per capita is calculated.',
+            subtitle:
+                'Enter the family’s total monthly income in Philippine pesos.',
             icon: Icons.payments_outlined,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -911,18 +922,24 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                     decimal: true,
                   ),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      final valid = RegExp(r'^\d{0,12}(\.\d{0,2})?$')
+                          .hasMatch(newValue.text);
+                      return valid ? newValue : oldValue;
+                    }),
                   ],
                   decoration: const InputDecoration(
                     labelText: 'Monthly family income (PHP)',
+                    hintText: 'e.g. 15000.00',
                     prefixText: '₱ ',
-                    helperText: 'Leave blank if not verified. Do not enter per-capita income separately.',
+                    helperText: 'Enter 0 if none; leave blank if unknown.',
                   ),
                   validator: (text) {
                     final raw = (text ?? '').trim().replaceAll(',', '');
                     if (raw.isEmpty) return null;
                     if (!RegExp(r'^\d{1,12}(\.\d{1,2})?$').hasMatch(raw)) {
-                      return 'Enter a valid peso amount, up to two decimal places.';
+                      return 'Enter a valid amount (e.g. 15000.00).';
                     }
                     return null;
                   },
@@ -930,8 +947,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Calculated monthly income per capita: '
-                  '${_perCapita == null ? 'Not available' : '₱${_perCapita!.toStringAsFixed(2)}'}',
+                  'Monthly income per person (calculated): '
+                  '${_perCapita == null ? '—' : '₱${_perCapita!.toStringAsFixed(2)}'}',
                   style: const TextStyle(
                     color: AppColors.greyText,
                     fontSize: 12,
@@ -951,24 +968,36 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             title: 'Assessment Information Source',
             subtitle: 'Choose the actual source of the answers.',
             icon: Icons.verified_user_outlined,
+
             child: DropdownButtonFormField<String>(
               key: ValueKey('origin-$_formVersion'),
               initialValue: _dataOrigin,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Data origin'),
               items: const [
-                DropdownMenuItem(
+                DropdownMenuItem<String>(
                   value: 'synthetic',
-                  child: Text('Demo / practice entry'),
+                  child: Text(
+                    'Demo / practice entry',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                DropdownMenuItem(
+                DropdownMenuItem<String>(
                   value: 'lgu_authorized',
-                  child: Text('Verified LGU household assessment'),
+                  child: Text(
+                    'Verified LGU household assessment',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
               onChanged: _saving
                   ? null
                   : (value) {
-                      if (value != null) setState(() => _dataOrigin = value);
+                      if (value != null) {
+                        setState(() => _dataOrigin = value);
+                      }
                     },
             ),
           ),
