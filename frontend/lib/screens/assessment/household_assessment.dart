@@ -165,8 +165,20 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     return income / size;
   }
 
+  bool get _allAgeGroupsComplete =>
+      _ageFields.every((name) => _number(name) != null);
+
   int get _ageSubtotal =>
       _ageFields.fold(0, (total, name) => total + (_number(name) ?? 0));
+
+  int? get _workingAgeCount {
+    final size = _familySize;
+    if (size == null || size < 1 || !_allAgeGroupsComplete) {
+      return null;
+    }
+    final remaining = size - _ageSubtotal;
+    return remaining >= 0 ? remaining : null;
+  }
 
   Future<void> _load() async {
     setState(() {
@@ -344,7 +356,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     return {1: 'Yes', 2: 'No'};
   }
 
-  Widget _answerField(String name) {
+  Widget _answerField(String name, {bool hideHelper = false}) {
     final spec = _catalog[name]!;
     if (spec['kind'] == 'code') {
       final allowed = (spec['options'] as List)
@@ -392,7 +404,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       decoration: InputDecoration(
         labelText: _label(name),
-        helperText: count
+        helperText: hideHelper
+            ? null
+            : count
             ? 'Number of distinct applicable program/service categories (max $max).'
             : 'Leave blank when not verified.',
       ),
@@ -406,6 +420,24 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         return null;
       },
       onChanged: (_) => setState(() {}),
+    );
+  }
+
+  Widget _readOnlyMemberField(String label, String value) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: const Icon(
+          Icons.lock_outline,
+          size: 18,
+          color: AppColors.primaryGreen,
+        ),
+      ),
+      isEmpty: false,
+      child: Text(
+        value,
+        style: const TextStyle(fontSize: 16, color: AppColors.darkText),
+      ),
     );
   }
 
@@ -817,25 +849,23 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
           ),
           _card(
             title: 'Household Members',
-            subtitle: 'Enter age-band counts. Family size is inherited from Registration.',
+            subtitle:
+                'Enter the number of members in each age group (0 if none).',
             icon: Icons.groups_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _grid(_ageFields.map(_answerField).toList()),
-                const SizedBox(height: 10),
-                Text(
-                  _familySize == null
-                      ? 'Select a household to calculate the remaining age group.'
-                      : 'Remaining members aged 18–59 (derived): '
-                            '${_familySize! - _ageSubtotal}',
-                  style: const TextStyle(
-                    color: AppColors.greyText,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+            child: _grid([
+              _answerField('members_age_0_5', hideHelper: true),
+              _answerField('members_age_6_11', hideHelper: true),
+              _answerField('members_age_12_17', hideHelper: true),
+              _readOnlyMemberField(
+                'Members aged 18–59 (calculated)',
+                _workingAgeCount?.toString() ?? '—',
+              ),
+              _answerField('members_age_60_plus', hideHelper: true),
+              _readOnlyMemberField(
+                'Total registered members',
+                _familySize?.toString() ?? '—',
+              ),
+            ]),
           ),
           _group(
             'Housing and Electricity',
