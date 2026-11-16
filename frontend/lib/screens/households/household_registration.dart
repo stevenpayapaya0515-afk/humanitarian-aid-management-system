@@ -81,9 +81,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
   final _formKey = GlobalKey<FormState>();
   final _headController = TextEditingController();
+  final _provinceController = TextEditingController();
+  final _cityMunicipalityController = TextEditingController();
   final _barangayController = TextEditingController();
   final _purokController = TextEditingController();
-  final _addressController = TextEditingController();
   final _sizeController = TextEditingController();
   final _membersController = TextEditingController();
 
@@ -98,6 +99,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
   @override
   void initState() {
     super.initState();
+    _setDefaultLocation();
     _sizeController.text = '1';
     _loadHouseholds();
   }
@@ -105,12 +107,53 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
   @override
   void dispose() {
     _headController.dispose();
+    _provinceController.dispose();
+    _cityMunicipalityController.dispose();
     _barangayController.dispose();
     _purokController.dispose();
-    _addressController.dispose();
     _sizeController.dispose();
     _membersController.dispose();
     super.dispose();
+  }
+
+  // Default to the LGU locality; Staff can edit both fields if needed.
+  void _setDefaultLocation() {
+    _provinceController.text = 'Agusan del Norte';
+    _cityMunicipalityController.text = 'Cabadbaran City';
+  }
+
+  // Match FastAPI's display-only full_address formatting.
+  String _formatAddress({
+    required String province,
+    required String cityMunicipality,
+    required String barangay,
+    String? purok,
+  }) {
+    return [purok, barangay, cityMunicipality, province]
+        .whereType<String>()
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .join(', ');
+  }
+
+  String get _addressPreview => _formatAddress(
+    province: _provinceController.text,
+    cityMunicipality: _cityMunicipalityController.text,
+    barangay: _barangayController.text,
+    purok: _purokController.text,
+  );
+
+  String _displayAddress(Map<String, dynamic> household) {
+    final fullAddress = household['full_address'];
+    if (fullAddress is String && fullAddress.trim().isNotEmpty) {
+      return fullAddress;
+    }
+    return _formatAddress(
+      province: '${household['province'] ?? ''}',
+      cityMunicipality: '${household['city_municipality'] ?? ''}',
+      barangay: '${household['barangay'] ?? ''}',
+      purok: household['purok']?.toString(),
+    );
   }
 
   // One nonblank line represents one OTHER household member.
@@ -168,8 +211,9 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
     if (response.statusCode == 422) {
       throw const AuthException(
-        'Check the fields. Household size must match the head plus '
-        'the other members, with each name at most 100 characters.',
+        'Check the required household and location fields. Household size '
+        'must match the head plus the other members; each name must be '
+        'at most 100 characters.',
       );
     }
 
@@ -247,15 +291,17 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
     for (final controller in [
       _headController,
+      _provinceController,
+      _cityMunicipalityController,
       _barangayController,
       _purokController,
-      _addressController,
       _sizeController,
       _membersController,
     ]) {
       controller.clear();
     }
 
+    _setDefaultLocation();
     _sizeController.text = '1';
     setState(() {
       _editingHouseholdId = null;
@@ -269,9 +315,11 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     _formKey.currentState?.reset();
 
     _headController.text = '${household['household_head']}';
+    _provinceController.text = '${household['province'] ?? ''}';
+    _cityMunicipalityController.text =
+        '${household['city_municipality'] ?? ''}';
     _barangayController.text = '${household['barangay']}';
     _purokController.text = '${household['purok'] ?? ''}';
-    _addressController.text = '${household['address']}';
 
     // Keep an old record's size; do not silently shrink it to one person.
     _sizeController.text = '${household['household_size']}';
@@ -335,9 +383,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
       final body = jsonEncode({
         'household_head': _headController.text.trim(),
+        'province': _provinceController.text.trim(),
+        'city_municipality': _cityMunicipalityController.text.trim(),
         'barangay': _barangayController.text.trim(),
         'purok': purok.isEmpty ? null : purok,
-        'address': _addressController.text.trim(),
         'household_size': int.parse(_sizeController.text.trim()),
         'household_member': _enteredMembers().join('\n'),
       });
@@ -762,12 +811,12 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     required IconData icon,
     int? maxLength,
     bool optional = false,
-    int maxLines = 1,
+    bool updateAddressPreview = false,
   }) => TextFormField(
     controller: controller,
     enabled: !_isSaving,
     maxLength: maxLength,
-    maxLines: maxLines,
+    onChanged: updateAddressPreview ? (_) => setState(() {}) : null,
     decoration: InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon),
@@ -819,17 +868,33 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                   maxLength: 100,
                 ),
                 _textField(
-                  controller: _barangayController,
-                  label: 'Barangay',
+                  controller: _provinceController,
+                  label: 'Province',
+                  icon: Icons.map_outlined,
+                  maxLength: 100,
+                  updateAddressPreview: true,
+                ),
+                _textField(
+                  controller: _cityMunicipalityController,
+                  label: 'City / Municipality',
                   icon: Icons.location_city_outlined,
                   maxLength: 100,
+                  updateAddressPreview: true,
+                ),
+                _textField(
+                  controller: _barangayController,
+                  label: 'Barangay',
+                  icon: Icons.place_outlined,
+                  maxLength: 100,
+                  updateAddressPreview: true,
                 ),
                 _textField(
                   controller: _purokController,
-                  label: 'Purok (optional)',
-                  icon: Icons.place_outlined,
+                  label: 'Purok / Sitio (optional)',
+                  icon: Icons.pin_drop_outlined,
                   maxLength: 100,
                   optional: true,
+                  updateAddressPreview: true,
                 ),
                 TextFormField(
                   controller: _sizeController,
@@ -863,11 +928,48 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
           const SizedBox(height: 16),
 
-          _textField(
-            controller: _addressController,
-            label: 'Address',
-            icon: Icons.home_outlined,
-            maxLines: 2,
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F8F5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE0E7E2)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.home_outlined, color: AppColors.primaryGreen),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Full address (automatically generated)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      SelectableText(
+                        _addressPreview.isEmpty
+                            ? 'Enter the location fields above.'
+                            : _addressPreview,
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Display only; not saved as a separate address field.',
+                        style: TextStyle(
+                          color: AppColors.greyText,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 20),
@@ -979,9 +1081,11 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       final searchable = [
         household['household_id'],
         household['household_head'],
+        household['province'],
+        household['city_municipality'],
         household['barangay'],
         household['purok'],
-        household['address'],
+        _displayAddress(household),
         ..._savedMembers(household),
       ];
 
@@ -1119,7 +1223,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                         label: Text('Household Size'),
                         headingRowAlignment: MainAxisAlignment.center,
                       ),
-                      const DataColumn(label: Text('Address')),
+                      const DataColumn(label: Text('Full Address')),
 
                       // Header above the View Members button.
                       const DataColumn(
@@ -1148,11 +1252,11 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                           ),
                           DataCell(
                             SizedBox(
-                              width: 140,
+                              width: 230,
                               child: Tooltip(
-                                message: '${household['address']}',
+                                message: _displayAddress(household),
                                 child: Text(
-                                  '${household['address']}',
+                                  _displayAddress(household),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
