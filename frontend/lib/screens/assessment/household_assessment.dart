@@ -24,6 +24,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   final Map<String, TextEditingController> _numbers = {};
   final Map<String, int?> _answers = {};
   final Map<String, Map<String, dynamic>> _catalog = {};
+  final Map<String, List<int?>> _programSelections = {};
 
   static const _ageFields = <String>[
     'members_age_0_5',
@@ -75,14 +76,70 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     'has_broadband_internet_subscription',
     'has_video_streaming_subscription',
   ];
-  static const _socialFields = <String>[
+  static const _philHealthFields = <String>[
     'philhealth_membership_status',
     'received_philhealth_benefits',
-    'social_insurance_program_count',
-    'social_assistance_program_count',
-    'labor_market_program_count',
-    'government_services_accessed_count',
   ];
+
+  // G1, G5, G9 and H1 of the official 2022 APIS questionnaire.
+  // Order is preserved; one Yes contributes one to the model input count.
+  static const _programChoices = <String, List<String>>{
+    'social_insurance_program_count': [
+      'Social Security System (SSS)',
+      'Government Service Insurance System (GSIS)',
+      'Overseas Workers Welfare Administration (OWWA)',
+      'Health or medical insurance other than PhilHealth',
+      'Life insurance or pre-need insurance',
+    ],
+    'social_assistance_program_count': [
+      'Regular Pantawid Pamilyang Pilipino Program (4Ps)',
+      'Modified Pantawid Pamilyang Pilipino Program (4Ps)',
+      'Indigent Senior Citizens Social Pension (SocPen)',
+      'Malasakit Center assistance',
+      'Student Financial Assistance (StuFAP), excluding UAQTE',
+      'Assistance to Individuals in Crisis Situation (AICS)',
+      'Balik Probinsya Program',
+      'Emergency Shelter Assistance (ESA)',
+    ],
+    'labor_market_program_count': [
+      'Micro Enterprise Development Track',
+      'Employment Facilitation Track',
+      'TESDA skills training',
+      'DOLE Integrated Livelihood / Kabuhayan Program',
+    ],
+    'government_services_accessed_count': [
+      'Police, barangay, or other law-enforcement assistance',
+      'Public attorney or fiscal office services',
+      'Court-related services',
+      'Public education and scholarships',
+      'Public healthcare services',
+      'Government benefits or loans (SSS, GSIS, Pag-IBIG, PhilHealth)',
+      'Employment, livelihood, or poverty assistance',
+      'Civil registry certificates',
+      'Passports, DFA documents, or government IDs',
+      'Land titles or property registration',
+      'Government permits, licenses, or clearances',
+      'Taxes, cedula, or other government duties',
+    ],
+  };
+
+  static const _programTitles = <String, String>{
+    'social_insurance_program_count': 'Social Insurance',
+    'social_assistance_program_count': 'Social Assistance',
+    'labor_market_program_count': 'Employment and Livelihood Programs',
+    'government_services_accessed_count': 'Government Services',
+  };
+
+  static const _programPrompts = <String, String>{
+    'social_insurance_program_count':
+        'Is any family member a member, dependent, or beneficiary?',
+    'social_assistance_program_count':
+        'During the past 6 months, did anyone receive this assistance?',
+    'labor_market_program_count':
+        'During the past 6 months, did anyone benefit from these programs?',
+    'government_services_accessed_count':
+        'During the past 12 months, did anyone access these services?',
+  };
   static const _numericRanges = <String, int>{
     'members_age_0_5': 200,
     'members_age_6_11': 200,
@@ -125,6 +182,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     for (final field in _numericRanges.keys) {
       _numbers[field] = TextEditingController();
     }
+    _resetProgramSelections();
     _load();
   }
 
@@ -198,7 +256,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       final catalog = {
         for (final feature in features) feature['name'] as String: feature,
       };
-      const expected = <String>{
+      final expected = <String>{
         'family_size',
         'monthly_income_per_capita',
         ..._ageFields,
@@ -207,7 +265,8 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         ..._disasterFields,
         ..._assetFields,
         ..._subscriptionFields,
-        ..._socialFields,
+        ..._philHealthFields,
+        ..._programChoices.keys,
       };
       if (features.length != 46 ||
           catalog.keys.toSet().length != 46 ||
@@ -236,6 +295,25 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     }
   }
 
+  void _resetProgramSelections() {
+    for (final entry in _programChoices.entries) {
+      _programSelections[entry.key] = List<int?>.filled(
+        entry.value.length,
+        null,
+      );
+    }
+  }
+
+  // Only completed Yes/No sets replace a previously saved count.
+  // An incomplete new set remains NULL, never zero.
+  int? _programCount(String field) {
+    final answers = _programSelections[field]!;
+    if (answers.every((answer) => answer != null)) {
+      return answers.where((answer) => answer == 1).length;
+    }
+    return _number(field);
+  }
+
   void _reset() {
     setState(() {
       _editingId = null;
@@ -244,6 +322,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       _dataOrigin = 'synthetic';
       _confirmedSingleFamily = false;
       _answers.clear();
+      _resetProgramSelections();
       _incomeController.clear();
       for (final controller in _numbers.values) {
         controller.clear();
@@ -280,6 +359,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
           : 'synthetic';
       _confirmedSingleFamily = true;
       _answers.clear();
+      _resetProgramSelections();
       for (final feature in _catalog.values) {
         final name = feature['name'] as String;
         final value = assessment[name];
@@ -335,7 +415,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       'disaster_evacuated_or_displaced': 'Displaced or evacuated?',
       'recovered_from_disaster': 'Recovered from the disaster?',
       'philhealth_membership_status': 'PhilHealth membership',
-      'received_philhealth_benefits': 'Received PhilHealth benefits?',
+      'received_philhealth_benefits': 'PhilHealth benefits (past 6 months)?',
       'social_insurance_program_count': 'Social insurance programs (count)',
       'social_assistance_program_count': 'Social assistance programs (count)',
       'labor_market_program_count': 'Labor market programs (count)',
@@ -430,6 +510,391 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
         return null;
       },
       onChanged: (_) => setState(() {}),
+    );
+  }
+
+  // Equal-width answer controls keep each question aligned on mobile and web.
+  Widget _programAnswerChip({
+    required String label,
+    required int? option,
+    required int? selected,
+    required VoidCallback onTap,
+  }) {
+    final active = option == selected;
+    final activeTextColor = option == 1
+        ? AppColors.primaryGreen
+        : option == 2
+        ? AppColors.darkText
+        : AppColors.greyText;
+
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: active ? activeTextColor : AppColors.greyText,
+        backgroundColor: active
+            ? option == 1
+                  ? AppColors.lightGreen
+                  : const Color(0xFFF2F4F3)
+            : AppColors.white,
+        side: BorderSide(
+          color: active ? activeTextColor : AppColors.borderColor,
+          width: active ? 1.3 : 1,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        minimumSize: const Size(0, 39),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  // The standard scrollable AlertDialog avoids nested scrolling constraints.
+  // The draft answers are committed only when Apply answers is pressed.
+  Future<void> _openProgramDialog(String field) async {
+    if (_saving) return;
+    final options = _programChoices[field]!;
+    final draft = List<int?>.from(_programSelections[field]!);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final answered = draft.where((answer) => answer != null).length;
+          final yesCount = draft.where((answer) => answer == 1).length;
+          final complete = answered == options.length;
+          final oldCount = _number(field);
+
+          return AlertDialog(
+            backgroundColor: AppColors.white,
+            surfaceTintColor: Colors.transparent,
+            scrollable: true,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 18,
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
+            contentPadding: const EdgeInsets.fromLTRB(22, 14, 22, 8),
+            actionsPadding: const EdgeInsets.fromLTRB(22, 4, 22, 18),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.lightGreen,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(
+                    Icons.fact_check_outlined,
+                    size: 21,
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _programTitles[field]!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.darkText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 540,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _programPrompts[field]!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          complete
+                              ? '$yesCount applicable ${yesCount == 1 ? 'category' : 'categories'}'
+                              : '$answered of ${options.length} answered',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
+                      ),
+                      if (!complete && oldCount != null)
+                        Text(
+                          'Saved: $oldCount',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.greyText,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 9),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: answered / options.length,
+                      minHeight: 5,
+                      backgroundColor: AppColors.borderColor,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.primaryGreen,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 0,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => setDialogState(() {
+                          draft.fillRange(0, options.length, 2);
+                        }),
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text('None apply'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryGreen,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => setDialogState(() {
+                          draft.fillRange(0, options.length, null);
+                        }),
+                        icon: const Icon(Icons.restart_alt, size: 18),
+                        label: const Text('Clear answers'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.greyText,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 18, color: AppColors.borderColor),
+                  for (var index = 0; index < options.length; index++) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 27,
+                                height: 27,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: AppColors.lightGreen,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  String.fromCharCode(65 + index),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primaryGreen,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Text(
+                                    options[index],
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.darkText,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 11),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _programAnswerChip(
+                                  label: 'Yes',
+                                  option: 1,
+                                  selected: draft[index],
+                                  onTap: () =>
+                                      setDialogState(() => draft[index] = 1),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _programAnswerChip(
+                                  label: 'No',
+                                  option: 2,
+                                  selected: draft[index],
+                                  onTap: () =>
+                                      setDialogState(() => draft[index] = 2),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _programAnswerChip(
+                                  label: 'Unknown',
+                                  option: null,
+                                  selected: draft[index],
+                                  onTap: () =>
+                                      setDialogState(() => draft[index] = null),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (index != options.length - 1)
+                      const Divider(height: 1, color: AppColors.borderColor),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.greyText,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  setState(() {
+                    _programSelections[field] = List<int?>.from(draft);
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: AppColors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 13,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('Apply answers'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _programSummary(String field) {
+    final options = _programChoices[field]!;
+    final answers = _programSelections[field]!;
+    final answered = answers.where((value) => value != null).length;
+    final complete = answered == options.length;
+    final count = _programCount(field);
+    final status = complete
+        ? '${count ?? 0} applicable categories'
+        : count != null
+        ? 'Saved count: $count · $answered/${options.length} reviewed'
+        : answered > 0
+        ? '$answered/${options.length} answered · Not verified'
+        : 'Not yet verified';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.borderColor),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(11),
+          onTap: _saving ? null : () => _openProgramDialog(field),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.lightGreen,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(
+                    Icons.fact_check_outlined,
+                    color: AppColors.primaryGreen,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _programTitles[field]!,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkText,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        status,
+                        style: const TextStyle(
+                          color: AppColors.greyText,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, color: AppColors.primaryGreen),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -598,7 +1063,10 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       'monthly_income': _incomeController.text.trim().isEmpty
           ? null
           : _incomeController.text.trim().replaceAll(',', ''),
-      for (final entry in _numbers.entries) entry.key: _number(entry.key),
+      for (final entry in _numbers.entries)
+        entry.key: _programChoices.containsKey(entry.key)
+            ? _programCount(entry.key)
+            : _number(entry.key),
       for (final field in _catalog.values)
         if (field['kind'] == 'code')
           (field['name'] as String): _answers[field['name']],
@@ -812,6 +1280,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                         _selectedHousehold = h;
                         _confirmedSingleFamily = false;
                         _answers.clear();
+                        _resetProgramSelections();
                         _incomeController.clear();
                         for (final c in _numbers.values) {
                           c.clear();
@@ -957,18 +1426,41 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
               ],
             ),
           ),
-          _group(
-            'Health and Social Protection',
-            'Record PhilHealth answers and counts of distinct programs or services. '
-                'Do not enter the number of beneficiaries here.',
-            Icons.volunteer_activism_outlined,
-            _socialFields,
+          _card(
+            title: 'Health and Social Protection',
+            subtitle:
+                'PhilHealth coverage, assistance, and government services.',
+            icon: Icons.volunteer_activism_outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _grid(_philHealthFields.map(_answerField).toList()),
+                const SizedBox(height: 22),
+                const Divider(color: AppColors.borderColor),
+                const SizedBox(height: 14),
+                const Text(
+                  'Programs and Services',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkText,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Select a category to review its questionnaire choices.',
+                  style: TextStyle(fontSize: 12, color: AppColors.greyText),
+                ),
+                const SizedBox(height: 14),
+                for (final field in _programChoices.keys)
+                  _programSummary(field),
+              ],
+            ),
           ),
           _card(
             title: 'Assessment Information Source',
             subtitle: 'Choose the actual source of the answers.',
             icon: Icons.verified_user_outlined,
-
             child: DropdownButtonFormField<String>(
               key: ValueKey('origin-$_formVersion'),
               initialValue: _dataOrigin,
@@ -995,9 +1487,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
               onChanged: _saving
                   ? null
                   : (value) {
-                      if (value != null) {
-                        setState(() => _dataOrigin = value);
-                      }
+                      if (value != null) setState(() => _dataOrigin = value);
                     },
             ),
           ),
