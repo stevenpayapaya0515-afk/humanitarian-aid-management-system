@@ -136,13 +136,6 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
         .join(', ');
   }
 
-  String get _addressPreview => _formatAddress(
-    province: _provinceController.text,
-    cityMunicipality: _cityMunicipalityController.text,
-    barangay: _barangayController.text,
-    purok: _purokController.text,
-  );
-
   String _displayAddress(Map<String, dynamic> household) {
     final fullAddress = household['full_address'];
     if (fullAddress is String && fullAddress.trim().isNotEmpty) {
@@ -811,12 +804,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     required IconData icon,
     int? maxLength,
     bool optional = false,
-    bool updateAddressPreview = false,
   }) => TextFormField(
     controller: controller,
     enabled: !_isSaving,
     maxLength: maxLength,
-    onChanged: updateAddressPreview ? (_) => setState(() {}) : null,
     decoration: InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon),
@@ -872,21 +863,18 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                   label: 'Province',
                   icon: Icons.map_outlined,
                   maxLength: 100,
-                  updateAddressPreview: true,
                 ),
                 _textField(
                   controller: _cityMunicipalityController,
                   label: 'City / Municipality',
                   icon: Icons.location_city_outlined,
                   maxLength: 100,
-                  updateAddressPreview: true,
                 ),
                 _textField(
                   controller: _barangayController,
                   label: 'Barangay',
                   icon: Icons.place_outlined,
                   maxLength: 100,
-                  updateAddressPreview: true,
                 ),
                 _textField(
                   controller: _purokController,
@@ -894,7 +882,6 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                   icon: Icons.pin_drop_outlined,
                   maxLength: 100,
                   optional: true,
-                  updateAddressPreview: true,
                 ),
                 TextFormField(
                   controller: _sizeController,
@@ -924,52 +911,6 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                     .toList(),
               );
             },
-          ),
-
-          const SizedBox(height: 16),
-
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F8F5),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE0E7E2)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.home_outlined, color: AppColors.primaryGreen),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Full address (automatically generated)',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.darkText,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      SelectableText(
-                        _addressPreview.isEmpty
-                            ? 'Enter the location fields above.'
-                            : _addressPreview,
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        'Display only; not saved as a separate address field.',
-                        style: TextStyle(
-                          color: AppColors.greyText,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ),
 
           const SizedBox(height: 20),
