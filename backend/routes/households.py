@@ -4,22 +4,23 @@ from psycopg.rows import dict_row
 
 from core.dependencies import get_current_user
 from database import get_connection
-from schemas.households import (HouseholdCreate, HouseholdResponse,
-                                registration_matches_size)
+from schemas.households import (
+    HouseholdCreate,
+    HouseholdResponse,
+    format_household_address,
+    registration_matches_size,
+)
 
 
 router = APIRouter(prefix="/households", tags=["Household Registration"])
 
 
-# Define this BEFORE the endpoints that use it.
 def require_household_access(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ("Admin", "Staff"):
         raise HTTPException(status_code=403, detail="Access to households is denied.")
     return current_user
 
 
-# Only Staff can register, update, or delete household records.
-# get_current_user verifies the login token and active account.
 def require_household_write(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "Staff":
         raise HTTPException(
@@ -28,22 +29,28 @@ def require_household_write(current_user: dict = Depends(get_current_user)):
         )
     return current_user
 
+
 def prepare_household(household: dict) -> dict:
     household["members_complete"] = registration_matches_size(
         household["household_size"], household["household_member"]
     )
+    household["full_address"] = format_household_address(
+        household["province"],
+        household["city_municipality"],
+        household["barangay"],
+        household["purok"],
+    )
     return household
 
 
-# Read all records from the households table only.
 @router.get("", response_model=list[HouseholdResponse])
 def list_households(current_user: dict = Depends(require_household_access)):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                SELECT household_id, household_head, barangay, purok,
-                       address, household_size, household_member,
+                SELECT household_id, household_head, province, city_municipality,
+                       barangay, purok, household_size, household_member,
                        registered_by, created_at, updated_at
                 FROM public.households
                 ORDER BY household_id DESC;
@@ -53,7 +60,6 @@ def list_households(current_user: dict = Depends(require_household_access)):
     return [prepare_household(row) for row in households]
 
 
-# Register the household and member-name text in the same row.
 @router.post("", response_model=HouseholdResponse, status_code=201)
 def create_household(
     data: HouseholdCreate,
@@ -64,17 +70,17 @@ def create_household(
             cursor.execute(
                 """
                 INSERT INTO public.households (
-                    household_head, barangay, purok, address,
+                    household_head, province, city_municipality, barangay, purok,
                     household_size, household_member, registered_by
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING household_id, household_head, barangay, purok,
-                          address, household_size, household_member,
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING household_id, household_head, province, city_municipality,
+                          barangay, purok, household_size, household_member,
                           registered_by, created_at, updated_at;
                 """,
                 (
-                    data.household_head, data.barangay, data.purok,
-                    data.address, data.household_size,
+                    data.household_head, data.province, data.city_municipality,
+                    data.barangay, data.purok, data.household_size,
                     data.household_member, current_user["user_id"],
                 ),
             )
@@ -82,7 +88,6 @@ def create_household(
     return prepare_household(household)
 
 
-# Update the selected row without changing its creator or creation date.
 @router.patch("/{household_id}", response_model=HouseholdResponse)
 def update_household(
     household_id: int,
@@ -91,7 +96,7 @@ def update_household(
 ):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
-            # Assessment age totals and model predictions depend on household size.
+            # Household-size changes would invalidate saved assessment totals.
             cursor.execute(
                 "SELECT household_size FROM public.households "
                 "WHERE household_id = %s FOR UPDATE;",
@@ -117,17 +122,17 @@ def update_household(
             cursor.execute(
                 """
                 UPDATE public.households
-                SET household_head = %s, barangay = %s, purok = %s,
-                    address = %s, household_size = %s,
+                SET household_head = %s, province = %s, city_municipality = %s,
+                    barangay = %s, purok = %s, household_size = %s,
                     household_member = %s, updated_at = NOW()
                 WHERE household_id = %s
-                RETURNING household_id, household_head, barangay, purok,
-                          address, household_size, household_member,
+                RETURNING household_id, household_head, province, city_municipality,
+                          barangay, purok, household_size, household_member,
                           registered_by, created_at, updated_at;
                 """,
                 (
-                    data.household_head, data.barangay, data.purok,
-                    data.address, data.household_size,
+                    data.household_head, data.province, data.city_municipality,
+                    data.barangay, data.purok, data.household_size,
                     data.household_member, household_id,
                 ),
             )
@@ -137,7 +142,6 @@ def update_household(
     return prepare_household(household)
 
 
-# Delete a household unless another module references it through a foreign key.
 @router.delete("/{household_id}")
 def delete_household(
     household_id: int,

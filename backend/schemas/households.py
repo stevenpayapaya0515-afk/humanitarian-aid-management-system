@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def registered_member_count(household_member: str | None) -> int:
@@ -13,18 +13,32 @@ def registration_matches_size(household_size: int, household_member: str | None)
     return household_size == registered_member_count(household_member) + 1
 
 
-# Create/edit request. Names are stored in ONE column in households.
+def format_household_address(
+    province: str,
+    city_municipality: str,
+    barangay: str,
+    purok: str | None,
+) -> str:
+    """Construct a display address; it is not stored in PostgreSQL."""
+    return ", ".join(
+        part.strip()
+        for part in (purok, barangay, city_municipality, province)
+        if part and part.strip()
+    )
+
+
 class HouseholdCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     household_head: str = Field(min_length=1, max_length=100)
+    province: str = Field(min_length=1, max_length=100)
+    city_municipality: str = Field(min_length=1, max_length=100)
     barangay: str = Field(min_length=1, max_length=100)
     purok: str | None = Field(default=None, max_length=100)
-    address: str = Field(min_length=1)
     household_size: int = Field(ge=1, le=2147483647, strict=True)
-
-    # OTHER members only, one full name per line. The head is separate.
     household_member: str = ""
 
-    @field_validator("household_head", "barangay", "address")
+    @field_validator("household_head", "province", "city_municipality", "barangay")
     @classmethod
     def clean_required_text(cls, value: str) -> str:
         value = value.strip()
@@ -42,29 +56,26 @@ class HouseholdCreate(BaseModel):
     @field_validator("household_member")
     @classmethod
     def clean_member_names(cls, value: str) -> str:
-        # Normalize Windows line breaks and ignore empty lines.
         names = [line.strip() for line in value.splitlines() if line.strip()]
         if any(len(name) > 100 for name in names):
             raise ValueError("Each member name must be at most 100 characters.")
-        # Do not deduplicate: different people may have the same full name.
         return "\n".join(names)
 
     @model_validator(mode="after")
     def check_member_count(self):
         if not registration_matches_size(self.household_size, self.household_member):
-            raise ValueError(
-                "Household size must equal 1 head plus the other members."
-            )
+            raise ValueError("Household size must equal 1 head plus the other members.")
         return self
 
 
-# Details returned to Flutter. Old incomplete lists can still be viewed.
 class HouseholdResponse(BaseModel):
     household_id: int
     household_head: str
+    province: str
+    city_municipality: str
     barangay: str
     purok: str | None
-    address: str
+    full_address: str
     household_size: int
     household_member: str
     registered_by: int
