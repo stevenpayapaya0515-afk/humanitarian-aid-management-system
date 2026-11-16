@@ -173,6 +173,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   String? _error;
   bool _loading = true;
   bool _saving = false;
+  Route<void>? _savingDialogRoute;
   int? _editingId;
   int _formVersion = 0;
 
@@ -376,21 +377,108 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     });
   }
 
-  Future<void> _message(String title, String message) async {
+  // Preserve the original success/error feedback used before the APIS UI update.
+  Future<void> _message(
+    String title,
+    String message, {
+    bool success = false,
+  }) async {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              success ? Icons.check_circle_outline : Icons.error_outline,
+              color: success ? AppColors.primaryGreen : Colors.red,
+              size: 58,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.greyText),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('OK'),
           ),
         ],
       ),
     );
+  }
+
+  void _showSavingDialog() {
+    if (!mounted) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final route = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                color: AppColors.primaryGreen,
+                strokeWidth: 3,
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Saving Household Assessment...',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkText,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Please wait while the household assessment '
+                'is saved to the database.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: AppColors.greyText),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    _savingDialogRoute = route;
+    unawaited(navigator.push<void>(route));
+  }
+
+  void _closeSavingDialog() {
+    final route = _savingDialogRoute;
+    _savingDialogRoute = null;
+    if (!mounted || route == null || !route.isActive) return;
+    // Remove only the saving route; never pop the Assessment page or another dialog.
+    Navigator.of(context, rootNavigator: true).removeRoute(route);
   }
 
   Future<void> _chooseDate() async {
@@ -1052,9 +1140,14 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   Future<void> _save() async {
     if (_saving || _loading) return;
     FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false) || !_checkBeforeSave()) {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      await _message(
+        'Incomplete Assessment',
+        'Please complete or correct the highlighted fields.',
+      );
       return;
     }
+    if (!_checkBeforeSave()) return;
     final data = <String, dynamic>{
       'household_id': _selectedHousehold!['household_id'],
       'assessment_date': _dateText(_assessmentDate),
@@ -1075,12 +1168,17 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       data['disaster_evacuated_or_displaced'] = null;
       data['recovered_from_disaster'] = null;
     }
+    final wasEditing = _editingId != null;
     setState(() => _saving = true);
+    _showSavingDialog();
+
+    bool saveSucceeded = false;
+    String feedbackMessage = '';
     try {
-      if (_editingId == null) {
-        await VulnerabilityService.createAssessment(data);
-      } else {
+      if (wasEditing) {
         await VulnerabilityService.updateAssessment(_editingId!, data);
+      } else {
+        await VulnerabilityService.createAssessment(data);
       }
       if (!mounted) return;
       _reset();
@@ -1090,15 +1188,26 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       } catch (_) {
         // Saving succeeded; staff can refresh the record list later.
       }
-      await _message(
-        'Assessment Saved',
-        'The household assessment was saved successfully.',
-      );
+      saveSucceeded = true;
+      feedbackMessage = wasEditing
+          ? 'The household assessment has been updated.'
+          : 'Household assessment has been saved successfully.';
     } catch (error) {
-      await _message('Assessment Not Saved', _errorText(error));
+      feedbackMessage = _errorText(error);
     } finally {
+      _closeSavingDialog();
       if (mounted) setState(() => _saving = false);
     }
+    if (!mounted) return;
+    await _message(
+      saveSucceeded
+          ? (wasEditing
+                ? 'Assessment Updated Successfully'
+                : 'Assessment Saved Successfully')
+          : (wasEditing ? 'Assessment Not Updated' : 'Assessment Not Saved'),
+      feedbackMessage,
+      success: saveSucceeded,
+    );
   }
 
   Widget _history() => _card(
