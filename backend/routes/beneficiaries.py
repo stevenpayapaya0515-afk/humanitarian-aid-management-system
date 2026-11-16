@@ -7,7 +7,7 @@ from psycopg.rows import dict_row
 
 from core.dependencies import get_current_user
 from database import get_connection
-from ml_service.train_apis2022_vulnerability import V2_MODEL_VERSION as APIS_MODEL_VERSION
+from ml_service.train_apis2022_vulnerability import MODEL_VERSION as APIS_MODEL_VERSION
 
 from schemas.beneficiaries import (
     BeneficiaryCandidate,
