@@ -32,9 +32,21 @@ def test_format():
         )
         assert message["To"] == "user@example.com"
         assert "AidTrack" in message["Subject"]
-        assert "012345" in message.get_content()
-        assert "PHT" in message.get_content()
-        assert "password" in message.get_content().lower()
+
+
+
+        body = (
+            message.get_body(preferencelist=("plain", "html"))
+            if message.is_multipart()
+            else message
+        )
+
+        assert body is not None, "Email has no readable content"
+        body_text = body.get_content()
+
+        assert "012345" in body_text
+        assert "PHT" in body_text
+        assert "password" in body_text.lower()
         try:
             build_login_otp_message(
                 to_email="user@example.com\nBcc: bad@example.com",
