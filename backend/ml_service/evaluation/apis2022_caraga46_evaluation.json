@@ -1,0 +1,160 @@
+{
+  "model_version": "apis2022-rf-caraga46-proxy-v1",
+  "label_version": "apis2022-9-domain-experimental-v1",
+  "data_source": "PSA APIS 2022 Public Use Files; REG=16 (CARAGA), not Cabadbaran-specific",
+  "households_in_csv": 2126,
+  "model_feature_count": 46,
+  "model_features": [
+    "roof_material",
+    "outer_wall_material",
+    "floor_material",
+    "electricity_available",
+    "drinking_water_source",
+    "toilet_facility",
+    "disaster_preparedness_kit",
+    "experienced_natural_disaster",
+    "disaster_evacuated_or_displaced",
+    "recovered_from_disaster",
+    "owns_car_jeep_van",
+    "owns_electric_jeep",
+    "owns_motorcycle_tricycle",
+    "owns_electric_tricycle",
+    "owns_motorized_boat",
+    "owns_tractor",
+    "owns_washing_machine",
+    "owns_stove_with_oven_or_gas_range",
+    "owns_induction_stove",
+    "owns_refrigerator_freezer",
+    "owns_personal_computer",
+    "owns_air_conditioner",
+    "owns_basic_cellphone",
+    "owns_smartphone",
+    "owns_microwave_or_oven_toaster",
+    "owns_landline_or_wireless_telephone",
+    "owns_videoke_magic_sing",
+    "owns_television",
+    "owns_radio",
+    "owns_draft_animals",
+    "has_cable_subscription",
+    "has_broadband_internet_subscription",
+    "has_video_streaming_subscription",
+    "philhealth_membership_status",
+    "received_philhealth_benefits",
+    "family_size",
+    "members_age_0_5",
+    "members_age_6_11",
+    "members_age_12_17",
+    "members_age_60_plus",
+    "monthly_income_per_capita",
+    "bedroom_count",
+    "social_insurance_program_count",
+    "social_assistance_program_count",
+    "labor_market_program_count",
+    "government_services_accessed_count"
+  ],
+  "excluded_source_columns": [
+    "region_code",
+    "household_id",
+    "monthly_income",
+    "member_record_count",
+    "member_roster_complete"
+  ],
+  "model_target": "Researcher-defined 9-domain proxy label; no official ground-truth vulnerability labels",
+  "app_ready": false,
+  "independent_ground_truth": false,
+  "training_cutoff_php_per_capita_per_month": 1923.583333,
+  "cutoff_method": "25th percentile among eligible income values in training rows only (not an official poverty threshold)",
+  "research_label_thresholds": {
+    "Low": "0 flags",
+    "Medium": "1-2 flags",
+    "High": "3 or more flags"
+  },
+  "random_state": 42,
+  "test_fraction": 0.2,
+  "split_policy": "Random household 80/20 (RPSU/PSU unavailable in the 51-column CSV); not geographically independent",
+  "train_records": 1609,
+  "test_records": 412,
+  "needs_review_records": 105,
+  "training_class_counts": {
+    "Low": 235,
+    "Medium": 786,
+    "High": 588
+  },
+  "test_class_counts": {
+    "Low": 48,
+    "Medium": 222,
+    "High": 142
+  },
+  "accuracy": 0.7936893203883495,
+  "balanced_accuracy": 0.7464841602165547,
+  "macro_f1": 0.7588098229446961,
+  "majority_baseline_macro_f1": 0.2334384858044164,
+  "classification_report": {
+    "Low": {
+      "precision": 0.6976744186046512,
+      "recall": 0.625,
+      "f1-score": 0.6593406593406593,
+      "support": 48.0
+    },
+    "Medium": {
+      "precision": 0.7866108786610879,
+      "recall": 0.8468468468468469,
+      "f1-score": 0.8156182212581344,
+      "support": 222.0
+    },
+    "High": {
+      "precision": 0.8384615384615385,
+      "recall": 0.7676056338028169,
+      "f1-score": 0.8014705882352942,
+      "support": 142.0
+    },
+    "accuracy": 0.7936893203883495,
+    "macro avg": {
+      "precision": 0.7742489452424258,
+      "recall": 0.7464841602165545,
+      "f1-score": 0.7588098229446961,
+      "support": 412.0
+    },
+    "weighted avg": {
+      "precision": 0.7941202078090369,
+      "recall": 0.7936893203883495,
+      "f1-score": 0.7925350007210419,
+      "support": 412.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "Low",
+    "Medium",
+    "High"
+  ],
+  "confusion_matrix": [
+    [
+      30,
+      18,
+      0
+    ],
+    [
+      13,
+      188,
+      21
+    ],
+    [
+      0,
+      33,
+      109
+    ]
+  ],
+  "data_sha256": "ecfcaa5756889e9a56dbdcae3a31797a7c6691df118b0bd75247c56a0cd1d866",
+  "sklearn_version": "1.9.1",
+  "limitations": [
+    "Metrics measure prediction of researcher-defined proxy labels, not validated humanitarian need.",
+    "Proxy labels are computed from input variables; high RF accuracy is not independent validation.",
+    "The nine proxy domains and cutoffs require instructor/LGU approval.",
+    "Response codes and deprivation mappings must be checked against official APIS 2022 documentation.",
+    "85 or more incomplete/unsupported households may be excluded as Needs review.",
+    "One CARAGA-only random split does not establish transferability to current LGU households.",
+    "Cannot use predictions alone to approve/deny aid or establish official eligibility."
+  ],
+  "macro_precision": 0.7742489452424258,
+  "macro_recall": 0.7464841602165545
+}
