@@ -1201,46 +1201,6 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     );
   }
 
-  Future<void> _showFinancialHistory(Map<String, dynamic> assessment) async {
-    String amount(String key) {
-      final value = double.tryParse('${assessment[key]}');
-      return value == null ? 'Not recorded' : 'PHP ${value.toStringAsFixed(2)}';
-    }
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Family Income and Expenses'),
-        content: SizedBox(
-          width: 440,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${assessment['household_head']}'),
-                const SizedBox(height: 12),
-                Text('Reference year: ${assessment['financial_reference_year']}'),
-                Text('Average family size: ${assessment['average_family_size']}'),
-                Text('Residence classification: ${assessment['financial_residence_classification'] ?? 'Not recorded'}'),
-                const SizedBox(height: 12),
-                Text('Income: ${amount('annual_family_income')}'),
-                Text('Total expenditure: ${amount('annual_family_expenditure')}'),
-                Text('Food expenditure: ${amount('annual_food_expenditure')}'),
-                Text('Housing and utilities: ${amount('annual_housing_utilities_expenditure')}'),
-                Text('Health expenditure: ${amount('annual_health_expenditure')}'),
-                Text('Education expenditure: ${amount('annual_education_expenditure')}'),
-                Text('Transport expenditure: ${amount('annual_transport_expenditure')}'),
-                const SizedBox(height: 12),
-                const Text('Annual amounts recorded for staff review.'),
-              ],
-            ),
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
-      ),
-    );
-  }
-
   // Open a saved assessment in the full form. A classified assessment is
   // immutable, because changing its evidence would invalidate the prediction.
   Future<void> _editSavedAssessment(Map<String, dynamic> assessment) async {
@@ -1411,8 +1371,6 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   border: Border.all(color: AppColors.borderColor),
                 ),
                 child: ListTile(
-                  onTap: assessment['financial_reference_year'] == null ? null
-                      : () => _showFinancialHistory(assessment),
                   leading: CircleAvatar(
                     backgroundColor: AppColors.lightGreen,
                     child: const Icon(
@@ -1429,8 +1387,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   ),
                   subtitle: Text(
                     'Assessment #$id • Household #$householdId'
-                    '\n${assessment['assessment_date']}'
-                    '${assessment['financial_reference_year'] == null ? '' : ' • Tap for financial details'}',
+                    '\n${assessment['assessment_date']}', 
                     style: const TextStyle(fontSize: 11),
                   ),
                   isThreeLine: true,
