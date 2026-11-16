@@ -1257,14 +1257,40 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                           ],
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed:
-                            _saving || assessment['has_classification'] == true
-                            ? null
-                            : () => _populate(assessment),
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        label: const Text('Edit'),
-                      ),
+                      if (assessment['has_classification'] == true)
+                        Tooltip(
+                          message: 'Locked: This assessment has already been classified and can no longer be edited.',
+                          waitDuration: const Duration(milliseconds: 350),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.lock_outline,
+                                  size: 18,
+                                  color: AppColors.greyText,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Locked',
+                                  style: TextStyle(color: AppColors.greyText),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        TextButton.icon(
+                          onPressed: _saving
+                              ? null
+                              : () => _populate(assessment),
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Edit'),
+                        ),
                     ],
                   ),
                 ),
