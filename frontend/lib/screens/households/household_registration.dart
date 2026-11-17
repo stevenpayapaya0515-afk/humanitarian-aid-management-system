@@ -959,6 +959,49 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     );
   }
 
+  // Shared section header for the registration form and records table.
+  Widget _sectionHeader({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE9F5EC),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.primaryGreen, size: 24),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.darkText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(color: AppColors.greyText, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _textField({
     required TextEditingController controller,
     required String label,
@@ -988,23 +1031,16 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            _editingHouseholdId == null
+          _sectionHeader(
+            title: _editingHouseholdId == null
                 ? 'Register Household'
                 : 'Edit Household',
-            style: const TextStyle(
-              color: Color(0xFF263238),
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            subtitle:
+                'Register the household head and all other members. '
+                'The total is calculated automatically and used to validate Household Assessment.',
+            icon: Icons.groups_outlined,
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Register the household head and all other members. The total is '
-            'calculated automatically and used to validate Household Assessment.',
-            style: TextStyle(color: AppColors.greyText, fontSize: 13),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1176,6 +1212,72 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
   // SEARCH AND HOUSEHOLD TABLE
   // ========================================
 
+  Widget _recordsRefreshButton() {
+    return OutlinedButton.icon(
+      onPressed: _isLoading || _isSaving ? null : _loadHouseholds,
+      icon: _isLoading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primaryGreen,
+              ),
+            )
+          : const Icon(Icons.refresh, size: 18),
+      label: Text(_isLoading ? 'Refreshing...' : 'Refresh'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryGreen,
+        backgroundColor: Colors.white,
+        side: const BorderSide(color: Color(0xFFB5D2BE)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        minimumSize: const Size(0, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Widget _recordsHeader() {
+    const title = 'Registered Household Records';
+    const subtitle =
+        'Search, view, and manage registered household information.';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _sectionHeader(
+                title: title,
+                subtitle: subtitle,
+                icon: Icons.list_alt_outlined,
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _recordsRefreshButton(),
+              ),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _sectionHeader(
+                title: title,
+                subtitle: subtitle,
+                icon: Icons.list_alt_outlined,
+              ),
+            ),
+            const SizedBox(width: 16),
+            _recordsRefreshButton(),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildRecords() {
     final query = _searchText.trim().toLowerCase();
 
@@ -1200,76 +1302,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Registered Household Records',
-                      style: TextStyle(
-                        color: Color(0xFF263238),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'Search, view, and manage registered household information.',
-                      style: TextStyle(color: AppColors.greyText, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton.icon(
-                onPressed: _isLoading || _isSaving ? null : _loadHouseholds,
-
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primaryGreen,
-                        ),
-                      )
-                    : const Icon(Icons.refresh, size: 18),
-
-                label: Text(_isLoading ? 'Refreshing...' : 'Refresh'),
-
-                style: ButtonStyle(
-                  foregroundColor: const WidgetStatePropertyAll(
-                    AppColors.primaryGreen,
-                  ),
-                  backgroundColor: const WidgetStatePropertyAll(
-                    Colors.transparent,
-                  ),
-                  overlayColor: WidgetStateProperty.resolveWith<Color?>((
-                    states,
-                  ) {
-                    if (states.contains(WidgetState.hovered) ||
-                        states.contains(WidgetState.pressed)) {
-                      return AppColors.lightGreen;
-                    }
-
-                    return Colors.transparent;
-                  }),
-                  padding: const WidgetStatePropertyAll(
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  ),
-                  minimumSize: const WidgetStatePropertyAll(Size(0, 40)),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: WidgetStatePropertyAll(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          _recordsHeader(),
 
           const SizedBox(height: 16),
 
@@ -1310,7 +1343,22 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    // Reduce spacing so the Actions column has more room.
+                    headingRowColor: const WidgetStatePropertyAll(
+                      Color(0xFFEFF6F1),
+                    ),
+                    headingTextStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryGreen,
+                    ),
+                    dataTextStyle: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.darkText,
+                    ),
+                    dividerThickness: 0.8,
+                    headingRowHeight: 44,
+                    dataRowMinHeight: 48,
+                    dataRowMaxHeight: 74,
                     columnSpacing: 12,
                     horizontalMargin: 12,
                     columns: [
@@ -1440,21 +1488,18 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Same title-and-description starting point as Household Assessment.
-        _buildSectionIntro(
-          title: widget.readOnly
-              ? 'Household Records'
-              : 'Household Registration',
-          description: widget.readOnly
-              ? 'View registered household information and member records.'
-              : 'Record household information for registration and future '
-                    'vulnerability assessment.',
-        ),
+        // The StaffDashboard already supplies the page heading.
+        if (widget.readOnly)
+          _buildSectionIntro(
+            title: 'Household Records',
+            description:
+                'View registered household information and member records.',
+          ),
 
         // Show the registration form only in Staff mode.
         if (!widget.readOnly) ...[
           _buildRegistrationForm(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
         ],
 
         // Both Admin and Staff can search and view household records.
