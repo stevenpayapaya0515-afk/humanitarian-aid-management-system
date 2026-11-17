@@ -1058,7 +1058,7 @@ class _BeneficiaryManagementScreenState
         splashColor: AppColors.lightGreen,
         borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1114,10 +1114,11 @@ class _BeneficiaryManagementScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.lightGreen,
-                      borderRadius: BorderRadius.circular(9),
+                      color: const Color(0xFFE9F5EC),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(icon, color: AppColors.primaryGreen, size: 22),
                   ),
@@ -1146,16 +1147,16 @@ class _BeneficiaryManagementScreenState
                     ),
                   ),
                   if (trailing != null && !isMobile) ...[
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     trailing,
                   ],
                 ],
               ),
               if (trailing != null && isMobile) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Align(alignment: Alignment.centerRight, child: trailing),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               child,
             ],
           );
@@ -1173,17 +1174,38 @@ class _BeneficiaryManagementScreenState
       onChanged: (_) => setState(() {}),
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: const Icon(Icons.search),
+        hintStyle: const TextStyle(fontSize: 13, color: AppColors.greyText),
+        prefixIcon: const Icon(Icons.search, color: AppColors.primaryGreen),
         filled: true,
-        fillColor: const Color(0xFFF5F8F5),
+        fillColor: const Color(0xFFF8FAF8),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: Color(0xFFD6E2D8)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: Color(0xFFD6E2D8)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(
+            color: AppColors.primaryGreen,
+            width: 1.5,
+          ),
+        ),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
+                tooltip: 'Clear search',
                 onPressed: () {
                   controller.clear();
                   setState(() {});
                 },
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close, size: 19),
               ),
       ),
     );
@@ -1193,28 +1215,97 @@ class _BeneficiaryManagementScreenState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
-          fontSize: 12,
+          fontSize: 11.5,
           fontWeight: FontWeight.w600,
         ),
       ),
     );
   }
 
+  Widget _recordIcon(IconData icon) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9F5EC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, size: 22, color: AppColors.primaryGreen),
+    );
+  }
+
+  Widget _recordSurface(Widget child) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFCFDFC),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFD6E2D8)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _reviewNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F8F2),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: const Color(0xFFD6E2D8)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 20, color: AppColors.primaryGreen),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Review the household information, then record your decision. '
+              'Use latest assessment when new information is available. '
+              'A vulnerability classification does not automatically approve aid.',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.darkText,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _emptyMessage(String message) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 30),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Center(
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.greyText, fontSize: 13),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.inbox_outlined,
+              color: AppColors.greyText,
+              size: 30,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.greyText, fontSize: 13),
+            ),
+          ],
         ),
       ),
     );
@@ -1227,68 +1318,83 @@ class _BeneficiaryManagementScreenState
   Widget _buildCandidateCard(Map<String, dynamic> candidate) {
     final predictedClass = _value(candidate['predicted_class']);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.borderColor),
-      ),
-      child: Column(
+    return _recordSurface(
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _value(candidate['household_head']),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.darkText,
+              _recordIcon(Icons.home_work_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _value(candidate['household_head']),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.darkText,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Household #${_value(candidate['household_id'])} '
+                      '• ${_value(candidate['barangay'])}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.greyText,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
               _chip(
                 '$predictedClass Vulnerability',
                 _classColor(predictedClass),
               ),
+              if (candidate['assessment_data_origin'] == 'synthetic')
+                _chip('Practice record', AppColors.greyText),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Household #${_value(candidate['household_id'])} '
-            '• ${_value(candidate['barangay'])}',
-            style: const TextStyle(color: AppColors.greyText, fontSize: 12),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Text(
             'Assessment #${_value(candidate['assessment_id'])} '
             '• Household Size: ${_value(candidate['household_size'])}',
-            style: const TextStyle(color: AppColors.greyText, fontSize: 12),
+            style: const TextStyle(fontSize: 12, color: AppColors.greyText),
           ),
           const SizedBox(height: 4),
           Text(
             'Classification #${_value(candidate['classification_id'])} '
             '• ${_value(candidate['prediction_status'])}',
-            style: const TextStyle(color: AppColors.greyText, fontSize: 12),
+            style: const TextStyle(fontSize: 12, color: AppColors.greyText),
           ),
-          if (candidate['assessment_data_origin'] == 'synthetic') ...[
-            const SizedBox(height: 8),
-            _chip('Practice record', AppColors.greyText),
-          ],
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _isSaving || _isLoading
-                ? null
-                : () => _registerBeneficiary(candidate),
-            icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-            label: const Text('Register for Review'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryGreen,
-              side: const BorderSide(color: AppColors.primaryGreen),
+          const Divider(height: 24, color: Color(0xFFE4EBE5)),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              onPressed: _isSaving || _isLoading
+                  ? null
+                  : () => _registerBeneficiary(candidate),
+              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+              label: const Text('Register for Review'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryGreen,
+                side: const BorderSide(color: AppColors.primaryGreen),
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ),
         ],
@@ -1312,62 +1418,74 @@ class _BeneficiaryManagementScreenState
         ? const Color(0xFFAC7900)
         : AppColors.greyText;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.borderColor),
-      ),
-      child: Column(
+    return _recordSurface(
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _value(beneficiary['household_head']),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.darkText,
+              _recordIcon(Icons.fact_check_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _value(beneficiary['household_head']),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.darkText,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Beneficiary #${_value(beneficiary['beneficiary_id'])} '
+                      '• Household #${_value(beneficiary['household_id'])}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.greyText,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
               _chip(status, statusColor),
               _chip(
                 '$predictedClass Vulnerability',
                 _classColor(predictedClass),
               ),
+              if (beneficiary['assessment_data_origin'] == 'synthetic')
+                _chip('Practice record', AppColors.greyText),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Beneficiary #${_value(beneficiary['beneficiary_id'])} '
-            '• Household #${_value(beneficiary['household_id'])}',
-            style: const TextStyle(color: AppColors.greyText, fontSize: 12),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Text(
             '${_value(beneficiary['barangay'])} '
             '• Assessment #${_value(beneficiary['assessment_id'])}',
-            style: const TextStyle(color: AppColors.greyText, fontSize: 12),
+            style: const TextStyle(fontSize: 12, color: AppColors.greyText),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           Text(
             'Review Notes: ${_value(beneficiary['review_notes'])}',
-            style: const TextStyle(color: AppColors.greyText, fontSize: 12),
+            style: const TextStyle(fontSize: 12, color: AppColors.greyText),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Text(
             beneficiary['assessment_data_origin'] == 'synthetic'
                 ? 'Practice record'
                 : 'LGU household assessment',
             style: const TextStyle(fontSize: 12, color: AppColors.greyText),
           ),
-          const SizedBox(height: 14),
+          const Divider(height: 24, color: Color(0xFFE4EBE5)),
           Wrap(
             spacing: 10,
             runSpacing: 8,
@@ -1379,6 +1497,10 @@ class _BeneficiaryManagementScreenState
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primaryGreen,
                   side: const BorderSide(color: AppColors.primaryGreen),
+                  minimumSize: const Size(0, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               OutlinedButton.icon(
@@ -1387,6 +1509,14 @@ class _BeneficiaryManagementScreenState
                     : () => _useLatestAssessment(beneficiary),
                 icon: const Icon(Icons.sync, size: 18),
                 label: const Text('Use latest assessment'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryGreen,
+                  side: const BorderSide(color: Color(0xFFD6E2D8)),
+                  minimumSize: const Size(0, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
               if (status == 'Pending' || status == 'For Review')
                 OutlinedButton.icon(
@@ -1398,6 +1528,10 @@ class _BeneficiaryManagementScreenState
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primaryGreen,
                     side: const BorderSide(color: AppColors.primaryGreen),
+                    minimumSize: const Size(0, 40),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
             ],
@@ -1419,64 +1553,22 @@ class _BeneficiaryManagementScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Beneficiary Management',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.darkText,
-          ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Manage household beneficiary review records and status history.',
-          style: TextStyle(fontSize: 13, color: AppColors.greyText),
-        ),
-        const SizedBox(height: 18),
-
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.lightGreen,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.borderColor),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.info_outline, color: AppColors.primaryGreen),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Review the household information, then record your decision. '
-                  'Use latest assessment when new information is available.',
-                  style: TextStyle(fontSize: 12, color: AppColors.darkText),
-                ),
-              ),
-            ],
-          ),
-        ),
-
+        // The Staff Dashboard already shows this module's page heading.
         if (_error != null) ...[
-          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFFFF0F0),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE8B4B0)),
             ),
             child: Text(
               _error!,
-              style: const TextStyle(color: Color(0xFFB71C1C)),
+              style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 13),
             ),
           ),
+          const SizedBox(height: 16),
         ],
-
-        const SizedBox(height: 20),
-
-        // ======================================
-        // AVAILABLE HOUSEHOLDS
-        // ======================================
         _sectionCard(
           title: 'Households for Beneficiary Review',
           subtitle:
@@ -1486,16 +1578,20 @@ class _BeneficiaryManagementScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _reviewNotice(),
+              const SizedBox(height: 14),
               _searchField(
                 controller: _candidateSearchController,
                 hint: 'Search household name, ID, or barangay...',
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Text(
-                '${candidates.length} available households',
+                candidates.length == _candidates.length
+                    ? '${candidates.length} available households'
+                    : '${candidates.length} of ${_candidates.length} available households',
                 style: const TextStyle(color: AppColors.greyText, fontSize: 12),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               if (_isLoading)
                 const AidTrackModuleLoading()
               else if (candidates.isEmpty)
@@ -1509,12 +1605,7 @@ class _BeneficiaryManagementScreenState
             ],
           ),
         ),
-
-        const SizedBox(height: 22),
-
-        // ======================================
-        // REGISTERED BENEFICIARIES
-        // ======================================
+        const SizedBox(height: 18),
         _sectionCard(
           title: 'Beneficiary Records',
           subtitle: 'View and update registered household review statuses.',
@@ -1527,12 +1618,14 @@ class _BeneficiaryManagementScreenState
                 controller: _beneficiarySearchController,
                 hint: 'Search beneficiary, status, or barangay...',
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Text(
-                '${beneficiaries.length} beneficiary records',
+                beneficiaries.length == _beneficiaries.length
+                    ? '${beneficiaries.length} beneficiary records'
+                    : '${beneficiaries.length} of ${_beneficiaries.length} beneficiary records',
                 style: const TextStyle(color: AppColors.greyText, fontSize: 12),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               if (_isLoading)
                 const AidTrackModuleLoading()
               else if (beneficiaries.isEmpty)
