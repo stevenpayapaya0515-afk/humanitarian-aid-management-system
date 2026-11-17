@@ -46,9 +46,13 @@ This is survey-based Random Forest research with researcher-defined proxy labels
 not a validated PSA/LGU aid eligibility model. `app_ready=False` remains recorded.
 No APIS 2019 or FIES predictor is used by this endpoint.
 
-Authentication uses Google reCAPTCHA via `services/recaptcha.py`.
-Numbered SQL migrations, including the former local CAPTCHA migration, remain
-as historical schema records. Removing an unused Python helper does not drop tables.
+Authentication uses email/password followed by email OTP verification.
+JWT access tokens are issued only after successful OTP verification.
+The Web and Android login flows no longer require reCAPTCHA.
+
+Historical numbered SQL migrations remain for reference.
+The legacy login_captchas and ip_blocks tables were removed from the
+local development database. OTP records remain in login_otps.
 
 ## Current assessment flow
 

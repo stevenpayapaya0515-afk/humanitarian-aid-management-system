@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 import 'dart:async';
-import '../../widgets/recaptcha_checkbox.dart';
+
 import 'login_otp_form.dart';
 
 import '../public/home_page_screen.dart';
@@ -65,8 +65,11 @@ class _LoginScreenState extends State<LoginScreen> {
         onVerified: _openDashboard,
         onBack: () {
           AuthService.logout();
-          setState(() { _challengeId = null; _loginError = null; _resetCaptcha(); });
-              },
+          setState(() {
+            _challengeId = null;
+            _loginError = null;
+          });
+        },
       );
     }
     // Default: normal login form.
@@ -78,7 +81,6 @@ class _LoginScreenState extends State<LoginScreen> {
         widget.invitationToken?.trim().isNotEmpty ?? false;
 
     setState(() {
-      _resetCaptcha();
       if (hasInvitationLink) {
         // Reopen Staff registration using the invitation.
         _showInvitationForm = true;
@@ -175,25 +177,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Prevent repeated clicks while signing in
   bool _isLoading = false;
-  String? _recaptchaToken;
-  int _recaptchaGeneration = 0;
   String? _challengeId;
   DateTime? _challengeExpiresAt;
-
-  void _resetCaptcha() {
-    _recaptchaToken = null;
-    _recaptchaGeneration++;
-  }
 
   void _openDashboard(Map<String, dynamic> user) {
     if (!mounted) return;
     final Widget dashboard = user['role'] == 'Admin'
-        ? const AdminDashboard() : const StaffDashboard();
+        ? const AdminDashboard()
+        : const StaffDashboard();
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => dashboard), (route) => false,
+      MaterialPageRoute(builder: (_) => dashboard),
+      (route) => false,
     );
   }
-
 
   // Error displayed below the password field
   String? _loginError;
@@ -257,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     // Block both button clicks and Enter during the cooldown.
-    if (_isLoading || _remainingLockSeconds > 0 || _recaptchaToken == null) return;
+    if (_isLoading || _remainingLockSeconds > 0) return;
 
     // Check the form before sending a request
     if (!_formKey.currentState!.validate()) return;
@@ -271,7 +267,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final challenge = await AuthService.login(
         email: _emailController.text,
         password: _passwordController.text,
-        recaptchaToken: _recaptchaToken!,
       );
       if (!mounted) return;
       _passwordController.clear();
@@ -300,7 +295,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _loginError = 'Unable to sign in. Please try again.';
       });
     } finally {
-      if (mounted) _resetCaptcha();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -827,12 +821,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
 
           const SizedBox(height: 12),
-          RecaptchaCheckbox(
-            key: ValueKey(_recaptchaGeneration),
-            onChanged: (token) {
-              if (mounted) setState(() { _recaptchaToken = token; });
-            },
-          ),
           // Show a live countdown below the Password field.
           if (_remainingLockSeconds > 0)
             Padding(
@@ -864,7 +852,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // ========================================
           ElevatedButton(
             // Disable Sign In while loading or temporarily locked.
-            onPressed: _isLoading || _remainingLockSeconds > 0 || _recaptchaToken == null ? null : _signIn,
+            onPressed: _isLoading || _remainingLockSeconds > 0 ? null : _signIn,
 
             child: Text(
               _isLoading ? 'Signing in...' : 'Sign In',

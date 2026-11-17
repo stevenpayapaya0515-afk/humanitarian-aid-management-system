@@ -5,7 +5,6 @@ from datetime import datetime
 
 # Data sent by the login page
 class LoginRequest(BaseModel):
-    recaptcha_token: str = Field(min_length=1, max_length=8192)
     email: str = Field(min_length=1, max_length=254)
     password: str = Field(min_length=1, max_length=1024)
 

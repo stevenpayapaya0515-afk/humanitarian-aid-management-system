@@ -24,7 +24,6 @@ os.environ.setdefault('OTP_HMAC_SECRET', 'a1' * 32)
 from routes import auth
 from core import dependencies
 from core.security import hash_password, create_access_token
-from services import recaptcha
 from services.login_otp_store import create_login_challenge, mark_login_otp_sent
 
 DSN = os.getenv('AIDTRACK_TEST_DSN')
@@ -40,7 +39,7 @@ def connect():
 @pytest.fixture(autouse=True)
 def setup_database():
     with connect() as connection:
-        connection.execute('DROP TABLE IF EXISTS public.login_captchas, public.login_otps, public.users CASCADE')
+        connection.execute('DROP TABLE IF EXISTS public.login_otps, public.users CASCADE')
         connection.execute('''CREATE TABLE public.users (
             user_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             full_name TEXT, email TEXT UNIQUE, password_hash TEXT, role TEXT,
@@ -48,7 +47,7 @@ def setup_database():
             locked_until TIMESTAMPTZ, auth_version INTEGER DEFAULT 1)''')
         root = Path(__file__).resolve().parents[2]
         # Execute the production CREATE TABLE/index SQL, without deployment guards/grants.
-        for filename in ['11_create_login_otps.sql', '17_create_login_captchas.sql']:
+        for filename in ['11_create_login_otps.sql']:
             sql = (root / 'database' / filename).read_text()
             start = sql.index('CREATE TABLE')
             end = sql.index('GRANT', start)
@@ -56,8 +55,7 @@ def setup_database():
         connection.execute('''INSERT INTO public.users (full_name,email,password_hash,role)
             VALUES ('Test Admin','test@example.test',%s,'Admin')''', (hash_password(PASSWORD),))
     with patch.object(auth, 'get_connection', connect), \
-         patch.object(dependencies, 'get_connection', connect), \
-         patch.object(auth, 'verify_recaptcha', return_value=None):
+         patch.object(dependencies, 'get_connection', connect):
         yield
 
 
@@ -70,8 +68,7 @@ def client():
 
 
 def credentials(client, password=PASSWORD):
-    return dict(email='test@example.test', password=password,
-                recaptcha_token='mock-provider-token')
+    return dict(email='test@example.test', password=password)
 
 
 def start_login(client):
@@ -89,7 +86,12 @@ def verify(client, challenge, code):
 
 
 def test_password_only_cannot_authenticate(client):
-    assert client.post('/auth/login', json={'email':'test@example.test','password':PASSWORD}).status_code == 422
+    # Email and password start an OTP challenge; they never issue a JWT.
+    with patch.object(auth, 'send_login_otp_email', return_value='sent'):
+        response = client.post('/auth/login', json=credentials(client))
+    assert response.status_code == 200
+    assert 'challenge_id' in response.json()
+    assert 'access_token' not in response.json()
     assert client.get('/auth/me').status_code == 401
 
 
@@ -122,12 +124,11 @@ def test_expired_and_unsent_codes(client):
     assert verify(client, str(challenge.challenge_id), challenge.code).status_code == 401
 
 
-def test_provider_rejection_prevents_password_check(client):
-    from fastapi import HTTPException
-    with patch.object(auth, 'verify_recaptcha', side_effect=HTTPException(400, 'Invalid CAPTCHA')), \
-         patch.object(auth, 'verify_password') as password_check:
-        assert client.post('/auth/login', json=credentials(client)).status_code == 400
-        password_check.assert_not_called()
+def test_missing_password_rejected_before_password_check(client):
+    with patch.object(auth, 'verify_password') as password_check:
+        response = client.post('/auth/login', json={'email': 'test@example.test'})
+    assert response.status_code == 422
+    password_check.assert_not_called()
 
 
 def test_password_lockout(client):

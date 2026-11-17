@@ -10,7 +10,6 @@ from math import ceil
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from schemas.auth import LoginChallengeResponse, VerifyLoginRequest
-from services.recaptcha import verify_recaptcha
 from services.login_otp_store import (create_login_challenge, mark_login_otp_sent,
     invalidate_login_challenge, check_login_otp, OTPRateLimited, OTPAccountUnavailable)
 from services.gmail_login_email import send_login_otp_email
@@ -57,8 +56,6 @@ DUMMY_HASH = hash_password("unused-dummy-password")
 
 @router.post("/login", response_model=LoginChallengeResponse)
 def login(data: LoginRequest, request: Request):
-    logger.info("LOGIN started: checking CAPTCHA")
-    verify_recaptcha(data.recaptcha_token)
     logger.info("LOGIN checking password/database")
     # Normalize the email, but preserve the password exactly.
     email = data.email.strip().lower()
