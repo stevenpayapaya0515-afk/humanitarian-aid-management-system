@@ -130,8 +130,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     setState(() {
       _dashboardLoading = true;
       _dashboardError = null;
-      _totalHouseholds = null;
-      _totalPopulation = null;
     });
 
     try {
@@ -892,8 +890,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: _dashboardLoading ? null : _loadDashboard,
-            icon: const Icon(Icons.refresh),
-            label: Text(_dashboardLoading ? 'Loading...' : 'Refresh totals'),
+            icon: _dashboardLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primaryGreen,
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            label: Text(_dashboardLoading ? 'Refreshing...' : 'Refresh totals'),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.primaryGreen,
             ),
@@ -937,9 +944,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   width: cardWidth,
                   title: 'Total Households',
                   icon: Icons.home_outlined,
-                  value: _dashboardLoading
-                      ? '…'
-                      : (_totalHouseholds?.toString() ?? '—'),
+                  value: _totalHouseholds?.toString() ?? '—',
                 ),
 
                 // Total people in registered households, including the heads.
@@ -947,9 +952,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   width: cardWidth,
                   title: 'Total Household Population',
                   icon: Icons.people_outline,
-                  value: _dashboardLoading
-                      ? '…'
-                      : (_totalPopulation?.toString() ?? '—'),
+                  value: _totalPopulation?.toString() ?? '—',
                 ),
 
                 // ASSESSED HOUSEHOLDS
@@ -957,9 +960,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   width: cardWidth,
                   title: 'Assessed Households',
                   icon: Icons.assignment_turned_in_outlined,
-                  value: _dashboardLoading
-                      ? '…'
-                      : (_assessedHouseholds?.toString() ?? '—'),
+                  value: _assessedHouseholds?.toString() ?? '—',
                 ),
 
                 // CLASSIFIED HOUSEHOLDS
@@ -967,9 +968,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   width: cardWidth,
                   title: 'Classified Households',
                   icon: Icons.analytics_outlined,
-                  value: _dashboardLoading
-                      ? '…'
-                      : (_classifiedHouseholds?.toString() ?? '—'),
+                  value: _classifiedHouseholds?.toString() ?? '—',
                 ),
 
                 // HIGH VULNERABILITY
@@ -977,9 +976,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   width: cardWidth,
                   title: 'High Vulnerability',
                   icon: Icons.warning_amber_outlined,
-                  value: _dashboardLoading
-                      ? '…'
-                      : (_highVulnerability?.toString() ?? '—'),
+                  value: _highVulnerability?.toString() ?? '—',
                 ),
 
                 // DISTRIBUTION SIMULATIONS
@@ -987,9 +984,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   width: cardWidth,
                   title: 'Aid Distributions',
                   icon: Icons.inventory_2_outlined,
-                  value: _dashboardLoading
-                      ? '…'
-                      : (_simulatedDistributions?.toString() ?? '—'),
+                  value: _simulatedDistributions?.toString() ?? '—',
                 ),
               ],
             );
@@ -1041,7 +1036,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ========================================
 
   Widget _buildAdminVulnerabilityOverview() {
-    if (_dashboardLoading) {
+    if (_dashboardLoading && _classifiedHouseholds == null) {
       return const Padding(
         padding: EdgeInsets.all(35),
         child: Center(
@@ -1169,7 +1164,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ========================================
 
   Widget _buildAdminRecentActivity() {
-    if (_dashboardLoading) {
+    if (_dashboardLoading && _recentActivity.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(30),
         child: Center(

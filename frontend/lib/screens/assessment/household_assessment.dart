@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/vulnerability_service.dart';
+import '../../widgets/aidtrack_module_loading.dart';
 import '../vulnerability_classification/vulnerability_classification.dart'
     show apis2022Options;
 
@@ -1351,12 +1352,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(50),
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
-        ),
-      );
+      return const AidTrackModuleLoading();
     }
     if (_error != null) {
       return Column(

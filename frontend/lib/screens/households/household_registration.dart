@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/theme/app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/aidtrack_module_loading.dart';
 
 // Registration, editing, member viewing, and deletion in one screen.
 class HouseholdRegistration extends StatefulWidget {
@@ -1291,10 +1292,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
           const SizedBox(height: 16),
 
           if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const AidTrackModuleLoading()
           else if (_listError != null)
             Text(_listError!, style: const TextStyle(color: Colors.red))
           else if (_households.isEmpty)

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../core/theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/beneficiary_service.dart';
+import '../../widgets/aidtrack_module_loading.dart';
 
 class BeneficiaryManagementScreen extends StatefulWidget {
   const BeneficiaryManagementScreen({super.key});
@@ -1499,11 +1500,7 @@ class _BeneficiaryManagementScreenState
               ),
               const SizedBox(height: 14),
               if (_isLoading)
-                const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
-                )
+                const AidTrackModuleLoading()
               else if (candidates.isEmpty)
                 _emptyMessage(
                   _candidates.isEmpty
@@ -1540,11 +1537,7 @@ class _BeneficiaryManagementScreenState
               ),
               const SizedBox(height: 14),
               if (_isLoading)
-                const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
-                )
+                const AidTrackModuleLoading()
               else if (beneficiaries.isEmpty)
                 _emptyMessage(
                   _beneficiaries.isEmpty

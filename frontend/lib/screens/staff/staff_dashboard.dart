@@ -14,6 +14,7 @@ import 'staff_settings.dart';
 import '../beneficiaries/beneficiary_management.dart';
 import '../distribution/aid_distribution.dart';
 import '../reports/staff_report.dart';
+import '../../widgets/aidtrack_module_loading.dart';
 
 // ========================================
 // STAFF DASHBOARD
@@ -443,7 +444,12 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     width: double.infinity,
                     height: double.infinity,
                     color: const Color(0xFFF5F8F5),
-                    child: _buildMainContent(),
+                    child: ProgressIndicatorTheme(
+                      data: const ProgressIndicatorThemeData(
+                        color: AppColors.primaryGreen,
+                      ),
+                      child: _buildMainContent(),
+                    ),
                   ),
                 ),
               ),
@@ -1071,7 +1077,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             final double cardWidth = (width - (columns - 1) * 16) / columns;
 
             String display(int? value) {
-              if (_dashboardLoading) return '…';
+              if (_dashboardLoading && value == null) return '…';
 
               return value?.toString() ?? '—';
             }
@@ -1180,14 +1186,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
   // ========================================
 
   Widget _buildVulnerabilityOverview() {
-    if (_dashboardLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(35),
-
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
-        ),
-      );
+    if (_dashboardLoading && _totalHouseholds == null) {
+      return const AidTrackModuleLoading();
     }
 
     final int total = _classifiedHouseholds ?? 0;
@@ -1322,14 +1322,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
   // ========================================
 
   Widget _buildRecentActivity() {
-    if (_dashboardLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(30),
-
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
-        ),
-      );
+    if (_dashboardLoading && _totalHouseholds == null) {
+      return const AidTrackModuleLoading();
     }
 
     if (_recentActivity.isEmpty) {

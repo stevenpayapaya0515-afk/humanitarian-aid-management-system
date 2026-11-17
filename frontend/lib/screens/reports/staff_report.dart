@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../core/theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/reports_service.dart';
+import '../../widgets/aidtrack_module_loading.dart';
 
 class StaffReportScreen extends StatefulWidget {
   final String heading;
@@ -621,11 +622,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
         'rejected_beneficiaries',
         Icons.block_outlined,
       ),
-      (
-        'Recorded Deliveries',
-        'aid_distributions',
-        Icons.inventory_2_outlined,
-      ),
+      ('Recorded Deliveries', 'aid_distributions', Icons.inventory_2_outlined),
     ];
 
     return _section(
@@ -798,12 +795,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
         // LOADING / EMPTY / RESULTS
         // ======================================
         if (_isLoading && report == null)
-          const Padding(
-            padding: EdgeInsets.all(38),
-            child: Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGreen),
-            ),
-          )
+          const AidTrackModuleLoading()
         else if (report != null) ...[
           _section(
             title: 'Report Information',

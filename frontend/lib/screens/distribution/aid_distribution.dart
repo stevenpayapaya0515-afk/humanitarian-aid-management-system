@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../core/theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/distribution_service.dart';
+import '../../widgets/aidtrack_module_loading.dart';
 
 class AidDistributionScreen extends StatefulWidget {
   const AidDistributionScreen({super.key});
@@ -1056,11 +1057,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
               _errorBox(_beneficiaryError!),
               const SizedBox(height: 16),
             ],
-            if (_isLoadingBeneficiaries)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 16),
-                child: LinearProgressIndicator(color: AppColors.primaryGreen),
-              ),
+            if (_isLoadingBeneficiaries) const AidTrackModuleLoading(),
             if (!_isLoadingBeneficiaries &&
                 _beneficiaries.isEmpty &&
                 _editingDistribution == null)
@@ -1910,12 +1907,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
           ],
 
           if (_isLoadingRecords)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primaryGreen),
-              ),
-            )
+            const AidTrackModuleLoading()
           else if (records.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),

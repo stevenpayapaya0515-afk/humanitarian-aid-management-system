@@ -219,45 +219,68 @@ class _UserManagementState extends State<UserManagement> {
   }
 
   // ========================================
-  // INVITATION SUCCESS POPUP
+  // FEEDBACK AND LOADING DIALOGS
   // ========================================
 
-  Future<void> _showSuccessDialog() async {
-    if (!mounted) return;
+  Future<void> _showFeedbackDialog({
+    required bool success,
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) {
+      return;
+    }
 
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, color: Color(0xFF175C3A), size: 60),
-            SizedBox(height: 16),
-            Text(
-              'Invitation Sent!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF175C3A),
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                success ? Icons.check_circle_outline : Icons.error_outline,
+                color: success
+                    ? const Color(0xFF175C3A)
+                    : const Color(0xFFC62828),
+                size: 58,
               ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'A registration invitation was sent to the Staff email. '
-          'The account will appear in User Management after registration.',
-          textAlign: TextAlign.center,
+              const SizedBox(height: 14),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF263238),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
+              ),
+            ],
+          ),
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-            },
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF175C3A),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(120, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('OK'),
           ),
         ],
@@ -265,21 +288,92 @@ class _UserManagementState extends State<UserManagement> {
     );
   }
 
+  void _showProcessingDialog(String title) {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (dialogContext) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  color: Color(0xFF175C3A),
+                  strokeWidth: 3,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF263238),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please wait while the request is processed.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Color(0xFF667085)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _requestError(Object error, String fallback) {
+    if (error is AuthException) {
+      return error.message;
+    }
+    if (error is TimeoutException) {
+      return 'Request timed out. Refresh the account list before trying again.';
+    }
+    if (error is http.ClientException) {
+      return 'Cannot connect to the server. Check your connection.';
+    }
+    return fallback;
+  }
+
   // ========================================
   // INVITE STAFF MEMBER
-  // No Admin-created Staff password.
   // ========================================
 
   Future<void> _inviteStaff() async {
-    if (_saving) return;
+    if (_saving || _updatingUserId != null) {
+      return;
+    }
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Invalid Staff Email',
+        message: 'Enter a valid email address before sending an invitation.',
+      );
+      return;
+    }
 
     setState(() {
       _saving = true;
       _formError = null;
     });
 
+    _showProcessingDialog('Sending Staff Invitation...');
+    await WidgetsBinding.instance.endOfFrame;
+
+    String? failureMessage;
+    bool sent = false;
     try {
       final response = await http
           .post(
@@ -292,48 +386,45 @@ class _UserManagementState extends State<UserManagement> {
           .timeout(const Duration(seconds: 20));
 
       _checkResponse(response, 201);
-
-      if (!mounted) return;
-
-      _formKey.currentState!.reset();
-      _emailController.clear();
-
-      await _showSuccessDialog();
-
-      if (mounted) {
-        await _loadUsers();
-      }
-    } on AuthException catch (error) {
-      if (mounted) {
-        setState(() {
-          _formError = error.message;
-        });
-      }
-    } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          _formError = 'Request timed out. Check the invitation status before resending.';
-        });
-      }
-    } on http.ClientException {
-      if (mounted) {
-        setState(() {
-          _formError = 'Cannot connect to the server.';
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _formError =
-              'Could not confirm the invitation. Please check the server.';
-        });
-      }
+      sent = true;
+    } catch (error) {
+      failureMessage = _requestError(
+        error,
+        'Could not confirm the invitation. Check the server before resending.',
+      );
     } finally {
       if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         setState(() {
           _saving = false;
+          _formError = failureMessage;
         });
       }
+    }
+
+    if (!mounted) {
+      return;
+    }
+    if (!sent) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Invitation Not Sent',
+        message: failureMessage ?? 'Unable to send the invitation.',
+      );
+      return;
+    }
+
+    _formKey.currentState?.reset();
+    _emailController.clear();
+    await _showFeedbackDialog(
+      success: true,
+      title: 'Staff Invitation Sent',
+      message:
+          'The registration link has been sent to the Staff email. '
+          'The account will appear after the recipient completes registration.',
+    );
+    if (mounted) {
+      await _loadUsers();
     }
   }
 
@@ -353,7 +444,8 @@ class _UserManagementState extends State<UserManagement> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('$action Staff Account?'),
         content: Text(
           currentlyActive
@@ -366,24 +458,31 @@ class _UserManagementState extends State<UserManagement> {
             actionColor: currentlyActive
                 ? const Color(0xFFB71C1C)
                 : const Color(0xFF175C3A),
-            onCancel: () {
-              Navigator.of(dialogContext).pop(false);
-            },
-            onConfirm: () {
-              Navigator.of(dialogContext).pop(true);
-            },
+            onCancel: () => Navigator.of(dialogContext).pop(false),
+            onConfirm: () => Navigator.of(dialogContext).pop(true),
           ),
         ],
       ),
     );
 
-    if (!mounted || confirmed != true) return;
+    if (!mounted || confirmed != true) {
+      return;
+    }
 
     setState(() {
       _updatingUserId = userId;
       _listError = null;
     });
 
+    _showProcessingDialog(
+      currentlyActive
+          ? 'Deactivating Staff Account...'
+          : 'Activating Staff Account...',
+    );
+    await WidgetsBinding.instance.endOfFrame;
+
+    String? failureMessage;
+    bool updated = false;
     try {
       final response = await http
           .patch(
@@ -394,28 +493,45 @@ class _UserManagementState extends State<UserManagement> {
           .timeout(const Duration(seconds: 15));
 
       _checkResponse(response, 200);
-
-      if (mounted) {
-        await _loadUsers();
-      }
-    } on AuthException catch (error) {
-      if (mounted) {
-        setState(() {
-          _listError = error.message;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _listError = 'Could not confirm the status change. Refresh accounts before retrying.';
-        });
-      }
+      updated = true;
+    } catch (error) {
+      failureMessage = _requestError(
+        error,
+        'Could not confirm the status change. Refresh accounts before retrying.',
+      );
     } finally {
       if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         setState(() {
           _updatingUserId = null;
+          _listError = failureMessage;
         });
       }
+    }
+
+    if (!mounted) {
+      return;
+    }
+    if (updated) {
+      await _loadUsers();
+      if (!mounted) {
+        return;
+      }
+      await _showFeedbackDialog(
+        success: true,
+        title: currentlyActive
+            ? 'Staff Account Deactivated'
+            : 'Staff Account Activated',
+        message: currentlyActive
+            ? 'The Staff account has been deactivated successfully.'
+            : 'The Staff account has been activated successfully.',
+      );
+    } else {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Status Update Failed',
+        message: failureMessage ?? 'Unable to update the Staff account.',
+      );
     }
   }
 
@@ -434,7 +550,7 @@ class _UserManagementState extends State<UserManagement> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Staff Account?', textAlign: TextAlign.center),
         content: Text(
           'Permanently delete ${user['full_name']} '
@@ -446,24 +562,27 @@ class _UserManagementState extends State<UserManagement> {
           _buildActionButtons(
             actionLabel: 'Delete Permanently',
             actionColor: const Color(0xFFB71C1C),
-            onCancel: () {
-              Navigator.of(dialogContext).pop(false);
-            },
-            onConfirm: () {
-              Navigator.of(dialogContext).pop(true);
-            },
+            onCancel: () => Navigator.of(dialogContext).pop(false),
+            onConfirm: () => Navigator.of(dialogContext).pop(true),
           ),
         ],
       ),
     );
 
-    if (!mounted || confirmed != true) return;
+    if (!mounted || confirmed != true) {
+      return;
+    }
 
     setState(() {
       _updatingUserId = userId;
       _listError = null;
     });
 
+    _showProcessingDialog('Deleting Staff Account...');
+    await WidgetsBinding.instance.endOfFrame;
+
+    String? failureMessage;
+    bool deleted = false;
     try {
       final response = await http
           .delete(
@@ -473,29 +592,41 @@ class _UserManagementState extends State<UserManagement> {
           .timeout(const Duration(seconds: 15));
 
       _checkResponse(response, 200);
-
-      if (mounted) {
-        await _loadUsers();
-      }
-    } on AuthException catch (error) {
-      if (mounted) {
-        setState(() {
-          _listError = error.message;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _listError =
-              'Could not confirm deletion. Refresh accounts before retrying.';
-        });
-      }
+      deleted = true;
+    } catch (error) {
+      failureMessage = _requestError(
+        error,
+        'Could not confirm deletion. Refresh accounts before retrying.',
+      );
     } finally {
       if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         setState(() {
           _updatingUserId = null;
+          _listError = failureMessage;
         });
       }
+    }
+
+    if (!mounted) {
+      return;
+    }
+    if (deleted) {
+      await _loadUsers();
+      if (!mounted) {
+        return;
+      }
+      await _showFeedbackDialog(
+        success: true,
+        title: 'Staff Account Deleted',
+        message: 'The Staff account has been deleted successfully.',
+      );
+    } else {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Account Deletion Failed',
+        message: failureMessage ?? 'Unable to delete the Staff account.',
+      );
     }
   }
 
@@ -558,7 +689,7 @@ class _UserManagementState extends State<UserManagement> {
                     },
                     decoration: const InputDecoration(
                       labelText: 'Staff Email Address',
-                      hintText: 'staff@example.com',
+                      hintText: 'Enter the email address for the invitation',
                       prefixIcon: Icon(Icons.email_outlined),
                       border: OutlineInputBorder(),
                     ),
@@ -591,7 +722,9 @@ class _UserManagementState extends State<UserManagement> {
 
                   // Send invitation button
                   ElevatedButton.icon(
-                    onPressed: _saving ? null : _inviteStaff,
+                    onPressed: _saving || _updatingUserId != null
+                        ? null
+                        : _inviteStaff,
                     icon: const Icon(Icons.mail_outline),
                     label: Text(
                       _saving
@@ -792,4 +925,3 @@ class _UserManagementState extends State<UserManagement> {
     );
   }
 }
-
