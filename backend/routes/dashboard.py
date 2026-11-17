@@ -3,6 +3,7 @@ from psycopg.rows import dict_row
 
 from core.dependencies import get_current_user
 from database import get_connection
+from ml_service.train_apis2022_vulnerability import MODEL_VERSION as APIS_MODEL_VERSION
 from schemas.dashboard import DashboardSummary
 
 
@@ -81,7 +82,7 @@ def get_dashboard_summary(
 
                     INNER JOIN public.vulnerability_classifications vc
                         ON vc.assessment_id = la.assessment_id
-                        AND vc.model_version = 'apis2019-proxy-v1'
+                        AND vc.model_version = %s
 
                     ORDER BY
                         la.household_id,
@@ -105,7 +106,8 @@ def get_dashboard_summary(
                     ) AS high_vulnerability
 
                 FROM latest_classification;
-                """
+                """,
+                (APIS_MODEL_VERSION,),
             )
 
             vulnerability_summary = cursor.fetchone()
