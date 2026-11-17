@@ -1,3 +1,5 @@
+import '../../widgets/aidtrack_section_card.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -1059,14 +1061,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     required IconData icon,
     required Widget child,
   }) {
-    return Container(
+    return AidTrackSectionCard(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.borderColor),
-        borderRadius: BorderRadius.circular(14),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

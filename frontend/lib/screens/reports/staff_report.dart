@@ -1,3 +1,5 @@
+import '../../widgets/aidtrack_section_card.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,7 +13,7 @@ import '../../widgets/aidtrack_module_loading.dart';
 class StaffReportScreen extends StatefulWidget {
   final String heading;
 
-  const StaffReportScreen({super.key, this.heading = 'Staff Reports'});
+  const StaffReportScreen({super.key, this.heading = 'Reports'});
 
   @override
   State<StaffReportScreen> createState() => _StaffReportScreenState();
@@ -359,14 +361,9 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
     required Widget child,
     Widget? trailing,
   }) {
-    return Container(
+    return AidTrackSectionCard(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderColor),
-      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final mobile = constraints.maxWidth < 520;
@@ -448,6 +445,24 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
   // REPORT FILTERS
   // ==========================================
 
+  String _appliedFilterSummary() {
+    final report = _report;
+    if (report == null) return 'Showing: No report loaded';
+
+    String display(dynamic value, String fallback) {
+      final text = value?.toString().trim() ?? '';
+      return text.isEmpty ? fallback : text;
+    }
+
+    final from = display(report['from_date'], 'All dates');
+    final to = display(report['to_date'], 'All dates');
+    final barangay = display(report['barangay_filter'], 'All barangays');
+    final dates = from == 'All dates' && to == 'All dates'
+        ? 'All dates'
+        : '$from to $to';
+    return 'Showing: $dates • $barangay';
+  }
+
   Widget _filterSection() {
     return _section(
       title: 'Report Filters',
@@ -455,6 +470,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
           'Dates filter household registration dates '
           '(Philippine time).',
       icon: Icons.filter_alt_outlined,
+      trailing: _refreshButton(),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 700;
@@ -540,6 +556,19 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
                       side: const BorderSide(color: AppColors.primaryGreen),
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      _appliedFilterSummary(),
+                      style: const TextStyle(
+                        color: AppColors.greyText,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -588,76 +617,141 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
   Widget _totalsSection(Map<String, dynamic> totals) {
     const fields = <(String, String, IconData)>[
       ('Total Households', 'total_households', Icons.home_outlined),
-      ('Total Population', 'total_population', Icons.people_outline),
+      ('Household Population', 'total_population', Icons.people_outline),
       ('Assessed Households', 'assessed_households', Icons.assignment_outlined),
       (
         'Classified Households',
         'classified_households',
         Icons.analytics_outlined,
       ),
-      ('Low Vulnerability', 'low_vulnerability', Icons.trending_down_outlined),
-      (
-        'Medium Vulnerability',
-        'medium_vulnerability',
-        Icons.trending_flat_outlined,
-      ),
-      (
-        'High Vulnerability',
-        'high_vulnerability',
-        Icons.warning_amber_outlined,
-      ),
-      (
-        'Pending Beneficiaries',
-        'pending_beneficiaries',
-        Icons.hourglass_empty_outlined,
-      ),
-      ('For Review', 'for_review_beneficiaries', Icons.rate_review_outlined),
-      (
-        'Approved Beneficiaries',
-        'approved_beneficiaries',
-        Icons.verified_outlined,
-      ),
-      (
-        'Rejected Beneficiaries',
-        'rejected_beneficiaries',
-        Icons.block_outlined,
-      ),
-      ('Recorded Deliveries', 'aid_distributions', Icons.inventory_2_outlined),
     ];
 
     return _section(
-      title: 'Report Summary',
-      subtitle:
-          'Current household and beneficiary totals '
-          'for the selected filters.',
-      icon: Icons.bar_chart_outlined,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
+      title: 'Household Overview',
+      subtitle: 'Households registered within the selected filters.',
+      icon: Icons.home_work_outlined,
+      child: _reportMetricGrid(fields, totals),
+    );
+  }
 
-          final columns = width >= 850
-              ? 4
-              : width >= 510
-              ? 2
-              : 1;
+  Widget _reportMetricGrid(
+    List<(String, String, IconData)> fields,
+    Map<String, dynamic> totals,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 820
+            ? 4
+            : constraints.maxWidth >= 480
+            ? 2
+            : 1;
+        final cardWidth = (constraints.maxWidth - (columns - 1) * 12) / columns;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final item in fields)
+              _metricCard(item.$1, _count(totals[item.$2]), item.$3, cardWidth),
+          ],
+        );
+      },
+    );
+  }
 
-          final cardWidth = (width - (columns - 1) * 12) / columns;
-
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (final item in fields)
-                _metricCard(
-                  item.$1,
-                  _count(totals[item.$2]),
-                  item.$3,
-                  cardWidth,
-                ),
-            ],
-          );
-        },
+  Widget _vulnerabilityReport(Map<String, dynamic> totals) {
+    final segments = <(String, int, Color)>[
+      (
+        'Low Vulnerability',
+        _count(totals['low_vulnerability']),
+        AppColors.primaryGreen,
       ),
+      (
+        'Medium Vulnerability',
+        _count(totals['medium_vulnerability']),
+        const Color(0xFFAB7800),
+      ),
+      (
+        'High Vulnerability',
+        _count(totals['high_vulnerability']),
+        const Color(0xFFC62828),
+      ),
+    ];
+    final classified = _count(totals['classified_households']);
+    return _section(
+      title: 'Household Vulnerability Overview',
+      subtitle: 'Current Low, Medium, and High classifications.',
+      icon: Icons.analytics_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (classified == 0)
+            const Text(
+              'No classified households match the selected filters.',
+              style: TextStyle(color: AppColors.greyText, fontSize: 13),
+            )
+          else
+            for (final item in segments) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.$1,
+                      style: const TextStyle(
+                        color: AppColors.darkText,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${item.$2}  (${(item.$2 / classified * 100).toStringAsFixed(1)}%)',
+                    style: TextStyle(
+                      color: item.$3,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              LinearProgressIndicator(
+                value: item.$2 / classified,
+                backgroundColor: const Color(0xFFE4EAE6),
+                color: item.$3,
+                borderRadius: BorderRadius.circular(8),
+                minHeight: 9,
+              ),
+              const SizedBox(height: 18),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _beneficiaryReport(Map<String, dynamic> totals) {
+    const fields = <(String, String, IconData)>[
+      ('Pending', 'pending_beneficiaries', Icons.hourglass_empty_outlined),
+      ('For Review', 'for_review_beneficiaries', Icons.rate_review_outlined),
+      ('Approved', 'approved_beneficiaries', Icons.verified_outlined),
+      ('Rejected', 'rejected_beneficiaries', Icons.block_outlined),
+    ];
+    return _section(
+      title: 'Beneficiary Review Status',
+      subtitle: 'Current Staff review decisions.',
+      icon: Icons.fact_check_outlined,
+      child: _reportMetricGrid(fields, totals),
+    );
+  }
+
+  Widget _distributionReport(Map<String, dynamic> totals) {
+    const fields = <(String, String, IconData)>[
+      ('Verified Deliveries', 'aid_distributions', Icons.inventory_2_outlined),
+      ('Demo Entries', 'simulated_distributions', Icons.science_outlined),
+    ];
+    return _section(
+      title: 'Aid Distribution Overview',
+      subtitle: 'Verified deliveries and demonstration entries are counted separately.',
+      icon: Icons.local_shipping_outlined,
+      child: _reportMetricGrid(fields, totals),
     );
   }
 
@@ -750,8 +844,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
         ),
         const SizedBox(height: 5),
         const Text(
-          'View household, vulnerability, beneficiary, '
-          'and distribution summaries.',
+          'Household vulnerability and aid distribution overview',
           style: TextStyle(fontSize: 13, color: AppColors.greyText),
         ),
         const SizedBox(height: 18),
@@ -797,22 +890,13 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
         if (_isLoading && report == null)
           const AidTrackModuleLoading()
         else if (report != null) ...[
-          _section(
-            title: 'Report Information',
-            subtitle: 'Filters currently applied to the displayed report.',
-            icon: Icons.info_outline,
-            trailing: _refreshButton(),
-            child: Text(
-              'Registration dates: '
-              '${report['from_date'] ?? 'All dates'}'
-              ' to ${report['to_date'] ?? 'All dates'}  •  '
-              'Barangay: '
-              '${report['barangay_filter'] ?? 'All barangays'}',
-              style: const TextStyle(color: AppColors.greyText, fontSize: 13),
-            ),
-          ),
-          const SizedBox(height: 20),
           _totalsSection(totals),
+          const SizedBox(height: 20),
+          _vulnerabilityReport(totals),
+          const SizedBox(height: 20),
+          _beneficiaryReport(totals),
+          const SizedBox(height: 20),
+          _distributionReport(totals),
           const SizedBox(height: 20),
           _section(
             title: 'Barangay Breakdown',

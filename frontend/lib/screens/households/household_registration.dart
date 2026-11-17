@@ -1,3 +1,5 @@
+import '../../widgets/aidtrack_section_card.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -923,14 +925,9 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
   // FORM APPEARANCE
   // ========================================
 
-  Widget _card(Widget child) => Container(
+  Widget _card(Widget child) => AidTrackSectionCard(
     width: double.infinity,
     padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFE0E7E2)),
-    ),
     child: child,
   );
 

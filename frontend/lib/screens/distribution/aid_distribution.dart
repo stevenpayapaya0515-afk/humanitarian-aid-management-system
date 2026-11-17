@@ -1,3 +1,5 @@
+import '../../widgets/aidtrack_section_card.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -804,14 +806,9 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     required Widget child,
     Widget? trailing,
   }) {
-    return Container(
+    return AidTrackSectionCard(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderColor),
-      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final mobile = constraints.maxWidth < 520;

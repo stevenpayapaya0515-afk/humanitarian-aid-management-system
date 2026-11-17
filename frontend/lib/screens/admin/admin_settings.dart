@@ -1,3 +1,5 @@
+import '../../widgets/aidtrack_section_card.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -526,14 +528,9 @@ class _AdminSettingsState extends State<AdminSettings> {
   // ========================================
 
   Widget _panel(Widget child) {
-    return Container(
+    return AidTrackSectionCard(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E7E2)),
-      ),
       child: child,
     );
   }

@@ -1,3 +1,5 @@
+import '../../widgets/aidtrack_section_card.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -1534,18 +1536,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
     required IconData icon,
     required Widget child,
   }) {
-    return Container(
+    return AidTrackSectionCard(
       width: double.infinity,
 
       padding: const EdgeInsets.all(22),
-
-      decoration: BoxDecoration(
-        color: AppColors.white,
-
-        borderRadius: BorderRadius.circular(18),
-
-        border: Border.all(color: const Color(0xFFE4EBE5)),
-      ),
 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
