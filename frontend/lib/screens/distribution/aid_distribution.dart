@@ -749,48 +749,28 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     required bool loading,
     required VoidCallback onPressed,
   }) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        onTap: loading || _isSaving ? null : onPressed,
-        borderRadius: BorderRadius.circular(24),
-
-        // Grey appears only when the cursor hovers.
-        hoverColor: const Color(0xFFE5E7EB),
-        splashColor: AppColors.lightGreen,
-        highlightColor: AppColors.lightGreen,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (loading)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primaryGreen,
-                  ),
-                )
-              else
-                const Icon(
-                  Icons.refresh,
-                  size: 18,
-                  color: AppColors.primaryGreen,
-                ),
-              const SizedBox(width: 8),
-              Text(
-                loading ? 'Refreshing...' : label,
-                style: const TextStyle(
-                  color: AppColors.primaryGreen,
-                  fontSize: 13,
-                ),
+    return OutlinedButton.icon(
+      onPressed: loading || _isSaving ? null : onPressed,
+      icon: loading
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primaryGreen,
               ),
-            ],
-          ),
-        ),
+            )
+          : const Icon(Icons.refresh, size: 17),
+      label: Text(loading ? 'Refreshing...' : label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryGreen,
+        backgroundColor: AppColors.white,
+        disabledForegroundColor: AppColors.greyText,
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        side: const BorderSide(color: Color(0xFFD6E2D8), width: 1.2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -808,7 +788,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
   }) {
     return AidTrackSectionCard(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final mobile = constraints.maxWidth < 520;
@@ -817,15 +797,17 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: AppColors.lightGreen,
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(11),
                     ),
-                    child: Icon(icon, size: 22, color: AppColors.primaryGreen),
+                    child: Icon(icon, size: 21, color: AppColors.primaryGreen),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -837,10 +819,10 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                           style: const TextStyle(
                             color: AppColors.darkText,
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           subtitle,
                           style: const TextStyle(
@@ -858,10 +840,10 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                 ],
               ),
               if (mobile && trailing != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Align(alignment: Alignment.centerRight, child: trailing),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               child,
             ],
           );
@@ -964,11 +946,11 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FBFA),
+        color: const Color(0xFFFBFCFB),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderColor),
+        border: Border.all(color: const Color(0xFFD6E2D8), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -976,34 +958,44 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppColors.lightGreen,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(9),
                 ),
-                child: Icon(icon, color: AppColors.primaryGreen, size: 19),
+                child: Icon(icon, color: AppColors.primaryGreen, size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.darkText,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.darkText,
+                      ),
+                    ),
+                    if (description != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.greyText,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
           ),
-          if (description != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              description,
-              style: const TextStyle(fontSize: 12, color: AppColors.greyText),
-            ),
-          ],
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           child,
         ],
       ),
@@ -1016,14 +1008,14 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
         if (constraints.maxWidth < 650) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [first, const SizedBox(height: 16), second],
+            children: [first, const SizedBox(height: 14), second],
           );
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: first),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(child: second),
           ],
         );
@@ -1050,6 +1042,47 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_beneficiaries.any(
+                  (item) => item['assessment_data_origin'] == 'synthetic',
+                ) ||
+                _distributions.any(
+                  (item) => item['is_simulation'] == true,
+                )) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreen,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.borderColor),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 19,
+                      color: AppColors.primaryGreen,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Demo data active. Sample transactions are not verified LGU releases.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
             if (_beneficiaryError != null) ...[
               _errorBox(_beneficiaryError!),
               const SizedBox(height: 16),
@@ -1206,7 +1239,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
             _distributionFormGroup(
               title: '2. Assistance Details',
@@ -1343,7 +1376,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
             _distributionFormGroup(
               title: '3. Distribution Reference',
@@ -1484,7 +1517,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
               const SizedBox(height: 16),
               _errorBox(_saveError!),
             ],
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 500),
@@ -1750,8 +1783,53 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     );
   }
 
+  Widget _recordDetail(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.greyText,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.darkText,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recordDetailGrid(List<Widget> fields) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth >= 620
+            ? (constraints.maxWidth - 16) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 14,
+          children: [
+            for (final field in fields) SizedBox(width: width, child: field),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _distributionCard(Map<String, dynamic> record) {
     final vulnerability = _text(record['predicted_class']);
+    final hasAmount = record['amount_php'] != null;
 
     return Container(
       width: double.infinity,
@@ -1759,28 +1837,64 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.borderColor),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFD6E2D8), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _text(record['household_head']),
-                style: const TextStyle(
-                  color: AppColors.darkText,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreen,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.inventory_2_outlined,
+                  color: AppColors.primaryGreen,
+                  size: 20,
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _text(record['household_head']),
+                      style: const TextStyle(
+                        color: AppColors.darkText,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Distribution #${_text(record['distribution_id'])} '
+                      '• Beneficiary #${_text(record['beneficiary_id'])}',
+                      style: const TextStyle(
+                        color: AppColors.greyText,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 7,
+            children: [
               _chip(
                 record['is_simulation'] == true ? 'Demo' : 'Recorded delivery',
-                const Color(0xFF185C37),
+                AppColors.primaryGreen,
               ),
               if (record['predicted_class'] != null)
                 _chip(
@@ -1789,47 +1903,42 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Distribution #${_text(record['distribution_id'])} '
-            '• Beneficiary #${_text(record['beneficiary_id'])}',
-          ),
-          const SizedBox(height: 5),
-          Text('Barangay: ${_text(record['barangay'])}'),
-          const SizedBox(height: 5),
-          Text('Aid Type: ${_text(record['aid_type'])}'),
-          const SizedBox(height: 5),
-          if (record['amount_php'] != null)
-            Text('Assistance amount: PHP ${_text(record['amount_php'])}')
-          else
-            Text(
-              'Quantity: ${_text(record['quantity'])} '
-              '${_text(record['unit'])}',
-            ),
-          const SizedBox(height: 5),
-          Text('Reason / Need: ${_text(record['assistance_purpose'])}'),
-          if (_text(record['source_agency']) != '—') ...[
-            const SizedBox(height: 5),
-            Text('Program / Source: ${_text(record['source_agency'])}'),
-          ],
-          const SizedBox(height: 5),
-          Text(
-            'Distribution Date: '
-            '${_formatDate(record['distribution_date'])}',
-          ),
-          const SizedBox(height: 5),
-          Text('Batch Code: ${_text(record['batch_code'])}'),
-          const SizedBox(height: 5),
-          Text(
-            'Beneficiary Status: '
-            '${_text(record['beneficiary_status'])}',
-          ),
-          const SizedBox(height: 5),
-          Text('Notes: ${_text(record['notes'])}'),
           const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFD6E2D8)),
+          const SizedBox(height: 14),
+          _recordDetailGrid([
+            _recordDetail('Barangay', _text(record['barangay'])),
+            _recordDetail('Aid Type', _text(record['aid_type'])),
+            if (hasAmount)
+              _recordDetail(
+                'Assistance amount',
+                'PHP ${_text(record['amount_php'])}',
+              )
+            else
+              _recordDetail(
+                'Quantity',
+                '${_text(record['quantity'])} ${_text(record['unit'])}',
+              ),
+            _recordDetail(
+              'Distribution Date',
+              _formatDate(record['distribution_date']),
+            ),
+            _recordDetail('Batch Code', _text(record['batch_code'])),
+            _recordDetail(
+              'Beneficiary Status',
+              _text(record['beneficiary_status']),
+            ),
+            _recordDetail('Reason / Need', _text(record['assistance_purpose'])),
+            if (_text(record['source_agency']) != '—')
+              _recordDetail('Program / Source', _text(record['source_agency'])),
+            _recordDetail('Notes', _text(record['notes'])),
+          ]),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFD6E2D8)),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 9,
+            runSpacing: 9,
             children: [
               OutlinedButton.icon(
                 onPressed: _isSaving
@@ -1839,7 +1948,12 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                 label: const Text('Correction History'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primaryGreen,
-                  side: const BorderSide(color: AppColors.primaryGreen),
+                  backgroundColor: AppColors.white,
+                  minimumSize: const Size(0, 40),
+                  side: const BorderSide(color: Color(0xFFD6E2D8), width: 1.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               ElevatedButton.icon(
@@ -1851,8 +1965,9 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryGreen,
                   foregroundColor: AppColors.white,
+                  elevation: 0,
                   minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -1886,6 +2001,8 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
             decoration: const InputDecoration(
               hintText: 'Search household, aid type, batch, or ID...',
               prefixIcon: Icon(Icons.search),
+              filled: true,
+              fillColor: Color(0xFFF8FAF8),
             ),
           ),
 
@@ -1931,63 +2048,9 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Aid Distribution',
-          style: TextStyle(
-            color: AppColors.darkText,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 5),
-
-        const Text(
-          'Record and review household assistance.',
-          style: TextStyle(color: AppColors.greyText, fontSize: 13),
-        ),
-
-        const SizedBox(height: 20),
-
-        if (_beneficiaries.any(
-              (item) => item['assessment_data_origin'] == 'synthetic',
-            ) ||
-            _distributions.any((item) => item['is_simulation'] == true)) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.lightGreen,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.borderColor),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 19,
-                  color: AppColors.primaryGreen,
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Demo data active. Sample transactions are not verified LGU releases.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.4,
-                      color: AppColors.darkText,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-
         _buildDistributionForm(),
 
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
 
         _buildDistributionHistory(),
       ],
