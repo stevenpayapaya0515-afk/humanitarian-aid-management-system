@@ -108,6 +108,9 @@ class DistributionService {
     required String aidType,
     required int quantity,
     required String unit,
+    required double? amountPhp,
+    required String assistancePurpose,
+    required String sourceAgency,
     required String distributionDate,
     required String batchCode,
     required String notes,
@@ -127,6 +130,9 @@ class DistributionService {
             'aid_type': aidType,
             'quantity': quantity,
             'unit': unit,
+            'amount_php': amountPhp,
+            'assistance_purpose': assistancePurpose.trim(),
+            'source_agency': sourceAgency.trim(),
             'distribution_date': distributionDate,
             'batch_code': batchCode.trim().toUpperCase(),
             'notes': notes.trim(),
@@ -136,5 +142,39 @@ class DistributionService {
 
     _checkResponse(response, 201);
     return _decodeObject(response);
+  }
+
+  // Correct a saved transaction without changing beneficiary/provenance.
+  static Future<Map<String, dynamic>> updateDistribution(
+    int distributionId,
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await http
+        .patch(
+          Uri.parse('${AuthService.baseUrl}/distributions/$distributionId'),
+          headers: _headers(),
+          body: jsonEncode(payload),
+        )
+        .timeout(_timeout);
+
+    _checkResponse(response, 200);
+    return _decodeObject(response);
+  }
+
+  // Immutable record of each correction, newest first.
+  static Future<List<Map<String, dynamic>>> fetchCorrectionHistory(
+    int distributionId,
+  ) async {
+    final response = await http
+        .get(
+          Uri.parse(
+            '${AuthService.baseUrl}/distributions/$distributionId/corrections',
+          ),
+          headers: _headers(),
+        )
+        .timeout(_timeout);
+
+    _checkResponse(response, 200);
+    return _decodeList(response);
   }
 }

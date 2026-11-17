@@ -21,7 +21,11 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
   final _quantityController = TextEditingController(text: '1');
   final _batchController = TextEditingController();
   final _notesController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _purposeController = TextEditingController();
+  final _sourceController = TextEditingController();
   final _searchController = TextEditingController();
+  final _correctionReasonController = TextEditingController();
 
   static const _aidTypes = [
     'Food Packs',
@@ -30,8 +34,28 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     'Clothing',
     'Blankets',
     'Medical Supplies',
+    'School Supplies',
+    'Shelter Materials',
+    'Livelihood Kits',
+    'Medical Assistance',
+    'Educational Assistance',
+    'Burial Assistance',
+    'Transportation Assistance',
+    'Cash Relief',
+    'Livelihood Assistance',
     'Other',
   ];
+
+  static const _financialAidTypes = <String>{
+    'Medical Assistance',
+    'Educational Assistance',
+    'Burial Assistance',
+    'Transportation Assistance',
+    'Cash Relief',
+    'Livelihood Assistance',
+  };
+
+  bool get _isFinancialAid => _financialAidTypes.contains(_selectedAidType);
 
   static const _units = [
     'packs',
@@ -46,12 +70,18 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
   List<Map<String, dynamic>> _distributions = [];
 
   bool _deliveryConfirmed = false;
+  bool _batchCodeEdited = false;
+  Map<String, dynamic>? _editingDistribution;
+  bool _correctionConfirmed = false;
+
   Map<String, dynamic>? get _selectedRecord {
+    if (_editingDistribution != null) return _editingDistribution;
     for (final item in _beneficiaries) {
       if (_id(item['beneficiary_id']) == _selectedBeneficiaryId) return item;
     }
     return null;
   }
+
   int? _selectedBeneficiaryId;
   String _selectedAidType = 'Food Packs';
   String _selectedUnit = 'packs';
@@ -70,6 +100,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
   void initState() {
     super.initState();
     _beneficiaryController.addListener(_checkBeneficiarySelection);
+    _batchController.text = _suggestBatchCode(_selectedDate);
     _loadBeneficiaries();
     _loadDistributions();
   }
@@ -81,7 +112,11 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     _quantityController.dispose();
     _batchController.dispose();
     _notesController.dispose();
+    _amountController.dispose();
+    _purposeController.dispose();
+    _sourceController.dispose();
     _searchController.dispose();
+    _correctionReasonController.dispose();
     super.dispose();
   }
 
@@ -298,9 +333,20 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
       case 'Blankets':
         return 'pieces';
       case 'Hygiene Kits':
+      case 'Livelihood Kits':
         return 'sets';
       case 'Medical Supplies':
+      case 'School Supplies':
         return 'boxes';
+      case 'Shelter Materials':
+        return 'pieces';
+      case 'Medical Assistance':
+      case 'Educational Assistance':
+      case 'Burial Assistance':
+      case 'Transportation Assistance':
+      case 'Cash Relief':
+      case 'Livelihood Assistance':
+        return 'grants';
       default:
         return 'packs';
     }
@@ -346,7 +392,12 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
       if (!mounted) return;
 
-      setState(() => _distributions = records);
+      setState(() {
+        _distributions = records;
+        if (!_batchCodeEdited) {
+          _batchController.text = _suggestBatchCode(_selectedDate);
+        }
+      });
     } catch (error) {
       if (!mounted) return;
 
@@ -374,7 +425,12 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     );
 
     if (picked != null && mounted) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        if (!_batchCodeEdited) {
+          _batchController.text = _suggestBatchCode(picked);
+        }
+      });
     }
   }
 
@@ -453,8 +509,15 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
       await DistributionService.createDistribution(
         beneficiaryId: selectedId,
         aidType: _selectedAidType,
-        quantity: int.parse(_quantityController.text.trim()),
+        quantity: _isFinancialAid
+            ? 1
+            : int.parse(_quantityController.text.trim()),
         unit: _selectedUnit,
+        amountPhp: _isFinancialAid
+            ? double.parse(_amountController.text.trim())
+            : null,
+        assistancePurpose: _purposeController.text.trim(),
+        sourceAgency: _sourceController.text.trim(),
         distributionDate: _isoDate(_selectedDate),
         batchCode: _batchController.text.trim().toUpperCase(),
         notes: _notesController.text.trim(),
@@ -507,6 +570,9 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     _quantityController.text = '1';
     _batchController.clear();
     _notesController.clear();
+    _amountController.clear();
+    _purposeController.clear();
+    _sourceController.clear();
 
     setState(() {
       _selectedBeneficiaryId = null;
@@ -520,20 +586,154 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
     });
 
     // Reload distribution history from PostgreSQL.
+    // Prepare the next event-code suggestion after a successful save.
+    _batchCodeEdited = false;
     await _loadDistributions();
+    if (mounted) _useSuggestedBatchCode();
 
     if (!mounted) return;
 
     // Show the result in a modal instead of a SnackBar.
     await _showFeedbackDialog(
       success: true,
-      title: 'Distribution Saved',
+      title: 'Distribution Record Saved',
+      message: _recordsError != null
+          ? 'The record was saved, but the list could not refresh. Use Refresh records.'
+          : 'The distribution information has been saved successfully.',
+    );
+  }
+
+  // Edit in the main form, not in a dialog.
+  void _editDistribution(Map<String, dynamic> record) {
+    if (_isSaving) return;
+    _formKey.currentState?.reset();
+    _beneficiaryController.clear();
+    _quantityController.text = '${record['quantity'] ?? 1}';
+    _amountController.text = record['amount_php']?.toString() ?? '';
+    _purposeController.text = (record['assistance_purpose'] ?? '').toString();
+    _sourceController.text = (record['source_agency'] ?? '').toString();
+    _batchController.text = (record['batch_code'] ?? '').toString();
+    _notesController.text = (record['notes'] ?? '').toString();
+    _correctionReasonController.clear();
+    _batchCodeEdited = true;
+
+    final aidType = (record['aid_type'] ?? '').toString();
+    final unit = (record['unit'] ?? '').toString();
+    setState(() {
+      _editingDistribution = Map<String, dynamic>.from(record);
+      _selectedBeneficiaryId = _id(record['beneficiary_id']);
+      _selectedAidType = _aidTypes.contains(aidType) ? aidType : 'Other';
+      _selectedUnit = _financialAidTypes.contains(aidType)
+          ? 'grants'
+          : (_units.contains(unit) ? unit : _defaultUnit(_selectedAidType));
+      _selectedDate =
+          DateTime.tryParse('${record['distribution_date']}') ?? DateTime.now();
+      _correctionConfirmed = false;
+      _deliveryConfirmed = false;
+      _saveError = null;
+      _selectionError = null;
+    });
+
+    // Scroll only after the existing form has switched to editing mode.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final formContext = _formKey.currentContext;
+      if (formContext != null) {
+        Scrollable.ensureVisible(
+          formContext,
+          duration: const Duration(milliseconds: 300),
+          alignment: 0,
+        );
+      }
+    });
+  }
+
+  Future<void> _updateDistribution() async {
+    if (_isSaving) return;
+    final record = _editingDistribution;
+    if (record == null) return;
+    FocusScope.of(context).unfocus();
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Invalid Correction',
+        message: 'Please correct the highlighted fields before updating.',
+      );
+      return;
+    }
+    if (record['is_simulation'] != true && !_correctionConfirmed) {
+      setState(() {
+        _saveError =
+            'Verify the correction against the original delivery record first.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _saveError = null;
+    });
+    _showSavingDialog();
+    String? failureMessage;
+    bool updated = false;
+
+    try {
+      await DistributionService.updateDistribution(
+        _id(record['distribution_id']),
+        {
+          'beneficiary_id': _id(record['beneficiary_id']),
+          'expected_assessment_id': _id(record['assessment_id']),
+          'expected_classification_id': _id(record['classification_id']),
+          'expected_revision': _id(record['revision']),
+          'delivery_confirmed': _correctionConfirmed,
+          'aid_type': _selectedAidType,
+          'quantity': _isFinancialAid
+              ? 1
+              : int.parse(_quantityController.text.trim()),
+          'unit': _isFinancialAid ? 'grants' : _selectedUnit,
+          'amount_php': _isFinancialAid
+              ? double.parse(_amountController.text.trim())
+              : null,
+          'assistance_purpose': _purposeController.text.trim(),
+          'source_agency': _sourceController.text.trim(),
+          'distribution_date': _isoDate(_selectedDate),
+          'batch_code': _batchController.text.trim().toUpperCase(),
+          'notes': _notesController.text.trim(),
+          'correction_reason': _correctionReasonController.text.trim(),
+        },
+      );
+      updated = true;
+    } catch (error) {
+      failureMessage = _errorMessage(error);
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        setState(() {
+          _isSaving = false;
+          _saveError = failureMessage;
+        });
+      }
+    }
+    if (!mounted) return;
+    if (!updated) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Distribution Not Updated',
+        message: failureMessage ?? 'Unable to save the correction.',
+      );
+      return;
+    }
+
+    _clearDistributionForm();
+    await _loadDistributions();
+    if (!mounted) return;
+    await _showFeedbackDialog(
+      success: true,
+      title: 'Distribution Updated',
       message: _recordsError == null
-          ? 'The distribution record has been '
-                'successfully saved to the database.'
-          : 'The distribution was saved, but the records could '
-                'not be refreshed. Please use Refresh records '
-                'to reload the list.',
+          ? 'The correction was saved with its reason and Staff audit history.'
+          : 'The correction was saved, but records could not refresh. Select Refresh records.',
     );
   }
 
@@ -703,13 +903,144 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
   }
 
   // ==========================================
-  // SIMULATION REGISTRATION FORM
+  // CLEAN DISTRIBUTION FORM
   // ==========================================
+
+  // Suggest a new EVENT reference. Staff can reuse an existing batch when
+  // several beneficiaries receive assistance under the same event.
+  String _suggestBatchCode(DateTime date) {
+    final datePart =
+        '${date.year}'
+        '${date.month.toString().padLeft(2, '0')}'
+        '${date.day.toString().padLeft(2, '0')}';
+    final prefix = 'AID-$datePart-';
+    var largest = 0;
+    for (final record in _distributions) {
+      final code = (record['batch_code'] ?? '').toString().toUpperCase();
+      if (!code.startsWith(prefix)) continue;
+      final suffix = code.substring(prefix.length);
+      if (!RegExp(r'^\d+$').hasMatch(suffix)) continue;
+      final number = int.tryParse(suffix);
+      if (number != null && number > largest) largest = number;
+    }
+    return '$prefix${(largest + 1).toString().padLeft(3, '0')}';
+  }
+
+  void _useSuggestedBatchCode() {
+    _batchCodeEdited = false;
+    _batchController.text = _suggestBatchCode(_selectedDate);
+  }
+
+  // Cancel clears only unsaved form values; it never changes stored records.
+  void _clearDistributionForm() {
+    if (_isSaving) return;
+    _formKey.currentState?.reset();
+    _beneficiaryController.clear();
+    _quantityController.text = '1';
+    _amountController.clear();
+    _purposeController.clear();
+    _sourceController.clear();
+    _notesController.clear();
+    _correctionReasonController.clear();
+    final today = DateTime.now();
+    _batchCodeEdited = false;
+    _batchController.text = _suggestBatchCode(today);
+    setState(() {
+      _editingDistribution = null;
+      _correctionConfirmed = false;
+      _selectedBeneficiaryId = null;
+      _selectedAidType = 'Food Packs';
+      _selectedUnit = 'packs';
+      _selectedDate = today;
+      _deliveryConfirmed = false;
+      _selectionError = null;
+      _saveError = null;
+    });
+  }
+
+  Widget _distributionFormGroup({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    String? description,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FBFA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreen,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: AppColors.primaryGreen, size: 19),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.darkText,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (description != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              description,
+              style: const TextStyle(fontSize: 12, color: AppColors.greyText),
+            ),
+          ],
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _distributionFieldPair(Widget first, Widget second) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 650) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [first, const SizedBox(height: 16), second],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: first),
+            const SizedBox(width: 16),
+            Expanded(child: second),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _buildDistributionForm() {
     return _sectionCard(
-      title: 'Record Aid Distribution',
-      subtitle: 'Enter assistance received by an approved beneficiary.',
+      title: _editingDistribution == null
+          ? 'Record Aid Distribution'
+          : 'Update Aid Distribution',
+      subtitle: _editingDistribution == null
+          ? 'Record assistance for an approved, reviewed beneficiary.'
+          : 'Correct saved transaction details. Every update is recorded in history.',
       icon: Icons.inventory_2_outlined,
       trailing: _refreshButton(
         label: 'Refresh beneficiaries',
@@ -723,108 +1054,227 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
           children: [
             if (_beneficiaryError != null) ...[
               _errorBox(_beneficiaryError!),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
             ],
-
             if (_isLoadingBeneficiaries)
               const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: LinearProgressIndicator(),
+                padding: EdgeInsets.only(bottom: 16),
+                child: LinearProgressIndicator(color: AppColors.primaryGreen),
               ),
-
-            if (!_isLoadingBeneficiaries && _beneficiaries.isEmpty)
+            if (!_isLoadingBeneficiaries &&
+                _beneficiaries.isEmpty &&
+                _editingDistribution == null)
               const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.only(bottom: 16),
                 child: Text(
-                  'No approved, up-to-date beneficiaries are available. '
-                  'Complete the review in Beneficiary Management first.',
+                  'No approved beneficiaries with current classifications. '
+                  'Complete review in Beneficiary Management first.',
                   style: TextStyle(color: AppColors.greyText),
                 ),
               ),
 
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return DropdownMenu<int>(
-                  width: constraints.maxWidth,
-                  menuHeight: 300,
-                  controller: _beneficiaryController,
-                  enabled:
-                      !_isSaving &&
-                      !_isLoadingBeneficiaries &&
-                      _beneficiaries.isNotEmpty,
-                  enableFilter: true,
-                  enableSearch: true,
-                  requestFocusOnTap: true,
-                  label: const Text('Select Beneficiary Record'),
-                  hintText: 'Search by beneficiary ID, name, or barangay',
-                  leadingIcon: const Icon(Icons.people_outline),
-                  dropdownMenuEntries: _beneficiaries.map((item) {
-                    return DropdownMenuEntry<int>(
-                      value: _id(item['beneficiary_id']),
-                      label: _beneficiaryLabel(item),
-                    );
-                  }).toList(),
-                  onSelected: (value) {
-                    setState(() {
-                      _selectedBeneficiaryId = value;
-                      _deliveryConfirmed = false;
-                      _selectionError = null;
-                    });
-                  },
-                );
-              },
-            ),
-
-            if (_selectionError != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                _selectionError!,
-                style: const TextStyle(color: Color(0xFFC62828), fontSize: 12),
-              ),
-            ],
-
-            const SizedBox(height: 18),
-
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 720;
-                final width = compact
-                    ? constraints.maxWidth
-                    : (constraints.maxWidth - 32) / 3;
-
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
+            if (_editingDistribution != null) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreen,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.borderColor),
+                ),
+                child: Row(
                   children: [
-                    SizedBox(
-                      width: width,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedAidType,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Aid Type',
-                          prefixIcon: Icon(Icons.category_outlined),
+                    const Icon(
+                      Icons.edit_outlined,
+                      color: AppColors.primaryGreen,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Editing Distribution #${_text(_editingDistribution!['distribution_id'])} '
+                        '· ${_text(_editingDistribution!['household_head'])}',
+                        style: const TextStyle(
+                          color: AppColors.darkText,
+                          fontWeight: FontWeight.w600,
                         ),
-                        items: _aidTypes.map((type) {
-                          return DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          );
-                        }).toList(),
-                        onChanged: _isSaving
-                            ? null
-                            : (value) {
-                                if (value == null) return;
-                                setState(() {
-                                  _selectedAidType = value;
-                                  _selectedUnit = _defaultUnit(value);
-                                });
-                              },
                       ),
                     ),
-                    SizedBox(
-                      width: width,
-                      child: TextFormField(
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+            ],
+            _distributionFormGroup(
+              title: '1. Beneficiary',
+              icon: Icons.people_outline,
+              description: _editingDistribution == null
+                  ? 'Select a household and verify its assessment reference.'
+                  : 'The original beneficiary and assessment reference are protected.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_editingDistribution != null)
+                    InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Beneficiary (locked during correction)',
+                        prefixIcon: Icon(Icons.people_outline),
+                      ),
+                      child: Text(
+                        'B-${_text(_editingDistribution!['beneficiary_id'])} | '
+                        '${_text(_editingDistribution!['household_head'])} | '
+                        '${_text(_editingDistribution!['barangay'])}',
+                        style: const TextStyle(color: AppColors.darkText),
+                      ),
+                    )
+                  else
+                    LayoutBuilder(
+                      builder: (context, constraints) => DropdownMenu<int>(
+                        width: constraints.maxWidth,
+                        menuHeight: 300,
+                        controller: _beneficiaryController,
+                        enabled:
+                            !_isSaving &&
+                            !_isLoadingBeneficiaries &&
+                            _beneficiaries.isNotEmpty,
+                        enableFilter: true,
+                        enableSearch: true,
+                        requestFocusOnTap: true,
+                        label: const Text('Select Beneficiary Record'),
+                        hintText: 'Search by beneficiary ID, name or barangay',
+                        leadingIcon: const Icon(Icons.people_outline),
+                        dropdownMenuEntries: _beneficiaries.map((item) {
+                          return DropdownMenuEntry<int>(
+                            value: _id(item['beneficiary_id']),
+                            label: _beneficiaryLabel(item),
+                          );
+                        }).toList(),
+                        onSelected: (value) {
+                          setState(() {
+                            _selectedBeneficiaryId = value;
+                            _deliveryConfirmed = false;
+                            _selectionError = null;
+                          });
+                        },
+                      ),
+                    ),
+                  if (_selectionError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _selectionError!,
+                      style: const TextStyle(
+                        color: Color(0xFFC62828),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  if (_selectedRecord != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.lightGreen,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.borderColor),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _text(_selectedRecord!['household_head']),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.darkText,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            'Household #${_text(_selectedRecord!['household_id'])}  •  '
+                            '${_text(_selectedRecord!['household_size'])} members  •  '
+                            '${_text(_selectedRecord!['barangay'])}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.darkText,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Assessment #${_text(_selectedRecord!['assessment_id'])}  •  '
+                            'Classification #${_text(_selectedRecord!['classification_id'])}  •  '
+                            '${_text(_selectedRecord!['predicted_class'])} vulnerability',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.greyText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            _distributionFormGroup(
+              title: '2. Assistance Details',
+              icon: Icons.volunteer_activism_outlined,
+              description:
+                  'Specify what is being provided and the assessed need.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('aid-type-$_selectedAidType'),
+                    initialValue: _selectedAidType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Aid Type',
+                      prefixIcon: Icon(Icons.category_outlined),
+                    ),
+                    items: _aidTypes.map((type) {
+                      return DropdownMenuItem(value: type, child: Text(type));
+                    }).toList(),
+                    onChanged: _isSaving
+                        ? null
+                        : (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _selectedAidType = value;
+                              _selectedUnit = _defaultUnit(value);
+                              _amountController.clear();
+                            });
+                          },
+                  ),
+                  const SizedBox(height: 16),
+                  if (_isFinancialAid)
+                    TextFormField(
+                      key: const ValueKey('aid-amount'),
+                      controller: _amountController,
+                      enabled: !_isSaving,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Assistance Amount (PHP)',
+                        hintText: 'e.g. 1500.00',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                      ),
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        final amount = double.tryParse(text);
+                        if (amount == null ||
+                            !amount.isFinite ||
+                            amount <= 0 ||
+                            amount > 9999999999.99 ||
+                            !RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text)) {
+                          return 'Enter a valid PHP amount (up to 2 decimal places).';
+                        }
+                        return null;
+                      },
+                    )
+                  else
+                    _distributionFieldPair(
+                      TextFormField(
+                        key: const ValueKey('aid-quantity'),
                         controller: _quantityController,
                         enabled: !_isSaving,
                         keyboardType: TextInputType.number,
@@ -833,20 +1283,17 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                           prefixIcon: Icon(Icons.numbers_outlined),
                         ),
                         validator: (value) {
-                          final number = int.tryParse(value?.trim() ?? '');
-
-                          if (number == null || number < 1 || number > 100000) {
+                          final quantity = int.tryParse(value?.trim() ?? '');
+                          if (quantity == null ||
+                              quantity < 1 ||
+                              quantity > 100000) {
                             return 'Enter a quantity from 1 to 100000.';
                           }
-
                           return null;
                         },
                       ),
-                    ),
-                    SizedBox(
-                      width: width,
-                      child: DropdownButtonFormField<String>(
-                        key: ValueKey(_selectedAidType),
+                      DropdownButtonFormField<String>(
+                        key: ValueKey('unit-$_selectedAidType'),
                         initialValue: _selectedUnit,
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -868,139 +1315,258 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                               },
                       ),
                     ),
-                  ],
-                );
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            InkWell(
-              onTap: _isSaving ? null : _pickDate,
-              borderRadius: BorderRadius.circular(10),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Distribution Date',
-                  prefixIcon: Icon(Icons.calendar_month_outlined),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(child: Text(_isoDate(_selectedDate))),
-                    const Icon(Icons.arrow_drop_down),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _batchController,
-              enabled: !_isSaving,
-              maxLength: 32,
-              decoration: const InputDecoration(
-                labelText: 'Distribution Batch Code',
-                hintText: 'Example: DEMO-20261110-B',
-                prefixIcon: Icon(Icons.tag_outlined),
-                counterText: '',
-              ),
-              validator: (value) {
-                final code = value?.trim() ?? '';
-
-                if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$')
-                    .hasMatch(code)) {
-                  return 'Use 3–32 letters, numbers, - or _.';
-                }
-
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            if (_selectedRecord != null) ...[
-              Text(_selectedRecord!['assessment_data_origin'] == 'synthetic'
-                  ? 'Practice record — excluded from delivery totals'
-                  : 'LGU household assessment',
-                  style: const TextStyle(fontSize: 12, color: AppColors.greyText)),
-              if (_selectedRecord!['assessment_data_origin'] != 'synthetic')
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _deliveryConfirmed,
-                  onChanged: _isSaving ? null : (value) => setState(() => _deliveryConfirmed = value ?? false),
-                  title: const Text('I confirm that this assistance was received on the recorded date.'),
-                ),
-              const SizedBox(height: 12),
-            ],
-            TextFormField(
-              controller: _notesController,
-              enabled: !_isSaving,
-              maxLines: 3,
-              maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                alignLabelWithHint: true,
-                hintText: 'No physical assistance was released.',
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.lightGreen,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.borderColor),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.primaryGreen),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Record assistance after it has been received. '
-                      'Practice records remain separate from actual deliveries.',
-                      style: TextStyle(color: AppColors.darkText, fontSize: 12),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _purposeController,
+                    enabled: !_isSaving,
+                    maxLength: 250,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason / Assessed Need',
+                      alignLabelWithHint: true,
+                      hintText: 'Explain why this assistance is needed',
+                      prefixIcon: Icon(Icons.assignment_outlined),
+                    ),
+                    validator: (value) {
+                      if ((value?.trim().length ?? 0) < 5) {
+                        return 'Describe the assessed need (at least 5 characters).';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _sourceController,
+                    enabled: !_isSaving,
+                    maxLength: 120,
+                    decoration: const InputDecoration(
+                      labelText: 'Program / Source (optional)',
+                      hintText: 'Enter only a verified program or source',
+                      prefixIcon: Icon(Icons.account_balance_outlined),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+
+            _distributionFormGroup(
+              title: '3. Distribution Reference',
+              icon: Icons.event_note_outlined,
+              description: 'Set the date and event batch reference.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _distributionFieldPair(
+                    InkWell(
+                      onTap: _isSaving ? null : _pickDate,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Distribution Date',
+                          prefixIcon: Icon(Icons.calendar_month_outlined),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(_isoDate(_selectedDate))),
+                            const Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    ),
+                    TextFormField(
+                      controller: _batchController,
+                      enabled: !_isSaving,
+                      maxLength: 32,
+                      onChanged: (_) => _batchCodeEdited = true,
+                      decoration: InputDecoration(
+                        labelText: 'Distribution Batch Code',
+                        hintText: 'AID-YYYYMMDD-001',
+                        prefixIcon: const Icon(Icons.tag_outlined),
+                        counterText: '',
+                        suffixIcon: IconButton(
+                          tooltip: 'Suggest next batch code',
+                          icon: const Icon(Icons.autorenew),
+                          onPressed: _isSaving || _editingDistribution != null
+                              ? null
+                              : _useSuggestedBatchCode,
+                        ),
+                      ),
+                      validator: (value) {
+                        final code = value?.trim() ?? '';
+                        if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$')
+                            .hasMatch(code)) {
+                          return 'Use 3–32 letters, numbers, - or _.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'A batch identifies a distribution event. A code is suggested '
+                    'automatically; edit or reuse it if the assistance belongs '
+                    'to an existing authorized event.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.5,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _notesController,
+                    enabled: !_isSaving,
+                    maxLines: 2,
+                    maxLength: 500,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (optional)',
+                      hintText: 'Additional information or follow-up',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  if (_editingDistribution != null) ...[
+                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: _correctionReasonController,
+                      enabled: !_isSaving,
+                      maxLength: 500,
+                      minLines: 2,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Correction Reason (required)',
+                        hintText:
+                            'What was incorrect, and why is it being changed?',
+                        alignLabelWithHint: true,
+                        prefixIcon: Icon(Icons.rate_review_outlined),
+                      ),
+                      validator: (value) => (value?.trim().length ?? 0) < 10
+                          ? 'Explain the correction (at least 10 characters).'
+                          : null,
+                    ),
+                    if (_editingDistribution!['is_simulation'] != true) ...[
+                      const SizedBox(height: 8),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _correctionConfirmed,
+                        onChanged: _isSaving
+                            ? null
+                            : (value) => setState(
+                                () => _correctionConfirmed = value ?? false,
+                              ),
+                        title: const Text(
+                          'I verified this correction against the actual delivery record.',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ],
+                  if (_editingDistribution == null &&
+                      _selectedRecord != null) ...[
+                    if (_selectedRecord!['assessment_data_origin'] !=
+                        'synthetic')
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _deliveryConfirmed,
+                        onChanged: _isSaving
+                            ? null
+                            : (value) => setState(
+                                () => _deliveryConfirmed = value ?? false,
+                              ),
+                        title: const Text(
+                          'I confirm the recipient received this assistance '
+                          'on the recorded date.',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
 
             if (_saveError != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _errorBox(_saveError!),
             ],
-
-            const SizedBox(height: 18),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isSaving || _isLoadingBeneficiaries
-                    ? null
-                    : _saveDistribution,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.white,
+            const SizedBox(height: 22),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cancelButton = OutlinedButton(
+                      onPressed: _isSaving ? null : _clearDistributionForm,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryGreen,
+                        side: const BorderSide(color: AppColors.primaryGreen),
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                      )
-                    : const Icon(Icons.save_outlined),
-                label: Text(
-                  _isSaving
-                      ? 'Saving Distribution...'
-                      : 'Save Distribution',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: AppColors.white,
-                  minimumSize: const Size(0, 50),
+                      ),
+                      child: Text(
+                        _editingDistribution == null
+                            ? 'Cancel'
+                            : 'Cancel Editing',
+                      ),
+                    );
+                    final saveButton = ElevatedButton.icon(
+                      onPressed:
+                          _isSaving ||
+                              (_editingDistribution == null &&
+                                  _isLoadingBeneficiaries)
+                          ? null
+                          : (_editingDistribution == null
+                                ? _saveDistribution
+                                : _updateDistribution),
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: Text(
+                        _isSaving
+                            ? (_editingDistribution == null
+                                  ? 'Saving...'
+                                  : 'Updating...')
+                            : (_editingDistribution == null
+                                  ? 'Save Distribution'
+                                  : 'Update Distribution'),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    );
+                    if (constraints.maxWidth < 400) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          cancelButton,
+                          const SizedBox(height: 10),
+                          saveButton,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: cancelButton),
+                        const SizedBox(width: 12),
+                        Expanded(child: saveButton),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -1021,6 +1587,8 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
     return _distributions.where((record) {
       final searchable = [
+        record['assistance_purpose'],
+        record['source_agency'],
         record['distribution_id'],
         record['beneficiary_id'],
         record['household_head'],
@@ -1032,6 +1600,160 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
       return searchable.contains(query);
     }).toList();
+  }
+
+  Future<void> _viewDistributionCorrections(Map<String, dynamic> record) async {
+    final id = _id(record['distribution_id']);
+    List<Map<String, dynamic>> history;
+    try {
+      history = await DistributionService.fetchCorrectionHistory(id);
+    } catch (error) {
+      await _showFeedbackDialog(
+        success: false,
+        title: 'Unable to Load Corrections',
+        message: _errorMessage(error),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        alignment: Alignment.center,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 500,
+            maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.85,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Distribution Correction History',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Distribution #$id · ${_text(record['household_head'])}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.greyText,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: history.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 22),
+                          child: Center(
+                            child: Text(
+                              'No corrections have been made to this record.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.greyText),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: history.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final entry = history[index];
+                            final before = Map<String, dynamic>.from(
+                              entry['old_values'] as Map,
+                            );
+                            final after = Map<String, dynamic>.from(
+                              entry['new_values'] as Map,
+                            );
+                            final changed = after.keys
+                                .where(
+                                  (key) =>
+                                      '${after[key] ?? ''}' !=
+                                      '${before[key] ?? ''}',
+                                )
+                                .toList();
+                            return Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: AppColors.borderColor,
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Revision ${_text(entry['revision_after'])} · '
+                                    '${_formatDate(entry['changed_at'])}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Staff ID: ${_text(entry['changed_by'])}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.greyText,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Reason: ${_text(entry['correction_reason'])}',
+                                  ),
+                                  const SizedBox(height: 10),
+                                  for (final key in changed) ...[
+                                    Text(
+                                      key.replaceAll('_', ' ').toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.greyText,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${_text(before[key])}  →  ${_text(after[key])}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    const SizedBox(height: 6),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 14),
+                Center(
+                  child: SizedBox(
+                    width: 150,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        foregroundColor: AppColors.white,
+                        minimumSize: const Size(0, 44),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _distributionCard(Map<String, dynamic> record) {
@@ -1062,9 +1784,15 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                   fontSize: 15,
                 ),
               ),
-              _chip(record['is_simulation'] == true ? 'Practice record' : 'Recorded delivery', const Color(0xFF185C37)),
+              _chip(
+                record['is_simulation'] == true ? 'Demo' : 'Recorded delivery',
+                const Color(0xFF185C37),
+              ),
               if (record['predicted_class'] != null)
-                _chip('$vulnerability Vulnerability', _classColor(vulnerability)),
+                _chip(
+                  '$vulnerability Vulnerability',
+                  _classColor(vulnerability),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1077,10 +1805,19 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
           const SizedBox(height: 5),
           Text('Aid Type: ${_text(record['aid_type'])}'),
           const SizedBox(height: 5),
-          Text(
-            'Quantity: ${_text(record['quantity'])} '
-            '${_text(record['unit'])}',
-          ),
+          if (record['amount_php'] != null)
+            Text('Assistance amount: PHP ${_text(record['amount_php'])}')
+          else
+            Text(
+              'Quantity: ${_text(record['quantity'])} '
+              '${_text(record['unit'])}',
+            ),
+          const SizedBox(height: 5),
+          Text('Reason / Need: ${_text(record['assistance_purpose'])}'),
+          if (_text(record['source_agency']) != '—') ...[
+            const SizedBox(height: 5),
+            Text('Program / Source: ${_text(record['source_agency'])}'),
+          ],
           const SizedBox(height: 5),
           Text(
             'Distribution Date: '
@@ -1095,6 +1832,40 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
           ),
           const SizedBox(height: 5),
           Text('Notes: ${_text(record['notes'])}'),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _isSaving
+                    ? null
+                    : () => _viewDistributionCorrections(record),
+                icon: const Icon(Icons.history, size: 17),
+                label: const Text('Correction History'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryGreen,
+                  side: const BorderSide(color: AppColors.primaryGreen),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _isSaving || _editingDistribution != null
+                    ? null
+                    : () => _editDistribution(record),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+                label: const Text('Edit Record'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: AppColors.white,
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1105,7 +1876,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
 
     return _sectionCard(
       title: 'Aid Distribution Records',
-      subtitle: 'Recorded assistance and distribution history.',
+      subtitle: 'Assistance transactions and their history.',
       icon: Icons.history_outlined,
       trailing: _refreshButton(
         label: 'Refresh records',
@@ -1183,11 +1954,47 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
         const SizedBox(height: 5),
 
         const Text(
-          'Record and monitor assistance received.',
+          'Record and review household assistance.',
           style: TextStyle(color: AppColors.greyText, fontSize: 13),
         ),
 
         const SizedBox(height: 20),
+
+        if (_beneficiaries.any(
+              (item) => item['assessment_data_origin'] == 'synthetic',
+            ) ||
+            _distributions.any((item) => item['is_simulation'] == true)) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.lightGreen,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.borderColor),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 19,
+                  color: AppColors.primaryGreen,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Demo data active. Sample transactions are not verified LGU releases.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: AppColors.darkText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
 
         _buildDistributionForm(),
 
