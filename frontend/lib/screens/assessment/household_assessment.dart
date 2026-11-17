@@ -673,7 +673,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             ),
             titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
             contentPadding: const EdgeInsets.fromLTRB(22, 14, 22, 8),
-            actionsPadding: const EdgeInsets.fromLTRB(22, 4, 22, 18),
+            actionsPadding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
             ),
@@ -708,7 +708,7 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
               ],
             ),
             content: SizedBox(
-              width: 540,
+              width: 560,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -758,39 +758,26 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 0,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => setDialogState(() {
-                          draft.fillRange(0, options.length, 2);
-                        }),
-                        icon: const Icon(Icons.check_circle_outline, size: 18),
-                        label: const Text('None apply'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primaryGreen,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => setDialogState(() {
-                          draft.fillRange(0, options.length, null);
-                        }),
-                        icon: const Icon(Icons.restart_alt, size: 18),
-                        label: const Text('Clear answers'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.greyText,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 18),
+                  const Text(
+                    'PROGRAM CHECKLIST',
+                    style: TextStyle(
+                      color: AppColors.greyText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.7,
+                    ),
                   ),
-                  const Divider(height: 18, color: AppColors.borderColor),
+                  const SizedBox(height: 10),
                   for (var index = 0; index < options.length; index++) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBFCFB),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: AppColors.borderColor),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -868,40 +855,101 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                         ],
                       ),
                     ),
-                    if (index != options.length - 1)
-                      const Divider(height: 1, color: AppColors.borderColor),
                   ],
                 ],
               ),
             ),
+            // AidTrack social protection footer layout: always below the list.
             actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.greyText,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              SizedBox(
+                width: 560,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Divider(height: 1, color: AppColors.borderColor),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      alignment: WrapAlignment.start,
+                      spacing: 8,
+                      runSpacing: 2,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => setDialogState(() {
+                            draft.fillRange(0, options.length, 2);
+                          }),
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            size: 18,
+                          ),
+                          label: const Text('None apply'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryGreen,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => setDialogState(() {
+                            draft.fillRange(0, options.length, null);
+                          }),
+                          icon: const Icon(Icons.restart_alt, size: 18),
+                          label: const Text('Clear answers'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.greyText,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: OutlinedButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: AppColors.white,
+                                foregroundColor: AppColors.primaryGreen,
+                                side: const BorderSide(
+                                  color: AppColors.primaryGreen,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: FilledButton(
+                              onPressed: () {
+                                setState(() {
+                                  _programSelections[field] = List<int?>.from(
+                                    draft,
+                                  );
+                                });
+                                Navigator.of(dialogContext).pop();
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.primaryGreen,
+                                foregroundColor: AppColors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text('Apply answers'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  setState(() {
-                    _programSelections[field] = List<int?>.from(draft);
-                  });
-                  Navigator.of(dialogContext).pop();
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: AppColors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 13,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text('Apply answers'),
               ),
             ],
           );
@@ -1362,19 +1410,9 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
           if (_editingId != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Editing assessment #$_editingId',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _saving ? null : _reset,
-                    child: const Text('Cancel edit'),
-                  ),
-                ],
+              child: Text(
+                'Editing assessment #$_editingId',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           _card(
@@ -1627,30 +1665,95 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             ),
           ),
           const SizedBox(height: 2),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+          if (_editingId != null)
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: _saving ? null : _reset,
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF175C3A),
+                            side: const BorderSide(color: Color(0xFF175C3A)),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancel Editing',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(
-                _saving
-                    ? 'Saving Assessment...'
-                    : (_editingId == null
-                          ? 'Save Household Assessment'
-                          : 'Update Household Assessment'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: _saving ? null : _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF175C3A),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: _saving
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.save_outlined, size: 18),
+                          label: Text(
+                            _saving ? 'Saving...' : 'Update Assessment',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          if (_editingId == null)
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(
+                  _saving
+                      ? 'Saving Assessment...'
+                      : (_editingId == null
+                            ? 'Save Household Assessment'
+                            : 'Update Household Assessment'),
+                ),
+              ),
+            ),
           const SizedBox(height: 22),
           _history(),
           const SizedBox(height: 30),

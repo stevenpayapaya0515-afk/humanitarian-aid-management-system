@@ -579,62 +579,225 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
       household['household_head'] as String,
       ..._savedMembers(household),
     ];
+    final isComplete = household['members_complete'] == true;
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
+        surfaceTintColor: AppColors.white,
         scrollable: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Household Members', textAlign: TextAlign.center),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+        contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+        title: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.lightGreen,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(
+                Icons.groups_outlined,
+                color: AppColors.primaryGreen,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Household Members',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.darkText,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Registered member information',
+                    style: TextStyle(fontSize: 12, color: AppColors.greyText),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         content: SizedBox(
           width: 420,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Household size: ${household['household_size']}'),
-              Text('Names recorded: ${names.length}'),
-
-              if (household['members_complete'] != true) ...[
+              const Divider(color: AppColors.borderColor),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightGreen,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      'Registered size: ${household['household_size']}',
+                      style: const TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isComplete
+                          ? const Color(0xFFEAF6EE)
+                          : const Color(0xFFFFF5E6),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      isComplete ? 'Complete roster' : 'Incomplete roster',
+                      style: TextStyle(
+                        color: isComplete
+                            ? AppColors.primaryGreen
+                            : const Color(0xFF995D14),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (!isComplete) ...[
                 const SizedBox(height: 12),
-
-                // Give instructions appropriate to the current screen.
-                Text(
-                  widget.readOnly
-                      ? 'Member list incomplete. Ask authorized Staff to verify '
-                            'the names and household size.'
-                      : 'Member list incomplete. Use Edit to enter the missing '
-                            'names and verify the household size.',
-                  style: const TextStyle(color: Color(0xFF9C5700)),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8EC),
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: const Color(0xFFF1D5AC)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: Color(0xFF995D14),
+                        size: 19,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          widget.readOnly
+                              ? 'Member list incomplete. Ask authorized Staff to verify '
+                                    'the names and household size.'
+                              : 'Member list incomplete. Use Edit to enter the missing '
+                                    'names and verify the household size.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF805016),
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-
-              const SizedBox(height: 12),
-
-              for (var index = 0; index < names.length; index++)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFE8F5E9),
-                    foregroundColor: AppColors.primaryGreen,
-                    child: Text('${index + 1}'),
-                  ),
-                  title: Text(names[index]),
-                  subtitle: Text(index == 0 ? 'Household head' : 'Member'),
+              const SizedBox(height: 20),
+              const Text(
+                'MEMBER LIST',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.greyText,
+                  letterSpacing: 0.8,
                 ),
+              ),
+              const SizedBox(height: 10),
+              for (var index = 0; index < names.length; index++) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.borderColor),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.lightGreen,
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              names[index],
+                              softWrap: true,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.darkText,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              index == 0
+                                  ? 'Household head'
+                                  : 'Household member',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.greyText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (index < names.length - 1) const SizedBox(height: 8),
+              ],
             ],
           ),
         ),
-
-        // Centered green button with rounded corners.
-        actionsAlignment: MainAxisAlignment.center,
+        actionsAlignment: MainAxisAlignment.end,
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(120, 44),
+              foregroundColor: AppColors.white,
+              minimumSize: const Size(120, 42),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
