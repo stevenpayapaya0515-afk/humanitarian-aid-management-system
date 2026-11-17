@@ -354,6 +354,94 @@ class _BeneficiaryManagementScreenState
     }).toList();
   }
 
+  // Shared heading for the Beneficiary Management dialogs.
+  Widget _dialogHeading({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: AppColors.lightGreen,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, color: AppColors.primaryGreen, size: 23),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.darkText,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 12, color: AppColors.greyText),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Consistent side-by-side actions, matching Household Registration.
+  Widget _dialogActions({
+    required BuildContext dialogContext,
+    required String actionLabel,
+    required VoidCallback? onAction,
+  }) {
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 12,
+      runSpacing: 10,
+      children: [
+        SizedBox(
+          width: 180,
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryGreen,
+              backgroundColor: AppColors.white,
+              side: const BorderSide(color: AppColors.primaryGreen),
+              minimumSize: const Size(0, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ),
+        SizedBox(
+          width: 180,
+          child: ElevatedButton(
+            onPressed: onAction,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: AppColors.white,
+              minimumSize: const Size(0, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(actionLabel, textAlign: TextAlign.center),
+          ),
+        ),
+      ],
+    );
+  }
+
   // ==========================================
   // REGISTER BENEFICIARY FOR REVIEW
   // ==========================================
@@ -368,34 +456,86 @@ class _BeneficiaryManagementScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.white,
-        title: const Text('Register for Beneficiary Review'),
+        surfaceTintColor: AppColors.white,
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+        contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+        actionsPadding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+        title: _dialogHeading(
+          title: 'Register for Review',
+          subtitle: 'Create a pending beneficiary review record',
+          icon: Icons.person_add_alt_1_outlined,
+        ),
         content: SizedBox(
-          width: 450,
+          width: 460,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const Divider(color: AppColors.borderColor),
+              const SizedBox(height: 12),
               Text(
                 _value(candidate['household_head']),
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.darkText,
                 ),
               ),
               const SizedBox(height: 8),
-              Text('Household ID: $householdId'),
-              Text('Barangay: ${_value(candidate['barangay'])}'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _chip('Household #$householdId', AppColors.primaryGreen),
+                  _chip(
+                    '${_value(candidate['predicted_class'])} Vulnerability',
+                    _classColor(_value(candidate['predicted_class'])),
+                  ),
+                  if (candidate['assessment_data_origin'] == 'synthetic')
+                    _chip('Practice record', AppColors.greyText),
+                ],
+              ),
+              const SizedBox(height: 12),
               Text(
-                'Predicted vulnerability: '
-                '${_value(candidate['predicted_class'])}',
+                'Barangay: ${_value(candidate['barangay'])}  •  '
+                'Assessment #${_value(candidate['assessment_id'])}',
+                style: const TextStyle(fontSize: 12, color: AppColors.greyText),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'This registers the household as Pending. '
-                'It does not approve aid eligibility.',
-                style: TextStyle(color: AppColors.greyText, fontSize: 12),
+              Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreen,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.borderColor),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: AppColors.primaryGreen,
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'This creates a Pending review record. The Random Forest '
+                        'classification does not automatically approve aid assistance.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.45,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               TextField(
                 controller: notesController,
                 maxLines: 3,
@@ -409,25 +549,17 @@ class _BeneficiaryManagementScreenState
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () =>
+          _dialogActions(
+            dialogContext: dialogContext,
+            actionLabel: 'Register for Review',
+            onAction: () =>
                 Navigator.pop(dialogContext, notesController.text.trim()),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.white,
-              backgroundColor: AppColors.primaryGreen,
-            ),
-            child: const Text('Register for Review'),
           ),
         ],
       ),
     );
 
     notesController.dispose();
-
     if (!mounted || notes == null) return;
 
     await _performBeneficiarySave(
@@ -450,22 +582,124 @@ class _BeneficiaryManagementScreenState
 
   Future<void> _useLatestAssessment(Map<String, dynamic> record) async {
     if (_isSaving || _isLoading) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Use latest assessment?'),
-        content: const Text('Link this beneficiary to the latest saved assessment and its APIS classification. A changed record returns to For Review. Previous assessment and classification IDs remain in history.'),
+        backgroundColor: AppColors.white,
+        surfaceTintColor: AppColors.white,
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+        contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+        actionsPadding: const EdgeInsets.fromLTRB(22, 12, 22, 20),
+        title: _dialogHeading(
+          title: 'Check Latest Assessment',
+          subtitle: 'Check for a newer assessment and classification',
+          icon: Icons.sync_outlined,
+        ),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(color: AppColors.borderColor),
+              const SizedBox(height: 14),
+              const Text(
+                'This checks the latest saved household assessment and its '
+                'Random Forest classification.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.darkText,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreen,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'CURRENT BENEFICIARY REFERENCE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: AppColors.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Assessment #${_value(record['assessment_id'])}  •  '
+                      'Classification #${_value(record['classification_id'])}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.darkText,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Review status: ${_value(record['status'])}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.greyText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 20, color: Color(0xFF9A7200)),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'If a newer classified assessment is found, the beneficiary '
+                      'returns to For Review. The previous decision stays in '
+                      'review history. If nothing changed, the status stays the same.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: AppColors.darkText,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Use latest assessment')),
+          _dialogActions(
+            dialogContext: dialogContext,
+            actionLabel: 'Check Latest',
+            onAction: () => Navigator.pop(dialogContext, true),
+          ),
         ],
       ),
     );
+
     if (confirmed != true || !mounted) return;
+
     await _performBeneficiarySave(
       request: () => BeneficiaryService.useLatestAssessment(record),
       successTitle: 'Assessment Link Checked',
-      successMessage: 'This beneficiary now uses its latest APIS classification. If the link changed, the record was returned to For Review and the change was saved in history.',
+      successMessage:
+          'This beneficiary now uses its latest classification. If the link '
+          'changed, the record was returned to For Review and the change '
+          'was saved in history.',
     );
   }
 
@@ -475,15 +709,11 @@ class _BeneficiaryManagementScreenState
     final beneficiaryId = _id(beneficiary['beneficiary_id']);
     final currentStatus = _value(beneficiary['status']);
 
-    // Finalized records cannot be changed through this
-    // preliminary review interface.
     if (currentStatus == 'Approved' || currentStatus == 'Rejected') {
       await _showFeedbackDialog(
         success: false,
         title: 'Update Not Allowed',
-        message:
-            'This is a finalized record. '
-            'No changes are available here.',
+        message: 'This is a finalized record. No changes are available here.',
       );
       return;
     }
@@ -491,7 +721,6 @@ class _BeneficiaryManagementScreenState
     final notesController = TextEditingController(
       text: (beneficiary['review_notes'] ?? '').toString(),
     );
-
     bool reviewConfirmed = false;
     String selectedStatus = currentStatus == 'For Review'
         ? 'For Review'
@@ -501,42 +730,89 @@ class _BeneficiaryManagementScreenState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final isFinalDecision =
+              selectedStatus == 'Approved' || selectedStatus == 'Rejected';
+          final canSave =
+              !isFinalDecision ||
+              (reviewConfirmed && notesController.text.trim().isNotEmpty);
+
           return AlertDialog(
             backgroundColor: AppColors.white,
-            title: const Text('Update Beneficiary Review'),
+            surfaceTintColor: AppColors.white,
+            scrollable: true,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 24,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+            contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+            actionsPadding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+            title: _dialogHeading(
+              title: 'Update Beneficiary Review',
+              subtitle: 'Record a manual Staff review decision',
+              icon: Icons.fact_check_outlined,
+            ),
             content: SizedBox(
-              width: 450,
-              child: SingleChildScrollView(child: Column(
+              width: 460,
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Divider(color: AppColors.borderColor),
+                  const SizedBox(height: 12),
                   Text(
                     _value(beneficiary['household_head']),
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.darkText,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _chip('Current: $currentStatus', AppColors.primaryGreen),
+                      _chip(
+                        '${_value(beneficiary['predicted_class'])} Vulnerability',
+                        _classColor(_value(beneficiary['predicted_class'])),
+                      ),
+                      if (beneficiary['assessment_data_origin'] == 'synthetic')
+                        _chip('Practice record', AppColors.greyText),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
                   DropdownButtonFormField<String>(
                     initialValue: selectedStatus,
+                    isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Review Status',
+                      labelText: 'Review status',
                     ),
                     items: const [
                       DropdownMenuItem(
                         value: 'Pending',
                         child: Text('Pending'),
                       ),
-                      DropdownMenuItem(value: 'For Review', child: Text('For Review')),
-                      DropdownMenuItem(value: 'Approved', child: Text('Approved')),
-                      DropdownMenuItem(value: 'Rejected', child: Text('Rejected')),
+                      DropdownMenuItem(
+                        value: 'For Review',
+                        child: Text('For Review'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Approved',
+                        child: Text('Approved'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Rejected',
+                        child: Text('Rejected'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value != null) {
-                        setDialogState(() {
-                          selectedStatus = value;
-                        });
+                        setDialogState(() => selectedStatus = value);
                       }
                     },
                   ),
@@ -545,42 +821,56 @@ class _BeneficiaryManagementScreenState
                     controller: notesController,
                     maxLines: 3,
                     maxLength: 1000,
-                    decoration: const InputDecoration(
-                      labelText: 'Review Notes',
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      labelText: isFinalDecision
+                          ? 'Decision reason (required)'
+                          : 'Review notes (optional)',
                       alignLabelWithHint: true,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  if (selectedStatus == 'Approved' || selectedStatus == 'Rejected')
+                  if (isFinalDecision) ...[
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
                       value: reviewConfirmed,
-                      onChanged: (value) => setDialogState(() => reviewConfirmed = value ?? false),
-                      title: const Text('I reviewed the household information and recorded my decision reason.'),
+                      onChanged: (value) => setDialogState(
+                        () => reviewConfirmed = value ?? false,
+                      ),
+                      title: const Text(
+                        'I reviewed the household information and recorded '
+                        'my decision reason.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.darkText,
+                        ),
+                      ),
                     ),
+                  ],
+                  const SizedBox(height: 6),
                   const Text(
-                    'Enter a reason for approval or rejection. The classification supports your review.',
-                    style: TextStyle(color: AppColors.greyText, fontSize: 12),
+                    'The vulnerability classification supports Staff review; '
+                    'it does not automatically decide aid eligibility.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.greyText,
+                      height: 1.45,
+                    ),
                   ),
                 ],
-              )),
+              ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, {
-                  'status': selectedStatus,
-                  'review_notes': notesController.text.trim(),
-                  'review_confirmed': reviewConfirmed.toString(),
-                }),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.white,
-                  backgroundColor: AppColors.primaryGreen,
-                ),
-                child: const Text('Save Changes'),
+              _dialogActions(
+                dialogContext: dialogContext,
+                actionLabel: 'Save Changes',
+                onAction: canSave
+                    ? () => Navigator.pop(dialogContext, {
+                        'status': selectedStatus,
+                        'review_notes': notesController.text.trim(),
+                        'review_confirmed': reviewConfirmed.toString(),
+                      })
+                    : null,
               ),
             ],
           );
@@ -589,7 +879,6 @@ class _BeneficiaryManagementScreenState
     );
 
     notesController.dispose();
-
     if (!mounted || result == null) return;
 
     await _performBeneficiarySave(
@@ -623,68 +912,128 @@ class _BeneficiaryManagementScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.white,
-        title: const Text('Beneficiary Review History'),
+        surfaceTintColor: AppColors.white,
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+        contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+        actionsPadding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+        title: _dialogHeading(
+          title: 'Beneficiary Review History',
+          subtitle: 'Saved Staff decisions and notes',
+          icon: Icons.history_outlined,
+        ),
         content: SizedBox(
-          width: 500,
-          height: 320,
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: historyFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
-                );
-              }
+          width: 460,
+          height: 330,
+          child: Column(
+            children: [
+              const Divider(color: AppColors.borderColor),
+              const SizedBox(height: 8),
+              Expanded(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: historyFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGreen,
+                        ),
+                      );
+                    }
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    _errorMessage(snapshot.error!),
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                );
-              }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          _errorMessage(snapshot.error!),
+                          style: const TextStyle(color: Color(0xFFC62828)),
+                        ),
+                      );
+                    }
 
-              final events = snapshot.data ?? [];
+                    final events = snapshot.data ?? [];
+                    if (events.isEmpty) {
+                      return const Center(
+                        child: Text('No review history yet.'),
+                      );
+                    }
 
-              if (events.isEmpty) {
-                return const Center(
-                  child: Text('No review history available.'),
-                );
-              }
-
-              return ListView.separated(
-                itemCount: events.length,
-                separatorBuilder: (_, _) => const Divider(),
-                itemBuilder: (context, index) {
-                  final event = events[index];
-
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
-                      Icons.history,
-                      color: AppColors.primaryGreen,
-                    ),
-                    title: Text(
-                      '${_value(event['old_status'])} → '
-                      '${_value(event['new_status'])}',
-                    ),
-                    subtitle: Text(
-                      '${_formatDate(event['changed_at'])}\n'
-                      '${_value(event['review_notes'])}',
-                    ),
-                    isThreeLine: true,
-                  );
-                },
-              );
-            },
+                    return ListView.separated(
+                      itemCount: events.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final event = events[index];
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.borderColor),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.history,
+                                size: 20,
+                                color: AppColors.primaryGreen,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${_value(event['old_status'])} → '
+                                      '${_value(event['new_status'])}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.darkText,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _formatDate(event['changed_at']),
+                                      style: const TextStyle(
+                                        color: AppColors.greyText,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _value(event['review_notes']),
+                                      style: const TextStyle(
+                                        color: AppColors.darkText,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: AppColors.white,
+              minimumSize: const Size(120, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Close'),
           ),
         ],
@@ -924,10 +1273,14 @@ class _BeneficiaryManagementScreenState
           ),
           const SizedBox(height: 4),
           Text(
-            'Prediction Status: '
-            '${_value(candidate['prediction_status'])}',
+            'Classification #${_value(candidate['classification_id'])} '
+            '• ${_value(candidate['prediction_status'])}',
             style: const TextStyle(color: AppColors.greyText, fontSize: 12),
           ),
+          if (candidate['assessment_data_origin'] == 'synthetic') ...[
+            const SizedBox(height: 8),
+            _chip('Practice record', AppColors.greyText),
+          ],
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _isSaving || _isLoading
@@ -1010,9 +1363,12 @@ class _BeneficiaryManagementScreenState
             style: const TextStyle(color: AppColors.greyText, fontSize: 12),
           ),
           const SizedBox(height: 8),
-          Text(beneficiary['assessment_data_origin'] == 'synthetic'
-              ? 'Practice record' : 'LGU household assessment',
-              style: const TextStyle(fontSize: 12, color: AppColors.greyText)),
+          Text(
+            beneficiary['assessment_data_origin'] == 'synthetic'
+                ? 'Practice record'
+                : 'LGU household assessment',
+            style: const TextStyle(fontSize: 12, color: AppColors.greyText),
+          ),
           const SizedBox(height: 14),
           Wrap(
             spacing: 10,
@@ -1028,10 +1384,12 @@ class _BeneficiaryManagementScreenState
                 ),
               ),
               OutlinedButton.icon(
-                  onPressed: _isSaving || _isLoading ? null : () => _useLatestAssessment(beneficiary),
-                  icon: const Icon(Icons.sync, size: 18),
-                  label: const Text('Use latest assessment'),
-                ),
+                onPressed: _isSaving || _isLoading
+                    ? null
+                    : () => _useLatestAssessment(beneficiary),
+                icon: const Icon(Icons.sync, size: 18),
+                label: const Text('Use latest assessment'),
+              ),
               if (status == 'Pending' || status == 'For Review')
                 OutlinedButton.icon(
                   onPressed: _isSaving || _isLoading

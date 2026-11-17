@@ -1,4 +1,3 @@
-
 """Beneficiary request and response schemas for AidTrack."""
 
 from datetime import date, datetime

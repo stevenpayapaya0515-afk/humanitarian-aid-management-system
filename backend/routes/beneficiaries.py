@@ -169,12 +169,13 @@ def list_candidates(
                     ON b.household_id = la.household_id
 
                 WHERE b.beneficiary_id IS NULL
-                  AND lp.model_version = 'apis2022-rf-multidomain-v5-focused'
+                  AND lp.model_version = %s
 
                 ORDER BY
                     h.household_head,
                     h.household_id;
-                """
+                """,
+                (APIS_MODEL_VERSION,),
             )
 
             return cursor.fetchall()
