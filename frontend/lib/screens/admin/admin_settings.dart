@@ -530,14 +530,85 @@ class _AdminSettingsState extends State<AdminSettings> {
   Widget _panel(Widget child) {
     return AidTrackSectionCard(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: child,
     );
   }
 
+  // Uses the same compact header style as the other AidTrack staff modules.
+  Widget _settingsHeader({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    Widget? trailing,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.lightGreen,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: AppColors.primaryGreen, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1F2933),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.greyText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (trailing != null && !compact) ...[
+                  const SizedBox(width: 12),
+                  trailing,
+                ],
+              ],
+            ),
+            if (trailing != null && compact) ...[
+              const SizedBox(height: 10),
+              Align(alignment: Alignment.centerRight, child: trailing),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
   Widget _profileDetail(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+    return Container(
+      constraints: const BoxConstraints(minHeight: 78),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCFB),
+        border: Border.all(color: const Color(0xFFD6E2D8)),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -545,17 +616,49 @@ class _AdminSettingsState extends State<AdminSettings> {
             label,
             style: const TextStyle(color: AppColors.greyText, fontSize: 12),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           SelectableText(
             value,
             style: const TextStyle(
               color: AppColors.darkText,
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _profileDetails() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final threeColumns = constraints.maxWidth >= 690;
+        final width = threeColumns
+            ? (constraints.maxWidth - 24) / 3
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: width,
+              child: _profileDetail(
+                'Full Name',
+                _profile!['full_name'] as String,
+              ),
+            ),
+            SizedBox(
+              width: width,
+              child: _profileDetail('Email', _profile!['email'] as String),
+            ),
+            SizedBox(
+              width: width,
+              child: _profileDetail('Role', _profile!['role'] as String),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -615,40 +718,39 @@ class _AdminSettingsState extends State<AdminSettings> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'My Profile',
-                      style: TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+              _settingsHeader(
+                title: 'My Profile',
+                subtitle: 'View your account information.',
+                icon: Icons.person_outline,
+                trailing: OutlinedButton.icon(
+                  onPressed: _loadingProfile || _saving
+                      ? null
+                      : _refreshProfileWithFeedback,
+                  icon: const Icon(Icons.refresh, size: 17),
+                  label: const Text('Refresh'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryGreen,
+                    side: const BorderSide(color: AppColors.primaryGreen),
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9),
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Refresh profile',
-                    onPressed: _loadingProfile || _saving
-                        ? null
-                        : _refreshProfileWithFeedback,
-                    icon: const Icon(
-                      Icons.refresh,
-                      color: AppColors.primaryGreen,
-                    ),
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               if (_loadingProfile)
-                const Center(child: CircularProgressIndicator())
+                const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGreen,
+                  ),
+                )
               else if (_profileError != null)
                 Text(_profileError!, style: const TextStyle(color: Colors.red))
-              else if (_profile != null) ...[
-                _profileDetail('Full Name', _profile!['full_name'] as String),
-                _profileDetail('Email', _profile!['email'] as String),
-                _profileDetail('Role', _profile!['role'] as String),
-              ] else
+              else if (_profile != null)
+                _profileDetails()
+              else
                 const Text(
                   'No profile information available. Please click Refresh.',
                   style: TextStyle(color: AppColors.greyText),
@@ -657,7 +759,7 @@ class _AdminSettingsState extends State<AdminSettings> {
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
 
         _panel(
           Form(
@@ -665,21 +767,12 @@ class _AdminSettingsState extends State<AdminSettings> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Change Password',
-                  style: TextStyle(
-                    color: AppColors.primaryGreen,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                _settingsHeader(
+                  title: 'Change Password',
+                  subtitle: 'Enter your current password and choose a new password with at least 12 characters.',
+                  icon: Icons.lock_outline,
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Enter your current password and choose a new password '
-                  'with at least 12 characters.',
-                  style: TextStyle(color: AppColors.greyText),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
                 _passwordField(
                   controller: _currentPassword,
@@ -699,7 +792,7 @@ class _AdminSettingsState extends State<AdminSettings> {
                   },
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 _passwordField(
                   controller: _newPassword,
@@ -722,7 +815,7 @@ class _AdminSettingsState extends State<AdminSettings> {
                   },
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 _passwordField(
                   controller: _confirmPassword,
@@ -762,20 +855,27 @@ class _AdminSettingsState extends State<AdminSettings> {
                     ),
                   ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                ElevatedButton.icon(
-                  onPressed: _saving || _remainingSeconds > 0
-                      ? null
-                      : _changePassword,
-                  icon: const Icon(Icons.password_outlined),
-                  label: Text(_saving ? 'Saving...' : 'Change Password'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryGreen,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(0, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SizedBox(
+                    width: 220,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      onPressed: _saving || _remainingSeconds > 0
+                          ? null
+                          : _changePassword,
+                      icon: const Icon(Icons.password_outlined, size: 18),
+                      label: Text(_saving ? 'Saving...' : 'Change Password'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
                   ),
                 ),
