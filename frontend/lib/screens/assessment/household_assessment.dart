@@ -1055,58 +1055,107 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
     );
   }
 
+  // Shared assessment section style, consistent with other Staff modules.
   Widget _card({
     required String title,
     required String subtitle,
     required IconData icon,
     required Widget child,
+    Widget? trailing,
   }) {
     return AidTrackSectionCard(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final mobileHeader = constraints.maxWidth < 520;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: AppColors.lightGreen,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icon, color: AppColors.primaryGreen, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE9F5EC),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.greyText,
-                      ),
+                    child: Icon(icon, color: AppColors.primaryGreen, size: 23),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.greyText,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  if (!mobileHeader && trailing != null) ...[
+                    const SizedBox(width: 12),
+                    trailing,
                   ],
+                ],
+              ),
+              if (mobileHeader && trailing != null) ...[
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerRight, child: trailing),
+              ],
+              const SizedBox(height: 18),
+              child,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _householdDetail(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 19, color: AppColors.primaryGreen),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: AppColors.greyText),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.darkText,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          child,
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1266,82 +1315,122 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             style: TextStyle(color: AppColors.greyText),
           )
         : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final assessment in _assessments) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${assessment['household_head'] ?? 'Household'} '
-                              '(HH-${assessment['household_id']})',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              'Assessment ${assessment['assessment_id']} · '
-                              '${assessment['assessment_date']} · '
-                              '${assessment['barangay'] ?? ''}',
-                              style: const TextStyle(
-                                color: AppColors.greyText,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              'Monthly income per capita: '
-                              '${assessment['monthly_income_per_capita'] ?? 'Not recorded'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.greyText,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (assessment['has_classification'] == true)
-                        Tooltip(
-                          message: 'Locked: This assessment has already been classified and can no longer be edited.',
-                          waitDuration: const Duration(milliseconds: 350),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.lock_outline,
-                                  size: 18,
-                                  color: AppColors.greyText,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Locked',
-                                  style: TextStyle(color: AppColors.greyText),
-                                ),
-                              ],
+              Text(
+                '${_assessments.length} saved assessment${_assessments.length == 1 ? '' : 's'}',
+                style: const TextStyle(color: AppColors.greyText, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              for (final assessment in _assessments)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBFDFB),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFDDE7E0)),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final details = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${assessment['household_head'] ?? 'Household'} '
+                            '(HH-${assessment['household_id']})',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: AppColors.darkText,
                             ),
                           ),
-                        )
-                      else
-                        TextButton.icon(
-                          onPressed: _saving
-                              ? null
-                              : () => _populate(assessment),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                          label: const Text('Edit'),
-                        ),
-                    ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'Assessment ${assessment['assessment_id']} · '
+                            '${assessment['assessment_date']} · '
+                            '${assessment['barangay'] ?? ''}',
+                            style: const TextStyle(
+                              color: AppColors.greyText,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Monthly income per capita: '
+                            '${assessment['monthly_income_per_capita'] ?? 'Not recorded'}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.greyText,
+                            ),
+                          ),
+                        ],
+                      );
+                      final Widget action =
+                          assessment['has_classification'] == true
+                          ? Tooltip(
+                              message: 'Locked: This assessment has already been classified and can no longer be edited.',
+                              waitDuration: const Duration(milliseconds: 350),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.lock_outline,
+                                      size: 18,
+                                      color: AppColors.greyText,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Locked',
+                                      style: TextStyle(
+                                        color: AppColors.greyText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : TextButton.icon(
+                              onPressed: _saving
+                                  ? null
+                                  : () => _populate(assessment),
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              label: const Text('Edit'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primaryGreen,
+                              ),
+                            );
+                      if (constraints.maxWidth < 510) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            details,
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: action,
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: details),
+                          const SizedBox(width: 12),
+                          action,
+                        ],
+                      );
+                    },
                   ),
                 ),
-                const Divider(color: AppColors.borderColor),
-              ],
             ],
           ),
   );
@@ -1370,36 +1459,6 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Household Assessment',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Record household information for vulnerability assessment.',
-                      style: TextStyle(color: AppColors.greyText, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: _saving ? null : _load,
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
           if (_editingId != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -1412,6 +1471,14 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
             title: 'Household Information',
             subtitle: 'Select an LGU-registered household; address and family size come from Registration.',
             icon: Icons.home_work_outlined,
+            trailing: TextButton.icon(
+              onPressed: _saving ? null : _load,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Refresh'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryGreen,
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1458,12 +1525,56 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                 ),
                 if (_selectedHousehold != null) ...[
                   const SizedBox(height: 14),
-                  Text(
-                    'Household head: ${_selectedHousehold!['household_head']}',
-                  ),
-                  Text('Barangay: ${_selectedHousehold!['barangay']}'),
-                  Text(
-                    'Registered family size: ${_familySize ?? 'Not recorded'}',
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF7F0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFD6E2D8)),
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.maxWidth >= 780
+                            ? 3
+                            : constraints.maxWidth >= 480
+                            ? 2
+                            : 1;
+                        final fieldWidth =
+                            (constraints.maxWidth - (columns - 1) * 14) /
+                            columns;
+                        return Wrap(
+                          spacing: 14,
+                          runSpacing: 14,
+                          children: [
+                            SizedBox(
+                              width: fieldWidth,
+                              child: _householdDetail(
+                                Icons.person_outline,
+                                'Household head',
+                                '${_selectedHousehold!['household_head']}',
+                              ),
+                            ),
+                            SizedBox(
+                              width: fieldWidth,
+                              child: _householdDetail(
+                                Icons.location_on_outlined,
+                                'Barangay',
+                                '${_selectedHousehold!['barangay']}',
+                              ),
+                            ),
+                            SizedBox(
+                              width: fieldWidth,
+                              child: _householdDetail(
+                                Icons.groups_outlined,
+                                'Registered family size',
+                                '${_familySize ?? 'Not recorded'}',
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ],
                 const SizedBox(height: 10),
