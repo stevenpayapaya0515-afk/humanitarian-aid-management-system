@@ -12,8 +12,13 @@ import '../../widgets/aidtrack_module_loading.dart';
 
 class StaffReportScreen extends StatefulWidget {
   final String heading;
+  final bool showHeading;
 
-  const StaffReportScreen({super.key, this.heading = 'Reports'});
+  const StaffReportScreen({
+    super.key,
+    this.heading = 'Reports',
+    this.showHeading = true,
+  });
 
   @override
   State<StaffReportScreen> createState() => _StaffReportScreenState();
@@ -363,7 +368,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
   }) {
     return AidTrackSectionCard(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final mobile = constraints.maxWidth < 520;
@@ -377,8 +382,8 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.lightGreen,
-                      borderRadius: BorderRadius.circular(9),
+                      color: const Color(0xFFE9F5EC),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(icon, color: AppColors.primaryGreen, size: 22),
                   ),
@@ -413,7 +418,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
                 const SizedBox(height: 8),
                 Align(alignment: Alignment.centerRight, child: trailing),
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               child,
             ],
           );
@@ -585,26 +590,42 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
   Widget _metricCard(String label, int value, IconData icon, double width) {
     return Container(
       width: width,
+      constraints: const BoxConstraints(minHeight: 132),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: AppColors.borderColor),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD6E2D8), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x09000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primaryGreen, size: 22),
-          const SizedBox(height: 13),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE9F5EC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.primaryGreen, size: 23),
+          ),
+          const SizedBox(height: 10),
           Text(
             '$value',
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 27,
               fontWeight: FontWeight.bold,
               color: AppColors.primaryGreen,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             label,
             style: const TextStyle(color: AppColors.greyText, fontSize: 12),
@@ -616,14 +637,10 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
 
   Widget _totalsSection(Map<String, dynamic> totals) {
     const fields = <(String, String, IconData)>[
-      ('Total Households', 'total_households', Icons.home_outlined),
-      ('Household Population', 'total_population', Icons.people_outline),
-      ('Assessed Households', 'assessed_households', Icons.assignment_outlined),
-      (
-        'Classified Households',
-        'classified_households',
-        Icons.analytics_outlined,
-      ),
+      ('Households', 'total_households', Icons.home_outlined),
+      ('Population', 'total_population', Icons.people_outline),
+      ('Assessed', 'assessed_households', Icons.assignment_outlined),
+      ('Classified', 'classified_households', Icons.analytics_outlined),
     ];
 
     return _section(
@@ -655,103 +672,6 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
           ],
         );
       },
-    );
-  }
-
-  Widget _vulnerabilityReport(Map<String, dynamic> totals) {
-    final segments = <(String, int, Color)>[
-      (
-        'Low Vulnerability',
-        _count(totals['low_vulnerability']),
-        AppColors.primaryGreen,
-      ),
-      (
-        'Medium Vulnerability',
-        _count(totals['medium_vulnerability']),
-        const Color(0xFFAB7800),
-      ),
-      (
-        'High Vulnerability',
-        _count(totals['high_vulnerability']),
-        const Color(0xFFC62828),
-      ),
-    ];
-    final classified = _count(totals['classified_households']);
-    return _section(
-      title: 'Household Vulnerability Overview',
-      subtitle: 'Current Low, Medium, and High classifications.',
-      icon: Icons.analytics_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (classified == 0)
-            const Text(
-              'No classified households match the selected filters.',
-              style: TextStyle(color: AppColors.greyText, fontSize: 13),
-            )
-          else
-            for (final item in segments) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      item.$1,
-                      style: const TextStyle(
-                        color: AppColors.darkText,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${item.$2}  (${(item.$2 / classified * 100).toStringAsFixed(1)}%)',
-                    style: TextStyle(
-                      color: item.$3,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 7),
-              LinearProgressIndicator(
-                value: item.$2 / classified,
-                backgroundColor: const Color(0xFFE4EAE6),
-                color: item.$3,
-                borderRadius: BorderRadius.circular(8),
-                minHeight: 9,
-              ),
-              const SizedBox(height: 18),
-            ],
-        ],
-      ),
-    );
-  }
-
-  Widget _beneficiaryReport(Map<String, dynamic> totals) {
-    const fields = <(String, String, IconData)>[
-      ('Pending', 'pending_beneficiaries', Icons.hourglass_empty_outlined),
-      ('For Review', 'for_review_beneficiaries', Icons.rate_review_outlined),
-      ('Approved', 'approved_beneficiaries', Icons.verified_outlined),
-      ('Rejected', 'rejected_beneficiaries', Icons.block_outlined),
-    ];
-    return _section(
-      title: 'Beneficiary Review Status',
-      subtitle: 'Current Staff review decisions.',
-      icon: Icons.fact_check_outlined,
-      child: _reportMetricGrid(fields, totals),
-    );
-  }
-
-  Widget _distributionReport(Map<String, dynamic> totals) {
-    const fields = <(String, String, IconData)>[
-      ('Verified Deliveries', 'aid_distributions', Icons.inventory_2_outlined),
-      ('Demo Entries', 'simulated_distributions', Icons.science_outlined),
-    ];
-    return _section(
-      title: 'Aid Distribution Overview',
-      subtitle: 'Verified deliveries and demonstration entries are counted separately.',
-      icon: Icons.local_shipping_outlined,
-      child: _reportMetricGrid(fields, totals),
     );
   }
 
@@ -793,7 +713,17 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
       scrollDirection: Axis.horizontal,
       child: DataTable(
         headingRowColor: const WidgetStatePropertyAll(AppColors.lightGreen),
+        headingTextStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: AppColors.primaryGreen,
+        ),
+        dataTextStyle: const TextStyle(fontSize: 12, color: AppColors.darkText),
+        horizontalMargin: 12,
         columnSpacing: 22,
+        headingRowHeight: 48,
+        dataRowMinHeight: 44,
+        dataRowMaxHeight: 52,
         columns: [for (final item in columns) DataColumn(label: Text(item.$1))],
         rows: rows.map((row) {
           return DataRow(
@@ -834,50 +764,26 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          widget.heading,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.darkText,
+        if (widget.showHeading) ...[
+          Text(
+            widget.heading,
+            style: const TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkText,
+            ),
           ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Household vulnerability and aid distribution overview',
-          style: TextStyle(fontSize: 13, color: AppColors.greyText),
-        ),
-        const SizedBox(height: 18),
+          const SizedBox(height: 5),
+          const Text(
+            'Household vulnerability and aid distribution overview',
+            style: TextStyle(fontSize: 13, color: AppColors.greyText),
+          ),
+          const SizedBox(height: 18),
+        ],
 
-        // ======================================
-        // TESTING MODE NOTICE
-        // ======================================
-        Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: AppColors.lightGreen,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.borderColor),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.info_outline, color: AppColors.primaryGreen),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Delivery totals exclude practice entries. '
-                  'Classifications support staff review.',
-                  style: TextStyle(fontSize: 12, color: AppColors.darkText),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 18),
+        // Filters and report results use the existing FastAPI data.
         _filterSection(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
 
         if (_loadError != null) ...[
           Text(_loadError!, style: const TextStyle(color: Color(0xFFC62828))),
@@ -891,17 +797,11 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
           const AidTrackModuleLoading()
         else if (report != null) ...[
           _totalsSection(totals),
-          const SizedBox(height: 20),
-          _vulnerabilityReport(totals),
-          const SizedBox(height: 20),
-          _beneficiaryReport(totals),
-          const SizedBox(height: 20),
-          _distributionReport(totals),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           _section(
             title: 'Barangay Breakdown',
             subtitle:
-                '${barangays.length} barangay report rows. '
+                'Household statistics grouped by barangay. '
                 'Scroll horizontally to see all columns.',
             icon: Icons.location_city_outlined,
             child: _barangayTable(barangays),
@@ -912,17 +812,14 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
             child: Center(child: Text('No report is available yet.')),
           ),
 
-        const SizedBox(height: 20),
-
+        const SizedBox(height: 14),
         const Text(
-          'Date filters select households by registration '
-          'date in Philippine time. Assessments, classifications, '
-          'beneficiary statuses, and distribution counts are current '
-          'values for those households.',
+          'Dates filter by household registration date (Philippine time). '
+          'Classifications and beneficiary statuses reflect current records. '
+          'Verified deliveries exclude practice entries.',
           style: TextStyle(fontSize: 11, color: AppColors.greyText),
         ),
-
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
       ],
     );
   }
