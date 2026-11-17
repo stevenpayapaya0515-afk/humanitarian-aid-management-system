@@ -1,0 +1,69 @@
+==============================================================================
+         AIDTRACK - MACHINE LEARNING EVALUATION REPORT
+==============================================================================
+
+1. MODEL INFORMATION
+
+  Algorithm               : Random Forest Classifier
+  Dataset Source          : PSA APIS 2022 - CARAGA (REG 16)
+  Model Version           : apis2022-rf-caraga46-proxy-v1
+  Dataset Records         : 2,126
+  Usable Proxy Labels     : 2,021
+  Training Set            : 1,609 records
+  Testing Set             : 412 records
+  Excluded Records        : 105
+  Input Features          : 46 (35 categorical, 11 numeric)
+  Split Method            : Random household 80/20; exclusions after labeling
+  Random State            : 42
+
+2. DATASET CLASS DISTRIBUTION
+
+  Class          Records     Percentage       Train      Test
+  -----------------------------------------------------------
+  Low                283         14.00%         235        48
+  Medium           1,008         49.88%         786       222
+  High               730         36.12%         588       142
+  -----------------------------------------------------------
+  TOTAL            2,021        100.00%       1,609       412
+
+3. MODEL EVALUATION METRICS
+
+  Accuracy                : 79.37%
+  Macro Precision         : 77.42%
+  Macro Recall            : 74.65%
+  Macro F1-Score          : 75.88%
+  Balanced Accuracy       : 74.65%
+  Correct Predictions     : 327 / 412
+
+4. CLASSIFICATION REPORT
+
+  Class            Precision      Recall    F1-Score    Support
+  -------------------------------------------------------------
+  Low                 69.77%      62.50%      65.93%         48
+  Medium              78.66%      84.68%      81.56%        222
+  High                83.85%      76.76%      80.15%        142
+  Macro Avg           77.42%      74.65%      75.88%        412
+  Weighted Avg        79.41%      79.37%      79.25%        412
+
+5. CONFUSION MATRIX
+
+  Rows = Actual Proxy Class  |  Columns = Predicted Proxy Class
+
+  Actual_Class       Predicted_Low    Predicted_Medium    Predicted_High
+  ----------------------------------------------------------------------
+  Low                           30                  18                 0
+  Medium                        13                 188                21
+  High                           0                  33               109
+
+6. MODEL PREPROCESSING
+
+  - 35 categorical features: imputation and one-hot encoding
+  - 11 numeric features: median imputation
+  - Random Forest: 200 trees, balanced subsample weighting
+  - 46 model input features; no separate SelectFromModel step
+
+7. MODEL VALIDATION
+
+  Researcher-defined proxy vulnerability labels
+  Not validated against actual LGU eligibility decisions
+  Dataset SHA-256: MATCH
