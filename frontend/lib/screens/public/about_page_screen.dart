@@ -13,21 +13,25 @@ class AboutPageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.sizeOf(context).width < 700;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 700;
+    final headingSize = isMobile ? 32.0 : (width * 0.052).clamp(44.0, 72.0).toDouble();
+
+    void openHome(bool animate) {
+      Navigator.of(context).pushReplacement(publicTabRoute(
+        const HomePageScreen(),
+        fromRight: false,
+        animate: animate,
+      ));
+    }
 
     return Scaffold(
       backgroundColor: AppColors.primaryGreen,
 
       appBar: PublicSiteHeader(
         selectedPage: PublicSitePage.about,
-        onHome: () {
-          Navigator.of(context).pushReplacement(
-            publicSiteSlideRoute(
-              const HomePageScreen(),
-              enterFromRight: false,
-            ),
-          );
-        },
+        onHome: () => openHome(true),
+        onDrawerHome: () => openHome(false),
         onAbout: () {},
         onCoreFunctions: () {
           Navigator.of(context).pushReplacement(
@@ -72,11 +76,11 @@ class AboutPageScreen extends StatelessWidget {
           SingleChildScrollView(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: double.infinity),
+                constraints: const BoxConstraints(minWidth: double.infinity),
 
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 18 : 60,
+                    horizontal: isMobile ? 40 : 46,
                     vertical: isMobile ? 30 : 48,
                   ),
 
@@ -87,7 +91,7 @@ class AboutPageScreen extends StatelessWidget {
                       // PAGE INTRODUCTION
                       // ========================================
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 860),
+                        constraints: const BoxConstraints(maxWidth: double.infinity),
 
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,20 +112,20 @@ class AboutPageScreen extends StatelessWidget {
                               'About the System',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: isMobile ? 32 : 44,
+                                fontSize: headingSize,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
 
                             const SizedBox(height: 18),
 
-                            const Text(
+                            Text(
                               'Humanitarian Aid Distribution Management '
                               'System with Machine Learning-Based '
                               'Household Vulnerability Classification',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: isMobile ? 18 : 24,
                                 height: 1.5,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -129,7 +133,7 @@ class AboutPageScreen extends StatelessWidget {
 
                             const SizedBox(height: 18),
 
-                            const Text(
+                            Text(
                               'The system is designed to address challenges '
                               'associated with manual household registration, '
                               'vulnerability assessment, and humanitarian aid '
@@ -137,8 +141,8 @@ class AboutPageScreen extends StatelessWidget {
                               'through an organized and centralized workflow.',
                               style: TextStyle(
                                 color: Color(0xFFE4EEE7),
-                                fontSize: 15,
-                                height: 1.7,
+                                fontSize: isMobile ? 17 : 22,
+                                height: 1.5,
                               ),
                             ),
                           ],
@@ -289,8 +293,8 @@ class AboutPageScreen extends StatelessWidget {
                               'learning model for household vulnerability '
                               'classification.',
                               style: TextStyle(
-                                fontSize: 15,
-                                height: 1.7,
+                                fontSize: 17,
+                                height: 1.5,
                                 color: AppColors.greyText,
                               ),
                             ),
