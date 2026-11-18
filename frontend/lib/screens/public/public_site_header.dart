@@ -7,6 +7,20 @@ enum PublicSitePage { home, about, login }
 
 enum _PublicMenuChoice { home, about, coreFunctions, signIn }
 
+Route<void> publicTabRoute(Widget page, {required bool fromRight, required bool animate}) {
+  return PageRouteBuilder<void>(
+    transitionDuration: Duration(milliseconds: animate ? 360 : 0),
+    reverseTransitionDuration: Duration.zero,
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) => SlideTransition(
+      position: animation.drive(CurveTween(curve: Curves.easeOutCubic)).drive(
+        Tween<Offset>(begin: Offset(fromRight ? 1.0 : -1.0, 0), end: Offset.zero),
+      ),
+      child: child,
+    ),
+  );
+}
+
 /// Clearly visible directional slide between the public pages.
 Route<void> publicSiteSlideRoute(
   Widget page, {
@@ -14,7 +28,7 @@ Route<void> publicSiteSlideRoute(
 }) {
   final start = Offset(enterFromRight ? 1.0 : -1.0, 0);
   return PageRouteBuilder<void>(
-    pageBuilder: (_, _, _) => page,
+    pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionDuration: const Duration(milliseconds: 680),
     reverseTransitionDuration: const Duration(milliseconds: 520),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -37,7 +51,12 @@ Route<void> publicSiteSlideRoute(
 /// Consistent AidTrack navigation trigger used by Home, About and Login.
 /// Dark-green tile, subtle yellow border, and three rounded menu strokes.
 class AidTrackPublicMenuTrigger extends StatelessWidget {
-  const AidTrackPublicMenuTrigger({super.key, required this.onPressed});
+  const AidTrackPublicMenuTrigger({
+    super.key,
+    required this.onPressed,
+    this.mobile = false,
+  });
+  final bool mobile;
 
   final VoidCallback? onPressed;
 
@@ -49,7 +68,7 @@ class AidTrackPublicMenuTrigger extends StatelessWidget {
         label: 'Open navigation menu',
         button: true,
         child: Material(
-          color: const Color(0xFF104C37),
+          color: mobile ? AppColors.primaryGreen : const Color(0xFF104C37),
           borderRadius: BorderRadius.circular(11),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -100,6 +119,8 @@ class PublicSiteHeader extends StatelessWidget implements PreferredSizeWidget {
     required this.selectedPage,
     required this.onHome,
     required this.onAbout,
+    this.onDrawerHome,
+    this.onDrawerAbout,
     required this.onCoreFunctions,
     required this.onSignIn,
   });
@@ -107,6 +128,8 @@ class PublicSiteHeader extends StatelessWidget implements PreferredSizeWidget {
   final PublicSitePage selectedPage;
   final VoidCallback onHome;
   final VoidCallback onAbout;
+  final VoidCallback? onDrawerHome;
+  final VoidCallback? onDrawerAbout;
   final VoidCallback onCoreFunctions;
   final VoidCallback onSignIn;
 
@@ -169,10 +192,10 @@ class PublicSiteHeader extends StatelessWidget implements PreferredSizeWidget {
     if (!context.mounted) return;
     switch (selection) {
       case _PublicMenuChoice.home:
-        onHome();
+        (onDrawerHome ?? onHome)();
         break;
       case _PublicMenuChoice.about:
-        onAbout();
+        (onDrawerAbout ?? onAbout)();
         break;
       case _PublicMenuChoice.coreFunctions:
         onCoreFunctions();
@@ -206,14 +229,15 @@ class PublicSiteHeader extends StatelessWidget implements PreferredSizeWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: double.infinity),
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: width < 700 ? 18 : 60),
+                  padding: EdgeInsets.symmetric(horizontal: width < 700 ? 18 : 24),
                   child: Row(
                     children: [
                       // One menu trigger on the left at every screen width.
                       AidTrackPublicMenuTrigger(
+                        mobile: width < 700,
                         onPressed: () => _openNavigation(context, compact),
                       ),
-                      SizedBox(width: compact ? 20 : 10),
+                      SizedBox(width: width < 700 ? 28 : (compact ? 20 : 10)),
                       // Mobile: text only; desktop: keep the original logo.
                       _publicBrand(
                         onHome,
@@ -287,7 +311,9 @@ class PublicSiteMobileDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF073D29),
+      color: AppColors.primaryGreen,
+      borderRadius: const BorderRadius.horizontal(right: Radius.circular(16)),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -299,7 +325,7 @@ class PublicSiteMobileDrawer extends StatelessWidget {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: _publicBrand(onHome, fontSize: 23, symbolSize: 45),
+                      child: _publicBrand(onHome, fontSize: 19, drawerTile: true),
                     ),
                   ),
                   IconButton(
@@ -442,6 +468,7 @@ Widget _publicBrand(
   double fontSize = 25,
   double symbolSize = 53,
   bool showSymbol = true,
+  bool drawerTile = false,
 }) {
   return InkWell(
     onTap: onTap,
@@ -450,7 +477,19 @@ Widget _publicBrand(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (showSymbol) ...[
-          SizedBox(
+          if (drawerTile)
+            Container(
+              width: 62,
+              height: 62,
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Image.asset('assets/images/aidtrack_symbol.png', fit: BoxFit.contain),
+            )
+          else
+            SizedBox(
             width: symbolSize,
             height: symbolSize,
             child: ColorFiltered(
