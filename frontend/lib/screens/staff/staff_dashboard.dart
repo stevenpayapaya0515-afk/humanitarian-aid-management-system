@@ -26,7 +26,12 @@ class StaffDashboard extends StatefulWidget {
 }
 
 class _StaffDashboardState extends State<StaffDashboard> {
-  String selectedPage = 'Dashboard';
+  String _selectedPage = AuthService.initialPageForRole('Staff');
+  String get selectedPage => _selectedPage;
+  set selectedPage(String page) {
+    _selectedPage = page;
+    AuthService.rememberPage('Staff', page);
+  }
   String _staffName = 'LGU Staff';
   Future<void> _loadStaffProfile() async {
     try {

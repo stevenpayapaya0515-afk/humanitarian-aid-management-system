@@ -31,7 +31,12 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   // Currently selected administrator page
-  String selectedPage = 'Dashboard';
+  String _selectedPage = AuthService.initialPageForRole('Admin');
+  String get selectedPage => _selectedPage;
+  set selectedPage(String page) {
+    _selectedPage = page;
+    AuthService.rememberPage('Admin', page);
+  }
 
   // Profile details of the currently logged-in administrator.
   String _adminName = 'Loading...';
