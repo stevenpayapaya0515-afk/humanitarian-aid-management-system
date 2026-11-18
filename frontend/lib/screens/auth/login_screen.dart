@@ -13,6 +13,7 @@ import 'login_otp_form.dart';
 
 import '../public/home_page_screen.dart';
 import '../public/about_page_screen.dart';
+import '../public/public_site_header.dart';
 
 // ========================================
 // LOGIN SCREEN
@@ -372,78 +373,97 @@ class _LoginScreenState extends State<LoginScreen> {
   // PUBLIC NAVIGATION MENU
   // ========================================
 
-  Widget _buildPublicMenu({bool isMobile = false}) {
-    return PopupMenuButton<String>(
-      tooltip: 'Open navigation menu',
-      enabled: !_isLoading,
-      offset: const Offset(0, 48),
-      color: AppColors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  // Reuse the same green sliding navigation panel as Home and About.
+  Future<void> _openPublicNavigation({required bool isMobile}) async {
+    if (_isLoading) return;
 
-      onSelected: (page) {
-        if (!mounted) return;
+    final navigator = Navigator.of(context);
+    final availableWidth = MediaQuery.sizeOf(context).width;
+    final panelWidth = isMobile ? availableWidth * 0.86 : 360.0;
 
-        final Widget destination;
-
-        if (page == 'Home') {
-          destination = const HomePageScreen();
-        } else if (page == 'About') {
-          destination = const AboutPageScreen();
-        } else {
-          return;
-        }
-
-        Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => destination));
-      },
-
-      itemBuilder: (context) => const [
-        PopupMenuItem<String>(
-          value: 'Home',
-          child: Row(
-            children: [
-              Icon(
-                Icons.home_outlined,
-                color: AppColors.primaryGreen,
-                size: 20,
-              ),
-              SizedBox(width: 12),
-              Text('Home'),
-            ],
+    final menuRoute = RawDialogRoute<String>(
+      barrierDismissible: true,
+      barrierLabel: 'Close navigation menu',
+      barrierColor: const Color(0x99000000),
+      transitionDuration: const Duration(milliseconds: 550),
+      pageBuilder: (dialogContext, _, _) => Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: panelWidth,
+          height: double.infinity,
+          child: GestureDetector(
+            onHorizontalDragEnd: (details) {
+              if ((details.primaryVelocity ?? 0) < -250) {
+                Navigator.of(dialogContext).pop();
+              }
+            },
+            child: PublicSiteMobileDrawer(
+              selectedPage: PublicSitePage.login,
+              onHome: () => Navigator.of(dialogContext).pop('home'),
+              onAbout: () => Navigator.of(dialogContext).pop('about'),
+              onCoreFunctions: () =>
+                  Navigator.of(dialogContext).pop('functions'),
+              // Already on the sign-in page: just close the drawer.
+              onSignIn: () => Navigator.of(dialogContext).pop('signIn'),
+            ),
           ),
-        ),
-
-        PopupMenuItem<String>(
-          value: 'About',
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: AppColors.primaryGreen, size: 20),
-              SizedBox(width: 12),
-              Text('About'),
-            ],
-          ),
-        ),
-      ],
-
-      // The three-line menu icon.
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: isMobile
-              ? AppColors.white
-              : Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isMobile ? AppColors.borderColor : Colors.white54,
-          ),
-        ),
-        child: Icon(
-          Icons.menu_rounded,
-          color: isMobile ? AppColors.primaryGreen : AppColors.white,
-          size: 27,
         ),
       ),
+      transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInOutCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(-1, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+      },
+    );
+
+    final selection = await navigator.push<String>(menuRoute);
+    await menuRoute.completed;
+    if (!mounted) return;
+
+    switch (selection) {
+      case 'home':
+        navigator.push(
+          publicSiteSlideRoute(
+            const HomePageScreen(),
+            enterFromRight: true,
+          ),
+        );
+        break;
+      case 'about':
+        navigator.push(
+          publicSiteSlideRoute(
+            const AboutPageScreen(),
+            enterFromRight: true,
+          ),
+        );
+        break;
+      case 'functions':
+        navigator.push(
+          publicSiteSlideRoute(
+            const HomePageScreen(scrollToFunctions: true),
+            enterFromRight: true,
+          ),
+        );
+        break;
+      default:
+        break;
+    }
+  }
+
+  Widget _buildPublicMenu({bool isMobile = false}) {
+    return AidTrackPublicMenuTrigger(
+      onPressed: _isLoading
+          ? null
+          : () => _openPublicNavigation(isMobile: isMobile),
     );
   }
 
@@ -554,7 +574,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // ========================================
           // HAMBURGER MENU - TOP LEFT
           // ========================================
-          Positioned(top: 24, left: 24, child: _buildPublicMenu()),
+          Positioned(top: 16, left: 60, child: _buildPublicMenu()),
         ],
       ),
     );
@@ -682,8 +702,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Keep this LAST so it appears above the login form.
           Positioned(
-            top: 12,
-            left: 12,
+            top: 16,
+            left: 18,
             child: _buildPublicMenu(isMobile: true),
           ),
         ],
