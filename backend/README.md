@@ -15,7 +15,10 @@ or reset records when installing a code update.
 
 ## ML organization
 
-- `ml_service/datasets/`: local prepared survey records, excluded from Git.
+- `ml_service/datasets/`: CARAGA source, proxy labels, and fixed dataset splits.
+- `ml_service/datasets/apis2022_caraga_household_records.csv`: original 2,126 households / 51 source and audit columns (46 model inputs).
+- `ml_service/datasets/apis2022_caraga_vulnerability_proxy_labels.csv`: researcher-defined proxy labels for all households.
+- `ml_service/datasets/splits/`: 1,609 training, 412 testing, 105 excluded household CSVs.
 - `ml_service/evaluation/`: model evaluation results and limitations.
 - `ml_service/models/`: locally built models, excluded from Git.
 - Python training and inference scripts stay directly in `ml_service/`.
@@ -35,12 +38,20 @@ the form values. An old request without answers receives 422 and saves nothing.
 The separate `/preview-apis2022` endpoint remains read-only.
 
 Local model binaries are excluded from Git. Use your existing locally trained
-`models/apis2022_vulnerability_candidate.joblib`. If it is missing or incompatible,
+`models/apis2022_caraga46_random_forest.joblib`. If it is missing or incompatible,
 rebuild with the current prepared APIS 2022 dataset in the backend environment:
 
 ```powershell
+.\.venv\Scripts\python.exe -m ml_service.prepare_apis2022_caraga_splits
 .\.venv\Scripts\python.exe -m ml_service.train_apis2022_vulnerability
 ```
+
+Preparation reproduces the historical random-state-42 split and the original
+training-only income cutoff *before* excluding the 105 Needs review records.
+Training validates the exported split CSVs against the master and reference labels
+before fitting. Renaming/exporting CSV files alone does not retrain the saved model.
+**Do not retrain unless you intend to re-evaluate and update research results.**
+The proxy classifications are researcher-defined, not PSA/LGU verified labels.
 
 This is survey-based Random Forest research with researcher-defined proxy labels,
 not a validated PSA/LGU aid eligibility model. `app_ready=False` remains recorded.
