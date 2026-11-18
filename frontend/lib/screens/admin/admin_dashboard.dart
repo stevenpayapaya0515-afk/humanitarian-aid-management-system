@@ -313,30 +313,54 @@ class _AdminDashboardState extends State<AdminDashboard> {
           // Mobile top navigation bar
           appBar: isMobile
               ? AppBar(
-                  backgroundColor: AppColors.white,
-                  foregroundColor: AppColors.primaryGreen,
-                  leadingWidth: 52,
+                  backgroundColor: AppColors.primaryGreen,
+                  surfaceTintColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  leadingWidth: 68,
+                  leading: Builder(
+                    builder: (context) => Center(
+                      child: IconButton(
+                        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+                        tooltip: 'Open navigation menu',
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                        icon: SizedBox(
+                          width: 32,
+                          height: 24,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final color in const [
+                                Colors.white,
+                                AppColors.accentYellow,
+                                Colors.white,
+                              ])
+                                Container(
+                                  width: color == AppColors.accentYellow ? 18 : 32,
+                                  margin: EdgeInsets.only(left: color == AppColors.accentYellow ? 4 : 0),
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   titleSpacing: 0,
-
                   title: Row(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        'assets/images/aidtrack_symbol.png',
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.contain,
-                      ),
-
-                      const SizedBox(width: 8),
-
                       const Text.rich(
                         TextSpan(
                           children: [
                             TextSpan(
                               text: 'Aid',
-                              style: TextStyle(color: AppColors.primaryGreen),
+                              style: TextStyle(color: Colors.white),
                             ),
                             TextSpan(
                               text: 'Track',
@@ -345,8 +369,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ],
                         ),
                         style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
                         ),
                       ),
                     ],
