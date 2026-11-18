@@ -355,7 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Keep the login form at a readable width
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
+                    constraints: const BoxConstraints(maxWidth: 510),
 
                     // Display the login form
                     child: _buildRightPanel(),
@@ -461,6 +461,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildPublicMenu({bool isMobile = false}) {
     return AidTrackPublicMenuTrigger(
+      mobile: isMobile,
       onPressed: _isLoading
           ? null
           : () => _openPublicNavigation(isMobile: isMobile),
@@ -505,7 +506,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // LEFT PANEL TEXT CONTENT
           // ========================================
           Padding(
-            padding: const EdgeInsets.all(60),
+            padding: const EdgeInsets.symmetric(horizontal: 46, vertical: 40),
 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,8 +534,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
 
-                  style: const TextStyle(
-                    fontSize: 46,
+                  style: TextStyle(
+                    fontSize: (MediaQuery.sizeOf(context).width * 0.045).clamp(44.0, 64.0).toDouble(),
                     fontWeight: FontWeight.bold,
                     height: 1.2,
                   ),
@@ -574,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // ========================================
           // HAMBURGER MENU - TOP LEFT
           // ========================================
-          Positioned(top: 16, left: 60, child: _buildPublicMenu()),
+          Positioned(top: 16, left: 24, child: _buildPublicMenu()),
         ],
       ),
     );
@@ -684,7 +685,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Allow the form and footer to scroll together
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 85, 24, 40),
+              padding: EdgeInsets.fromLTRB(24, _challengeId != null ? 109 : 85, 24, 40),
 
               // Keep the form at a readable width
               child: Center(
