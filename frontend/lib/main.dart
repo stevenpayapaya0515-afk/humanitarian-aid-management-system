@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/public/home_page_screen.dart';
 import 'screens/admin/admin_dashboard.dart';
 import 'screens/staff/staff_dashboard.dart';
 
@@ -40,6 +42,11 @@ class _AidTrackAppState extends State<AidTrackApp> {
       title: 'AidTrack',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      // Public pages return to the first route for personnel sign-in.
+      initialRoute: kIsWeb && (invitationToken?.isEmpty ?? true) ? '/home' : '/',
+      routes: {
+        '/home': (_) => const HomePageScreen(),
+      },
       // Invitation registration always takes precedence over session restore.
       home: invitationToken != null && invitationToken.isNotEmpty
           ? LoginScreen(invitationToken: invitationToken)
