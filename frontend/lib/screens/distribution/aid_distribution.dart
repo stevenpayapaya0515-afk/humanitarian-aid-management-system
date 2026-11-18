@@ -1069,7 +1069,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Demo data active. Sample transactions are not verified LGU releases.',
+                        'Practice records active. Sample transactions are not verified LGU releases.',
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.4,
@@ -1893,7 +1893,7 @@ class _AidDistributionScreenState extends State<AidDistributionScreen> {
             runSpacing: 7,
             children: [
               _chip(
-                record['is_simulation'] == true ? 'Demo' : 'Recorded delivery',
+                record['is_simulation'] == true ? 'Practice Record' : 'Recorded delivery',
                 AppColors.primaryGreen,
               ),
               if (record['predicted_class'] != null)
