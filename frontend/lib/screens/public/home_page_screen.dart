@@ -59,7 +59,17 @@ class _HomePageScreenState extends State<HomePageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.sizeOf(context).width < 700;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 700;
+    final headingSize = isMobile ? 32.0 : (width * 0.052).clamp(44.0, 72.0).toDouble();
+
+    void openAbout(bool animate) {
+      Navigator.of(context).pushReplacement(publicTabRoute(
+        const AboutPageScreen(),
+        fromRight: true,
+        animate: animate,
+      ));
+    }
 
     return Scaffold(
       backgroundColor: AppColors.primaryGreen,
@@ -67,14 +77,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
       appBar: PublicSiteHeader(
         selectedPage: PublicSitePage.home,
         onHome: _scrollToTop,
-        onAbout: () {
-          Navigator.of(context).push(
-            publicSiteSlideRoute(
-              const AboutPageScreen(),
-              enterFromRight: true,
-            ),
-          );
-        },
+        onAbout: () => openAbout(true),
+        onDrawerAbout: () => openAbout(false),
         onCoreFunctions: _scrollToCoreFunctions,
         onSignIn: () => Navigator.of(context).popUntil((route) => route.isFirst),
       ),
@@ -113,12 +117,12 @@ class _HomePageScreenState extends State<HomePageScreen> {
             controller: _scrollController,
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: double.infinity),
+                constraints: const BoxConstraints(minWidth: double.infinity),
 
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 18 : 60,
-                    vertical: isMobile ? 30 : 48,
+                    horizontal: isMobile ? 40 : 46,
+                    vertical: isMobile ? 22 : 48,
                   ),
 
                   child: Column(
@@ -131,10 +135,10 @@ class _HomePageScreenState extends State<HomePageScreen> {
                         // Keep Core System Functions below the first viewport.
                         // It remains accessible by scrolling or its nav link.
                         constraints: BoxConstraints(
-                          maxWidth: 860,
+                          maxWidth: double.infinity,
                           minHeight: (MediaQuery.sizeOf(context).height -
                                   76 -
-                                  (isMobile ? 30 : 48))
+                                  (isMobile ? 22 : 48))
                               .clamp(0.0, double.infinity),
                         ),
 
@@ -174,35 +178,36 @@ class _HomePageScreenState extends State<HomePageScreen> {
                               ],
                             ),
 
-                            const SizedBox(height: 18),
+                            SizedBox(height: isMobile ? 14 : 18),
 
                             Text(
-                              'Humanitarian Aid Distribution '
-                              'Management System',
+                              isMobile
+                                  ? 'Humanitarian Aid Distribution Management System'
+                                  : 'Humanitarian Aid Distribution\nManagement System',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: isMobile ? 32 : 45,
+                                fontSize: headingSize,
                                 height: 1.17,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
 
-                            const SizedBox(height: 18),
+                            SizedBox(height: isMobile ? 14 : 18),
 
-                            const Text(
+                            Text(
                               'With Machine Learning-Based Household '
                               'Vulnerability Classification',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: isMobile ? 18 : 24,
                                 fontWeight: FontWeight.w600,
                                 height: 1.5,
                               ),
                             ),
 
-                            const SizedBox(height: 18),
+                            SizedBox(height: isMobile ? 14 : 18),
 
-                            const Text(
+                            Text(
                               'AidTrack is designed to support '
                               'Local Government Units in organizing '
                               'household information, conducting '
@@ -211,12 +216,12 @@ class _HomePageScreenState extends State<HomePageScreen> {
                               'humanitarian aid activities.',
                               style: TextStyle(
                                 color: Color(0xFFE4EEE7),
-                                fontSize: 15,
-                                height: 1.7,
+                                fontSize: isMobile ? 17 : 22,
+                                height: 1.5,
                               ),
                             ),
 
-                            const SizedBox(height: 26),
+                            SizedBox(height: isMobile ? 18 : 26),
 
                             ElevatedButton.icon(
                               onPressed: () {
