@@ -33,7 +33,7 @@ class APIS46AssessmentTests(unittest.TestCase):
 
     def test_matches_csv_headers(self):
         csv_path = (Path(__file__).resolve().parents[1] / "ml_service" / "datasets"
-                    / "apis2022_household_records.csv")
+                    / "apis2022_caraga_household_records.csv")
         with csv_path.open(encoding="utf-8-sig", newline="") as f:
             headers = csv.DictReader(f).fieldnames
         self.assertEqual(len(headers), 51)
