@@ -687,10 +687,9 @@ class _AdminSettingsState extends State<AdminSettings> {
                   '• At least 1 uppercase letter (A–Z)\n'
                   '• At least 1 lowercase letter (a–z)\n'
                   '• At least 1 number (0–9)\n'
-                  '• At least 1 symbol (! @ #)\n'
-                  '• Avoid common passwords, your name, and email'
+                  '• At least 1 symbol (! @ #)'
             : null,
-        helperMaxLines: 8,
+        helperMaxLines: 6,
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           onPressed: onToggle,
@@ -807,6 +806,18 @@ class _AdminSettingsState extends State<AdminSettings> {
                     }
                     if (value.runes.length < 12 || value.runes.length > 64) {
                       return 'Use 12 to 64 characters.';
+                    }
+                    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                      return 'Add at least one uppercase letter.';
+                    }
+                    if (!RegExp(r'[a-z]').hasMatch(value)) {
+                      return 'Add at least one lowercase letter.';
+                    }
+                    if (!RegExp(r'[0-9]').hasMatch(value)) {
+                      return 'Add at least one number.';
+                    }
+                    if (!RegExp(r'[^A-Za-z0-9\s]').hasMatch(value)) {
+                      return 'Add at least one symbol.';
                     }
                     if (value == _currentPassword.text) {
                       return 'Choose a different password.';
