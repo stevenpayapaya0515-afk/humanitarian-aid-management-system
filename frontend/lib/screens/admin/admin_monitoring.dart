@@ -641,7 +641,23 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
         ),
         const SizedBox(height: 14),
         if (!_loading && _error == null) ...[
-          Wrap(spacing: 10, runSpacing: 10, children: _summaries()),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 10.0;
+              final mobile = MediaQuery.sizeOf(context).width < 900;
+              final width = constraints.maxWidth;
+              final columns = width >= 310 ? 2 : 1;
+              final tileWidth = mobile ? (width - gap * (columns - 1)) / columns : 190.0;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final tile in _summaries())
+                    SizedBox(width: tileWidth, child: tile),
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 14),
         ],
         AidTrackSectionCard(
