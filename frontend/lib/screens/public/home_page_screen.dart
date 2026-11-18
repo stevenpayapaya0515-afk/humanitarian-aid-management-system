@@ -1,13 +1,61 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'about_page_screen.dart';
+import 'public_site_header.dart';
 
 // ========================================
 // AIDTRACK PUBLIC HOME PAGE
 // ========================================
 
-class HomePageScreen extends StatelessWidget {
-  const HomePageScreen({super.key});
+class HomePageScreen extends StatefulWidget {
+  const HomePageScreen({super.key, this.scrollToFunctions = false});
+
+  final bool scrollToFunctions;
+
+  @override
+  State<HomePageScreen> createState() => _HomePageScreenState();
+}
+
+class _HomePageScreenState extends State<HomePageScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _functionsKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scrollToFunctions) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToCoreFunctions();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 430),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _scrollToCoreFunctions() {
+    final context = _functionsKey.currentContext;
+    if (context == null) return;
+    Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 430),
+      curve: Curves.easeInOut,
+      alignment: 0.08,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,45 +64,20 @@ class HomePageScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.primaryGreen,
 
-      // ========================================
-      // TOP NAVIGATION
-      // ========================================
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        foregroundColor: AppColors.primaryGreen,
-        elevation: 0,
-        toolbarHeight: 72,
-        leadingWidth: 48,
-        titleSpacing: 0,
-
-        // Keep the default back arrow.
-        automaticallyImplyLeading: true,
-
-        // AidTrack logo and name beside the back arrow.
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/aidtrack_symbol.png',
-              width: 36,
-              height: 36,
-              fit: BoxFit.contain,
+      appBar: PublicSiteHeader(
+        selectedPage: PublicSitePage.home,
+        onHome: _scrollToTop,
+        onAbout: () {
+          Navigator.of(context).push(
+            publicSiteSlideRoute(
+              const AboutPageScreen(),
+              enterFromRight: true,
             ),
-
-            const SizedBox(width: 8),
-
-            const Text(
-              'AidTrack',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryGreen,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
+        onCoreFunctions: _scrollToCoreFunctions,
+        onSignIn: () => Navigator.of(context).popUntil((route) => route.isFirst),
       ),
-
       // ========================================
       // FULL PAGE BACKGROUND
       // ========================================
@@ -87,13 +110,14 @@ class HomePageScreen extends StatelessWidget {
           // SCROLLABLE PAGE CONTENT
           // ========================================
           SingleChildScrollView(
+            controller: _scrollController,
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1180),
+                constraints: const BoxConstraints(maxWidth: double.infinity),
 
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 18 : 32,
+                    horizontal: isMobile ? 18 : 60,
                     vertical: isMobile ? 30 : 48,
                   ),
 
@@ -104,19 +128,50 @@ class HomePageScreen extends StatelessWidget {
                       // WELCOME INTRODUCTION
                       // ========================================
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 860),
+                        // Keep Core System Functions below the first viewport.
+                        // It remains accessible by scrolling or its nav link.
+                        constraints: BoxConstraints(
+                          maxWidth: 860,
+                          minHeight: (MediaQuery.sizeOf(context).height -
+                                  76 -
+                                  (isMobile ? 30 : 48))
+                              .clamp(0.0, double.infinity),
+                        ),
 
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'WELCOME TO AIDTRACK',
-                              style: TextStyle(
-                                color: AppColors.accentYellow,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.7,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'WELCOME TO AIDTRACK',
+                                  style: TextStyle(
+                                    color: AppColors.accentYellow,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.7,
+                                  ),
+                                ),
+                                const SizedBox(width: 22),
+                                if (isMobile)
+                                  Container(
+                                    width: 3,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentYellow,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(
+                                    width: 48,
+                                    child: Divider(
+                                      color: AppColors.accentYellow,
+                                      thickness: 2,
+                                    ),
+                                  ),
+                              ],
                             ),
 
                             const SizedBox(height: 18),
@@ -185,12 +240,13 @@ class HomePageScreen extends StatelessWidget {
                         ),
                       ),
 
-                      const SizedBox(height: 55),
+                      const SizedBox(height: 36),
 
                       // ========================================
                       // MAIN WHITE CONTENT SURFACE
                       // ========================================
                       Container(
+                        key: _functionsKey,
                         width: double.infinity,
 
                         padding: EdgeInsets.all(isMobile ? 20 : 32),
@@ -206,23 +262,42 @@ class HomePageScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Core System Functions',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.darkText,
-                              ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 5,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF19A34A),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                const SizedBox(width: 17),
+                                const Expanded(
+                                  child: Text(
+                                    'Core System Functions',
+                                    style: TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.darkText,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
 
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 7),
 
-                            const Text(
-                              'AidTrack supports the following '
-                              'authorized LGU workflows.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.greyText,
+                            const Padding(
+                              padding: EdgeInsets.only(left: 22),
+                              child: Text(
+                                'AidTrack supports the following '
+                                'authorized LGU workflows.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.greyText,
+                                ),
                               ),
                             ),
 
@@ -339,43 +414,53 @@ class HomePageScreen extends StatelessWidget {
   }) {
     return Container(
       width: width,
-      constraints: const BoxConstraints(minHeight: 165),
-      padding: const EdgeInsets.all(20),
-
+      constraints: const BoxConstraints(minHeight: 118),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAF8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE0E7E2)),
+        color: const Color(0xFFF9FCFA),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFD7E5DD)),
       ),
-
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primaryGreen, size: 27),
-
-          const SizedBox(height: 14),
-
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.darkText,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2F1E7),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(icon, color: AppColors.primaryGreen, size: 29),
           ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            description,
-            style: const TextStyle(
-              color: AppColors.greyText,
-              fontSize: 13,
-              height: 1.5,
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.darkText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: AppColors.greyText,
+                    fontSize: 12.5,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
 }
