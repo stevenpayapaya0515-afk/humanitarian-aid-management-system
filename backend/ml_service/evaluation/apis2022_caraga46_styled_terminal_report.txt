@@ -67,3 +67,62 @@
   Researcher-defined proxy vulnerability labels
   Not validated against actual LGU eligibility decisions
   Dataset SHA-256: MATCH
+
+
+
+MODEL: apis2022_caraga46_random_forest.joblib
+VERSION: apis2022-rf-caraga46-proxy-v1
+
+-- 46 input features , 35 categorical & 11 numeric --
+
+Categorical features (35)
+#	  Variable name
+1	  roof_material
+2	  outer_wall_material
+3	  floor_material
+4	  electricity_available
+5	  drinking_water_source
+6	  toilet_facility
+7	  disaster_preparedness_kit
+8	  experienced_natural_disaster
+9	  disaster_evacuated_or_displaced
+10	recovered_from_disaster
+11	owns_car_jeep_van
+12	owns_electric_jeep
+13	owns_motorcycle_tricycle
+14	owns_electric_tricycle
+15	owns_motorized_boat
+16	owns_tractor
+17	owns_washing_machine
+18	owns_stove_with_oven_or_gas_range
+19	owns_induction_stove
+20	owns_refrigerator_freezer
+21	owns_personal_computer
+22	owns_air_conditioner
+23	owns_basic_cellphone
+24	owns_smartphone
+25	owns_microwave_or_oven_toaster
+26	owns_landline_or_wireless_telephone
+27	owns_videoke_magic_sing
+28	owns_television
+29	owns_radio
+30	owns_draft_animals
+31	has_cable_subscription
+32	has_broadband_internet_subscription
+33	has_video_streaming_subscription
+34	philhealth_membership_status
+35	received_philhealth_benefits
+
+Numerical features (11)
+#	  Variable  	                              Meaning
+36	family_size	                        Total household members
+37	members_age_0_5	                    Members aged 0–5
+38	members_age_6_11	                  Members aged 6–11
+39	members_age_12_17	                  Members aged 12–17
+40	members_age_60_plus	                Members aged 60+
+41	monthly_income_per_capita	          Monthly income per household member
+42	bedroom_count	                      Number of bedrooms
+43	social_insurance_program_count	    Social insurance programs
+44	social_assistance_program_count	    Social assistance programs
+45	labor_market_program_count	        Labor market programs
+46	government_services_accessed_count	Government services accessed
