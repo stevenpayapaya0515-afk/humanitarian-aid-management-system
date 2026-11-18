@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'home_page_screen.dart';
+import 'public_site_header.dart';
 
 // ========================================
 // AIDTRACK PUBLIC ABOUT PAGE
@@ -16,45 +18,27 @@ class AboutPageScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.primaryGreen,
 
-      // ========================================
-      // TOP NAVIGATION
-      // ========================================
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        foregroundColor: AppColors.primaryGreen,
-        elevation: 0,
-        toolbarHeight: 72,
-        leadingWidth: 48,
-        titleSpacing: 0,
-
-        // Keep the default back arrow.
-        automaticallyImplyLeading: true,
-
-        // AidTrack logo and name beside the back arrow.
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/aidtrack_symbol.png',
-              width: 36,
-              height: 36,
-              fit: BoxFit.contain,
+      appBar: PublicSiteHeader(
+        selectedPage: PublicSitePage.about,
+        onHome: () {
+          Navigator.of(context).pushReplacement(
+            publicSiteSlideRoute(
+              const HomePageScreen(),
+              enterFromRight: false,
             ),
-
-            const SizedBox(width: 8),
-
-            const Text(
-              'AidTrack',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryGreen,
-              ),
+          );
+        },
+        onAbout: () {},
+        onCoreFunctions: () {
+          Navigator.of(context).pushReplacement(
+            publicSiteSlideRoute(
+              const HomePageScreen(scrollToFunctions: true),
+              enterFromRight: false,
             ),
-          ],
-        ),
+          );
+        },
+        onSignIn: () => Navigator.of(context).popUntil((route) => route.isFirst),
       ),
-
       // ========================================
       // FULL PAGE BACKGROUND
       // ========================================
@@ -88,11 +72,11 @@ class AboutPageScreen extends StatelessWidget {
           SingleChildScrollView(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1180),
+                constraints: const BoxConstraints(maxWidth: double.infinity),
 
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 18 : 32,
+                    horizontal: isMobile ? 18 : 60,
                     vertical: isMobile ? 30 : 48,
                   ),
 
@@ -341,11 +325,12 @@ class AboutPageScreen extends StatelessWidget {
 
                                   Expanded(
                                     child: Text(
-                                      'This academic project currently uses '
-                                      'synthetic training data. Machine learning '
-                                      'results require validation before use '
-                                      'in official humanitarian aid decisions. '
-                                      'Aid distribution records are simulations.',
+                                      'This academic project uses PSA APIS 2022 '
+                                      'CARAGA survey records and researcher-defined '
+                                      'proxy labels for model training. Classification '
+                                      'results are preliminary and require staff '
+                                      'review. Practice distributions are not '
+                                      'verified LGU releases.',
                                       style: TextStyle(
                                         color: AppColors.darkText,
                                         fontSize: 13,
@@ -361,7 +346,7 @@ class AboutPageScreen extends StatelessWidget {
 
                             ElevatedButton.icon(
                               onPressed: () {
-                                Navigator.of(context).pop();
+                                Navigator.of(context).popUntil((route) => route.isFirst);
                               },
                               icon: const Icon(Icons.login_outlined),
                               label: const Text('Back to Sign In'),
