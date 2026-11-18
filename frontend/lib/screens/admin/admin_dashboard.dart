@@ -13,6 +13,8 @@ import 'package:http/http.dart' as http;
 import '../households/household_registration.dart';
 import '../reports/staff_report.dart';
 import 'admin_settings.dart';
+import 'admin_monitoring.dart';
+import '../../widgets/aidtrack_section_card.dart';
 
 // ========================================
 // ADMIN DASHBOARD
@@ -275,6 +277,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final List<Map<String, dynamic>> menuItems = [
     {'title': 'Dashboard', 'icon': Icons.dashboard_outlined},
     {'title': 'Household Records', 'icon': Icons.home_outlined},
+    {'title': 'Household Assessment', 'icon': Icons.assignment_outlined},
+    {'title': 'Vulnerability Classification', 'icon': Icons.analytics_outlined},
+    {'title': 'Beneficiary Management', 'icon': Icons.people_outline},
+    {'title': 'Aid Distribution', 'icon': Icons.inventory_2_outlined},
     {'title': 'Reports', 'icon': Icons.bar_chart_outlined},
     {'title': 'User Management', 'icon': Icons.manage_accounts_outlined},
     {'title': 'Settings', 'icon': Icons.settings_outlined},
@@ -349,7 +355,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
           body: Row(
             children: [
               // Desktop sidebar
-              if (!isMobile) _buildSidebar(isMobile: false),
+              if (!isMobile)
+                ColoredBox(
+                  color: const Color(0xFFF5F8F5),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomRight: Radius.circular(28),
+                    ),
+                    child: _buildSidebar(isMobile: false),
+                  ),
+                ),
 
               // ========================================
               // RIGHT ADMIN PANEL
@@ -395,13 +410,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // ========================================
 
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
 
               child: Row(
                 children: [
                   Container(
-                    width: 70,
-                    height: 70,
+                    width: 62,
+                    height: 62,
 
                     padding: const EdgeInsets.all(6),
 
@@ -449,93 +464,104 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
             const Divider(color: Colors.white24),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 4),
 
             // ========================================
             // ADMIN NAVIGATION MENU
             // ========================================
+            // Scroll the menu when zoom reduces usable height.
+            // Keep the Administrator profile and Logout below the divider.
+            // Fit all nine Admin links in the available height without scrolling.
+            // Leave a visible gap above the Administrator profile.
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: menuItems.length,
-
-                itemBuilder: (context, index) {
-                  final item = menuItems[index];
-                  final String title = item['title'];
-                  final bool isSelected = selectedPage == title;
+              child: LayoutBuilder(
+                builder: (context, navConstraints) {
+                  final double rowHeight =
+                      ((navConstraints.maxHeight - 18) / menuItems.length)
+                          .clamp(0.0, 46.0)
+                          .toDouble();
 
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 5),
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: List.generate(menuItems.length, (index) {
+                        final item = menuItems[index];
+                        final String title = item['title'];
+                        final bool isSelected = selectedPage == title;
 
-                    // Paint the selected yellow background on the Material itself.
-                    child: Material(
-                      color: isSelected
-                          ? AppColors.accentYellow
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      clipBehavior: Clip.antiAlias,
+                        return SizedBox(
+                          height: rowHeight,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Material(
+                              color: isSelected
+                                  ? AppColors.accentYellow
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                // Retain the original navigation and hover behavior.
+                                splashFactory: NoSplash.splashFactory,
+                                splashColor: Colors.transparent,
+                                highlightColor: Colors.transparent,
+                                onTap: () {
+                                  setState(() {
+                                    selectedPage = title;
+                                  });
 
-                      child: InkWell(
-                        // Keep the default hover shadow, just like Staff.
-                        // Remove only the click splash and pressed highlight.
-                        splashFactory: NoSplash.splashFactory,
-                        splashColor: Colors.transparent,
-                        highlightColor: Colors.transparent,
+                                  if (isMobile) {
+                                    Navigator.pop(context);
+                                  }
 
-                        onTap: () {
-                          setState(() {
-                            selectedPage = title;
-                          });
-
-                          // Close the sidebar drawer on mobile.
-                          if (isMobile) {
-                            Navigator.pop(context);
-                          }
-
-                          // Refresh dashboard totals.
-                          if (title == 'Dashboard') {
-                            _loadDashboard();
-                          }
-                        },
-
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-
-                          child: Row(
-                            children: [
-                              // Module icon.
-                              Icon(
-                                item['icon'],
-                                size: 21,
-                                color: isSelected
-                                    ? AppColors.primaryGreen
-                                    : Colors.white70,
-                              ),
-
-                              const SizedBox(width: 12),
-
-                              // Module name stays visible when selected.
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? AppColors.primaryGreen
-                                        : Colors.white,
+                                  if (title == 'Dashboard') {
+                                    _loadDashboard();
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        item['icon'],
+                                        size: 19,
+                                        color: isSelected
+                                            ? AppColors.primaryGreen
+                                            : Colors.white70,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: FittedBox(
+                                            alignment: Alignment.centerLeft,
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              title,
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                                color: isSelected
+                                                    ? AppColors.primaryGreen
+                                                    : Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                     ),
                   );
                 },
@@ -548,7 +574,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const Divider(color: Colors.white24),
 
             Padding(
-              padding: const EdgeInsets.all(15),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
 
               child: Column(
                 children: [
@@ -601,7 +627,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ],
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 8),
 
                   // ========================================
                   // LOG OUT BUTTON
@@ -766,33 +792,39 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildMainContent() {
     return SingleChildScrollView(
-      padding: EdgeInsets.zero,
+      key: ValueKey(selectedPage),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Shared yellow page header design.
           _buildPageHeader(),
-
-          // Main page content.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(25, 22, 25, 25),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Display selected administrator page.
-                if (selectedPage == 'Dashboard')
-                  _buildDashboardOverview()
-                else if (selectedPage == 'Household Records')
-                  const HouseholdRegistration(readOnly: true)
-                else if (selectedPage == 'Reports')
-                  const StaffReportScreen(heading: 'Admin Reports')
-                else if (selectedPage == 'User Management')
-                  const UserManagement()
-                else if (selectedPage == 'Settings')
-                  const AdminSettings(),
-              ],
-            ),
-          ),
+          const SizedBox(height: 18),
+          if (selectedPage == 'Dashboard')
+            _buildDashboardOverview()
+          else if (selectedPage == 'Household Records')
+            const HouseholdRegistration(readOnly: true)
+          else if (selectedPage == 'Household Assessment')
+            const AdminMonitoringScreen(
+              section: AdminMonitoringSection.assessments,
+            )
+          else if (selectedPage == 'Vulnerability Classification')
+            const AdminMonitoringScreen(
+              section: AdminMonitoringSection.vulnerability,
+            )
+          else if (selectedPage == 'Beneficiary Management')
+            const AdminMonitoringScreen(
+              section: AdminMonitoringSection.beneficiaries,
+            )
+          else if (selectedPage == 'Aid Distribution')
+            const AdminMonitoringScreen(
+              section: AdminMonitoringSection.distributions,
+            )
+          else if (selectedPage == 'Reports')
+            const StaffReportScreen(showHeading: false)
+          else if (selectedPage == 'User Management')
+            const UserManagement()
+          else if (selectedPage == 'Settings')
+            const AdminSettings(),
         ],
       ),
     );
@@ -803,48 +835,89 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ========================================
 
   Widget _buildPageHeader() {
-    final bool isCompact = MediaQuery.of(context).size.width < 600;
+    final compact = MediaQuery.of(context).size.width < 600;
+    final IconData icon;
+    final String subtitle;
+    switch (selectedPage) {
+      case 'Dashboard':
+        icon = Icons.dashboard_outlined;
+        subtitle = 'Household, assessment, and aid activity overview.';
+        break;
+      case 'Household Records':
+        icon = Icons.home_outlined;
+        subtitle = 'Review the registered household records.';
+        break;
+      case 'Household Assessment':
+        icon = Icons.assignment_outlined;
+        subtitle = 'Read submitted household assessments.';
+        break;
+      case 'Vulnerability Classification':
+        icon = Icons.analytics_outlined;
+        subtitle = 'Monitor preliminary research-proxy classifications.';
+        break;
+      case 'Beneficiary Management':
+        icon = Icons.people_outline;
+        subtitle = 'Monitor Staff-reviewed beneficiary decisions.';
+        break;
+      case 'Aid Distribution':
+        icon = Icons.inventory_2_outlined;
+        subtitle = 'Monitor recorded aid distribution activity.';
+        break;
+      case 'Reports':
+        icon = Icons.bar_chart_outlined;
+        subtitle = 'Review household and distribution reports.';
+        break;
+      case 'User Management':
+        icon = Icons.manage_accounts_outlined;
+        subtitle = 'Manage authorized LGU Staff invitations and accounts.';
+        break;
+      default:
+        icon = Icons.settings_outlined;
+        subtitle = 'Manage your administrator account settings.';
+    }
 
-    return Container(
-      width: double.infinity,
-      height: 118,
-      padding: const EdgeInsets.symmetric(horizontal: 25),
-      decoration: const BoxDecoration(color: AppColors.accentYellow),
+    return AidTrackSectionCard(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.lightGreen,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: AppColors.primaryGreen, size: 28),
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   selectedPage,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: isCompact ? 22 : 27,
+                    fontSize: compact ? 19 : 23,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primaryGreen,
+                    color: AppColors.darkText,
                   ),
                 ),
-
-                const SizedBox(height: 5),
-
-                const Text(
-                  'Humanitarian Aid Distribution Management System',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: AppColors.greyText, fontSize: 13),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.greyText,
+                  ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(width: 16),
-
+          const SizedBox(width: 8),
           const Icon(
             Icons.account_balance_outlined,
-            color: AppColors.primaryGreen,
+            color: Colors.black87,
             size: 30,
           ),
         ],
