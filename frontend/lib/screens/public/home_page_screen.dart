@@ -53,7 +53,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
       context,
       duration: const Duration(milliseconds: 430),
       curve: Curves.easeInOut,
-      alignment: 0.08,
+      alignment: MediaQuery.sizeOf(context).width < 700 ? 0.0 : 0.08,
     );
   }
 
