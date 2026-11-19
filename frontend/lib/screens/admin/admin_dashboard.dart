@@ -350,6 +350,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                     ),
                   ),
+                  actions: [
+                    IconButton(
+                      tooltip: 'User Management',
+                      icon: const Icon(Icons.manage_accounts_outlined),
+                      color: selectedPage == 'User Management'
+                          ? AppColors.accentYellow
+                          : Colors.white,
+                      onPressed: () => setState(() => selectedPage = 'User Management'),
+                    ),
+                    IconButton(
+                      tooltip: 'Settings',
+                      icon: const Icon(Icons.settings_outlined),
+                      color: selectedPage == 'Settings'
+                          ? AppColors.accentYellow
+                          : Colors.white,
+                      onPressed: () => setState(() => selectedPage = 'Settings'),
+                    ),
+                  ],
                   titleSpacing: 0,
                   title: Row(
                     mainAxisSize: MainAxisSize.min,
