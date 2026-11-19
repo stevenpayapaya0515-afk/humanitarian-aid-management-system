@@ -316,8 +316,26 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       ),
                     ),
                   ),
+                  actions: [
+                    for (final shortcut in const [
+                      ('Household Registration', Icons.home_outlined),
+                      ('Household Assessment', Icons.assignment_outlined),
+                      ('Vulnerability Classification', Icons.analytics_outlined),
+                    ])
+                      IconButton(
+                        tooltip: shortcut.$1,
+                        icon: Icon(shortcut.$2),
+                        color: selectedPage == shortcut.$1
+                            ? AppColors.accentYellow
+                            : Colors.white,
+                        onPressed: () => setState(() => selectedPage = shortcut.$1),
+                      ),
+                  ],
                   titleSpacing: 0,
-                  title: Row(
+                  title: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -341,6 +359,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                         ),
                       ),
                     ],
+                  ),
                   ),
                 )
               : null,
