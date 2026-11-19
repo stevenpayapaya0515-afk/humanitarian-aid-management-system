@@ -662,7 +662,9 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
             : constraints.maxWidth >= 480
             ? 2
             : 1;
-        final cardWidth = (constraints.maxWidth - (columns - 1) * 12) / columns;
+        final usedColumns = columns > fields.length ? fields.length : columns;
+        final cardWidth =
+            (constraints.maxWidth - (usedColumns - 1) * 12) / usedColumns;
         return Wrap(
           spacing: 12,
           runSpacing: 12,
@@ -797,6 +799,16 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
           const AidTrackModuleLoading()
         else if (report != null) ...[
           _totalsSection(totals),
+          const SizedBox(height: 18),
+          _section(
+            title: 'Aid Distribution',
+            subtitle: 'Distribution records for the households in this report.',
+            icon: Icons.inventory_2_outlined,
+            child: _reportMetricGrid(const [
+              ('Actual deliveries', 'aid_distributions', Icons.local_shipping_outlined),
+              ('Practice entries', 'simulated_distributions', Icons.assignment_outlined),
+            ], totals),
+          ),
           const SizedBox(height: 18),
           _section(
             title: 'Barangay Breakdown',
