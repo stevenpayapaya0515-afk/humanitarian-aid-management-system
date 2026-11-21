@@ -770,8 +770,6 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
     final description = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Assessment coverage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        const SizedBox(height: 8),
         Text(_analysis(totals)),
         const SizedBox(height: 12),
         Wrap(spacing: 16, runSpacing: 8, children: [
@@ -795,10 +793,57 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
           color: Colors.white, width: double.infinity,
           padding: const EdgeInsets.all(12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('AidTrack · Assessment coverage',
-                style: TextStyle(color: green, fontWeight: FontWeight.bold)),
-            Text(_appliedFilterSummary()),
+            Center(
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/images/aidtrack_symbol.png',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
+                        excludeFromSemantics: true,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'AidTrack',
+                        style: TextStyle(
+                          color: green,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Household Assessment Coverage',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: green,
+                      fontSize: 22,
+                      height: 1.2,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _appliedFilterSummary(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.greyText,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFD6E4DA)),
+            const SizedBox(height: 20),
             LayoutBuilder(builder: (_, constraints) {
               if (constraints.maxWidth < 480) {
                 return Column(crossAxisAlignment: CrossAxisAlignment.start,
