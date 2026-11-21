@@ -352,6 +352,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                   actions: [
                     IconButton(
+                      tooltip: 'Dashboard',
+                      icon: const Icon(Icons.dashboard_outlined),
+                      color: selectedPage == 'Dashboard'
+                          ? AppColors.accentYellow
+                          : Colors.white,
+                      onPressed: () => setState(() => selectedPage = 'Dashboard'),
+                    ),
+                    IconButton(
                       tooltip: 'User Management',
                       icon: const Icon(Icons.manage_accounts_outlined),
                       color: selectedPage == 'User Management'
