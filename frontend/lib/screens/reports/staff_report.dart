@@ -1,6 +1,12 @@
 import '../../widgets/aidtrack_section_card.dart';
 
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/rendering.dart';
+import 'report_document.dart';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -25,7 +31,32 @@ class StaffReportScreen extends StatefulWidget {
 }
 
 class _StaffReportScreenState extends State<StaffReportScreen> {
-  final _barangayController = TextEditingController();
+  static const columns = <(String, String)>[
+      ('Barangay', 'barangay'),
+      ('Households', 'total_households'),
+      ('Population', 'total_population'),
+      ('Assessed', 'assessed_households'),
+      ('Classified', 'classified_households'),
+      ('Low', 'low_vulnerability'),
+      ('Medium', 'medium_vulnerability'),
+      ('High', 'high_vulnerability'),
+      ('Pending', 'pending_beneficiaries'),
+      ('For Review', 'for_review_beneficiaries'),
+      ('Approved', 'approved_beneficiaries'),
+      ('Rejected', 'rejected_beneficiaries'),
+      ('Deliveries', 'aid_distributions'),
+      ('Practice entries', 'simulated_distributions'),
+    ];
+  final _chartKey = GlobalKey();
+  bool _exporting = false;
+  String _barangay = '';
+  final _barangayOptions = <String>{
+    for (var i = 1; i <= 12; i++) 'Poblacion $i',
+    'Antonio Luna', 'Bay-ang', 'Bayabas', 'Caasinan', 'Cabinet', 'Calamba',
+    'Calibunan', 'Comagascas', 'Concepcion', 'Del Pilar', 'Katugasan',
+    'Kauswagan', 'La Union', 'Mabini', 'Mahaba', 'Puting Bato', 'Sanghan',
+    'Soriano', 'Tolosa',
+  };
 
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -40,11 +71,6 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
     _loadReport();
   }
 
-  @override
-  void dispose() {
-    _barangayController.dispose();
-    super.dispose();
-  }
 
   // ==========================================
   // HELPERS
@@ -218,13 +244,17 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
       final result = await ReportsService.fetchSummary(
         fromDate: _fromDate,
         toDate: _toDate,
-        barangay: _barangayController.text,
+        barangay: _barangay,
       );
 
       if (!mounted) return;
 
       setState(() {
         _report = result;
+        for (final row in result['barangays'] as List) {
+          final name = row['barangay']?.toString().trim();
+          if (name != null && name.isNotEmpty) _barangayOptions.add(name);
+        }
       });
 
       loaded = true;
@@ -300,7 +330,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
     setState(() {
       _fromDate = null;
       _toDate = null;
-      _barangayController.clear();
+      _barangay = '';
     });
 
     _loadReport(showError: true);
@@ -459,16 +489,21 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
       return text.isEmpty ? fallback : text;
     }
 
-    final from = display(report['from_date'], 'All dates');
-    final to = display(report['to_date'], 'All dates');
+    final from = display(report['from_date'], '');
+    final to = display(report['to_date'], '');
     final barangay = display(report['barangay_filter'], 'All barangays');
-    final dates = from == 'All dates' && to == 'All dates'
-        ? 'All dates'
-        : '$from to $to';
-    return 'Showing: $dates • $barangay';
+    var dates = 'All dates';
+    if (from.isNotEmpty && to.isNotEmpty) {
+      dates = '$from to $to';
+    } else if (from.isNotEmpty) {
+      dates = 'From $from';
+    } else if (to.isNotEmpty) {
+      dates = 'Through $to';
+    }
+    return 'Registration dates: $dates   |   Barangay: $barangay';
   }
 
-  Widget _filterSection() {
+  Widget _filterSection(VoidCallback? downloadPdf) {
     return _section(
       title: 'Report Filters',
       subtitle:
@@ -509,17 +544,19 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
                   ),
                   SizedBox(
                     width: fieldWidth,
-                    child: TextField(
-                      controller: _barangayController,
-                      enabled: !_isLoading,
-                      maxLength: 100,
-                      decoration: const InputDecoration(
-                        labelText: 'Barangay (optional)',
-                        hintText: 'Search barangay name',
-                        prefixIcon: Icon(Icons.search),
-                        counterText: '',
-                      ),
-                      onSubmitted: (_) => _loadReport(showSuccess: true),
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(_barangay),
+                      initialValue: _barangay,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Barangay'),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('All barangays')),
+                        for (final name in _barangayOptions)
+                          DropdownMenuItem(value: name, child: Text(name)),
+                      ],
+                      onChanged: _isLoading ? null : (value) {
+                        setState(() => _barangay = value ?? '');
+                      },
                     ),
                   ),
                 ],
@@ -561,6 +598,11 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
                       side: const BorderSide(color: AppColors.primaryGreen),
                     ),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: downloadPdf,
+                    icon: const Icon(Icons.download_outlined, size: 18),
+                    label: const Text('Download report (PDF)'),
+                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -590,7 +632,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
   Widget _metricCard(String label, int value, IconData icon, double width) {
     return Container(
       width: width,
-      constraints: const BoxConstraints(minHeight: 132),
+      constraints: const BoxConstraints(minHeight: 88),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -604,8 +646,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
           Container(
             width: 42,
@@ -616,21 +657,157 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
             ),
             child: Icon(icon, color: AppColors.primaryGreen, size: 23),
           ),
-          const SizedBox(height: 10),
-          Text(
-            '$value',
-            style: const TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryGreen,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$value', style: const TextStyle(fontSize: 26,
+                    fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                Text(label, style: const TextStyle(color: AppColors.greyText, fontSize: 12)),
+              ],
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.greyText, fontSize: 12),
-          ),
         ],
+      ),
+    );
+  }
+
+  String _analysis(Map<String, dynamic> totals) {
+    final households = _count(totals['total_households']);
+    final assessed = _count(totals['assessed_households']);
+    final classified = _count(totals['classified_households']);
+    if (households == 0) return 'No households match the applied filters.';
+    final pending = households - assessed;
+    final percent = (100 * assessed / households).toStringAsFixed(0);
+    final remaining = switch (pending) {
+      0 => 'Every registered household has an assessment.',
+      1 => 'One household is awaiting assessment.',
+      _ => '$pending households are awaiting assessment.',
+    };
+    return '$assessed of $households registered households have an assessment ($percent%). '
+        '$remaining\n$classified of $assessed assessed households have a classification.';
+  }
+
+  Future<void> _export(bool png, Map<String, dynamic> totals,
+      List<Map<String, dynamic>> barangays) async {
+    if (_exporting || _isLoading || _report == null) return;
+    final scope = _appliedFilterSummary();
+    setState(() => _exporting = true);
+    try {
+      late final Uint8List bytes;
+      if (png) {
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
+        final boundary = _chartKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
+        if (boundary == null) throw StateError('Chart is unavailable');
+        final image = await boundary.toImage(pixelRatio: 2);
+        try {
+          final data = await image.toByteData(format: ui.ImageByteFormat.png);
+          if (data == null) throw StateError('PNG encoding failed');
+          bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        } finally {
+          image.dispose();
+        }
+      } else {
+        bytes = await buildReportPdf(
+          totals: totals, barangays: barangays, scope: scope,
+          analysis: _analysis(totals), columns: columns,
+        );
+      }
+      if (!mounted) return;
+      final extension = png ? 'png' : 'pdf';
+      final name = png ? 'aidtrack-assessment-coverage' : 'aidtrack-report';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Save AidTrack report',
+        fileName: '$name-${_date(DateTime.now())}.$extension',
+        bytes: bytes,
+        type: FileType.custom,
+        allowedExtensions: [extension],
+      );
+    } catch (error) {
+      debugPrint('Report export failed: $error');
+      if (mounted) {
+        await _showFeedback(success: false, title: 'Export failed',
+            message: 'The file could not be saved. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Widget _analysisCard(Map<String, dynamic> totals, List<Map<String, dynamic>> rows) {
+    final households = _count(totals['total_households']);
+    final assessed = _count(totals['assessed_households']);
+    final ratio = households == 0 ? 0.0 : assessed / households;
+    const green = AppColors.primaryGreen;
+    const sage = Color(0xffb8dbb6);
+    final chart = SizedBox.square(
+      dimension: 124,
+      child: Stack(alignment: Alignment.center, children: [
+        Positioned.fill(child: Padding(
+          padding: const EdgeInsets.all(9),
+          child: CircularProgressIndicator(
+            value: ratio, strokeWidth: 15, color: green,
+            backgroundColor: households == 0 ? Colors.grey.shade200 : sage,
+            semanticsLabel: 'Assessment coverage',
+          ),
+        )),
+        Text(households == 0 ? '—' : '${(ratio * 100).round()}%',
+            style: const TextStyle(color: green, fontSize: 25, fontWeight: FontWeight.bold)),
+      ]),
+    );
+    Widget legend(Color color, String label, int value) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.circle, color: color, size: 12),
+        const SizedBox(width: 6),
+        Text('$label  $value'),
+      ],
+    );
+    final description = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Assessment coverage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const SizedBox(height: 8),
+        Text(_analysis(totals)),
+        const SizedBox(height: 12),
+        Wrap(spacing: 16, runSpacing: 8, children: [
+          legend(green, 'Assessed', assessed),
+          legend(sage, 'Awaiting assessment', households - assessed),
+        ]),
+      ],
+    );
+    return _section(
+      title: 'Report Analysis',
+      subtitle: 'Household assessment coverage',
+      icon: Icons.bar_chart_outlined,
+      trailing: OutlinedButton.icon(
+        onPressed: _exporting || _isLoading ? null : () => _export(true, totals, rows),
+        icon: const Icon(Icons.image_outlined),
+        label: const Text('Export chart (PNG)'),
+      ),
+      child: RepaintBoundary(
+        key: _chartKey,
+        child: Container(
+          color: Colors.white, width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('AidTrack · Assessment coverage',
+                style: TextStyle(color: green, fontWeight: FontWeight.bold)),
+            Text(_appliedFilterSummary()),
+            const SizedBox(height: 16),
+            LayoutBuilder(builder: (_, constraints) {
+              if (constraints.maxWidth < 480) {
+                return Column(crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [Center(child: chart), const SizedBox(height: 16), description]);
+              }
+              return Row(children: [chart, const SizedBox(width: 28), Expanded(child: description)]);
+            }),
+          ]),
+        ),
       ),
     );
   }
@@ -694,22 +871,7 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
       );
     }
 
-    const columns = <(String, String)>[
-      ('Barangay', 'barangay'),
-      ('Households', 'total_households'),
-      ('Population', 'total_population'),
-      ('Assessed', 'assessed_households'),
-      ('Classified', 'classified_households'),
-      ('Low', 'low_vulnerability'),
-      ('Medium', 'medium_vulnerability'),
-      ('High', 'high_vulnerability'),
-      ('Pending', 'pending_beneficiaries'),
-      ('For Review', 'for_review_beneficiaries'),
-      ('Approved', 'approved_beneficiaries'),
-      ('Rejected', 'rejected_beneficiaries'),
-      ('Deliveries', 'aid_distributions'),
-      ('Practice entries', 'simulated_distributions'),
-    ];
+
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -767,24 +929,21 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.showHeading) ...[
-          Text(
-            widget.heading,
-            style: const TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkText,
-            ),
-          ),
-          const SizedBox(height: 5),
-          const Text(
-            'Household vulnerability and aid distribution overview',
-            style: TextStyle(fontSize: 13, color: AppColors.greyText),
+          _section(
+            title: widget.heading,
+            subtitle: 'Household vulnerability and aid distribution overview',
+            icon: Icons.assessment_outlined,
+                        child: const SizedBox.shrink(),
           ),
           const SizedBox(height: 18),
         ],
 
         // Filters and report results use the existing FastAPI data.
-        _filterSection(),
+        _filterSection(
+          report == null || _exporting || _isLoading
+              ? null
+              : () => _export(false, totals, barangays),
+        ),
         const SizedBox(height: 18),
 
         if (_loadError != null) ...[
@@ -799,6 +958,8 @@ class _StaffReportScreenState extends State<StaffReportScreen> {
           const AidTrackModuleLoading()
         else if (report != null) ...[
           _totalsSection(totals),
+          const SizedBox(height: 18),
+          _analysisCard(totals, barangays),
           const SizedBox(height: 18),
           _section(
             title: 'Aid Distribution',
