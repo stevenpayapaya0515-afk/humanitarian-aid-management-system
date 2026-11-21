@@ -1578,20 +1578,23 @@ class _HouseholdAssessmentScreenState extends State<HouseholdAssessmentScreen> {
                   ),
                 ],
                 const SizedBox(height: 10),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _confirmedSingleFamily,
-                  onChanged: _saving
-                      ? null
-                      : (value) => setState(
-                          () => _confirmedSingleFamily = value ?? false,
-                        ),
-                  title: const Text(
-                    'The registered household represents one family',
-                  ),
-                  subtitle: const Text(
-                    'Family income and member counts must refer to the same family.',
+                Material(
+                  type: MaterialType.transparency,
+                  child: CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _confirmedSingleFamily,
+                    onChanged: _saving
+                        ? null
+                        : (value) => setState(
+                            () => _confirmedSingleFamily = value ?? false,
+                          ),
+                    title: const Text(
+                      'The registered household represents one family',
+                    ),
+                    subtitle: const Text(
+                      'Family income and member counts must refer to the same family.',
+                    ),
                   ),
                 ),
                 const SizedBox(height: 15),
