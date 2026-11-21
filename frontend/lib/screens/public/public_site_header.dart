@@ -223,6 +223,7 @@ class PublicSiteHeader extends StatelessWidget implements PreferredSizeWidget {
         child: LayoutBuilder(
           builder: (context, viewport) {
             final width = viewport.maxWidth;
+            final mobile = width < 700;
             final compact = width < 950;
             final showDescriptor = width >= 1250;
             return Center(
@@ -237,12 +238,21 @@ class PublicSiteHeader extends StatelessWidget implements PreferredSizeWidget {
                         mobile: width < 700,
                         onPressed: () => _openNavigation(context, compact),
                       ),
-                      SizedBox(width: width < 700 ? 28 : (compact ? 20 : 10)),
-                      // Mobile: text only; desktop: keep the original logo.
+                      if (mobile) ...[
+                        const SizedBox(width: 10),
+                        Container(
+                          width: 1,
+                          height: 24,
+                          color: const Color(0xFF91B3A1),
+                        ),
+                        const SizedBox(width: 10),
+                      ] else
+                        SizedBox(width: compact ? 20 : 10),
                       _publicBrand(
                         onHome,
                         fontSize: compact ? 23 : 25,
-                        showSymbol: !compact,
+                        showSymbol: mobile || !compact,
+                        compactLogoTile: mobile,
                       ),
                       if (showDescriptor) ...[
                         const SizedBox(width: 22),
@@ -469,6 +479,7 @@ Widget _publicBrand(
   double symbolSize = 53,
   bool showSymbol = true,
   bool drawerTile = false,
+  bool compactLogoTile = false,
 }) {
   return InkWell(
     onTap: onTap,
@@ -477,14 +488,14 @@ Widget _publicBrand(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (showSymbol) ...[
-          if (drawerTile)
+          if (drawerTile || compactLogoTile)
             Container(
-              width: 62,
-              height: 62,
-              padding: const EdgeInsets.all(6),
+              width: compactLogoTile ? 32 : 62,
+              height: compactLogoTile ? 32 : 62,
+              padding: EdgeInsets.all(compactLogoTile ? 2 : 6),
               decoration: BoxDecoration(
                 color: AppColors.white,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(compactLogoTile ? 8 : 14),
               ),
               child: Image.asset('assets/images/aidtrack_symbol.png', fit: BoxFit.contain),
             )
@@ -505,7 +516,7 @@ Widget _publicBrand(
               ),
             ),
           ),
-          const SizedBox(width: 11),
+          SizedBox(width: compactLogoTile ? 7 : 11),
         ],
         Text.rich(
           const TextSpan(
