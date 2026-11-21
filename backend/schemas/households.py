@@ -3,6 +3,47 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+CABADBARAN_BARANGAYS = (
+    "Barangay 1",
+    "Barangay 2",
+    "Barangay 3",
+    "Barangay 4",
+    "Barangay 5",
+    "Barangay 6",
+    "Barangay 7",
+    "Barangay 8",
+    "Barangay 9",
+    "Barangay 10",
+    "Barangay 11",
+    "Barangay 12",
+    "Antonio Luna",
+    "Bay-ang",
+    "Bayabas",
+    "Caasinan",
+    "Cabinet",
+    "Calamba",
+    "Calibunan",
+    "Comagascas",
+    "Concepcion",
+    "Del Pilar",
+    "Katugasan",
+    "Kauswagan",
+    "La Union",
+    "Mabini",
+    "Mahaba",
+    "Puting Bato",
+    "Sanghan",
+    "Soriano",
+    "Tolosa",
+)
+
+BARANGAY_LOOKUP = {
+    **{name.casefold(): name for name in CABADBARAN_BARANGAYS},
+    **{f"poblacion {n}": f"Barangay {n}" for n in range(1, 13)},
+    **{f"barangay {n} (pob.)": f"Barangay {n}" for n in range(1, 13)},
+}
+
+
 def registered_member_count(household_member: str | None) -> int:
     """Count other household members; the head is stored separately."""
     return sum(1 for name in (household_member or "").splitlines() if name.strip())
@@ -45,6 +86,30 @@ class HouseholdCreate(BaseModel):
         if not value:
             raise ValueError("This field is required.")
         return value
+
+    @field_validator("province")
+    @classmethod
+    def validate_province(cls, value: str) -> str:
+        if value.strip().casefold() != "agusan del norte":
+            raise ValueError("Registration is limited to Agusan del Norte.")
+        return "Agusan del Norte"
+
+    @field_validator("city_municipality")
+    @classmethod
+    def validate_city(cls, value: str) -> str:
+        if value.strip().casefold() not in {
+            "cabadbaran", "cabadbaran city", "city of cabadbaran"
+        }:
+            raise ValueError("Registration is limited to Cabadbaran City.")
+        return "Cabadbaran City"
+
+    @field_validator("barangay")
+    @classmethod
+    def validate_barangay(cls, value: str) -> str:
+        key = " ".join(value.casefold().split())
+        if key not in BARANGAY_LOOKUP:
+            raise ValueError("Select a valid Cabadbaran City barangay.")
+        return BARANGAY_LOOKUP[key]
 
     @field_validator("purok")
     @classmethod
