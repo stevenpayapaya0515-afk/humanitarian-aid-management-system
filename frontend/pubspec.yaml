@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+  pdf: ^3.11.3
+  file_picker: ^10.3.10
   http: ^1.6.0
 
 dev_dependencies:
