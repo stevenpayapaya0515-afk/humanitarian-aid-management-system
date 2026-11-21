@@ -38,6 +38,7 @@ def get_reports_summary(
     to_date: date | None = None,
     barangay: str | None = Query(default=None, max_length=100),
     current_user: dict = Depends(get_current_user),
+    exact_barangay: bool = False,
 ):
     # Read-only report for authorized personnel.
     if current_user["role"] not in ("Admin", "Staff"):
@@ -181,7 +182,8 @@ def get_reports_summary(
                 )
                 AND (
                     %s::text IS NULL
-                    OR h.barangay ILIKE %s
+                    OR CASE WHEN %s THEN LOWER(BTRIM(h.barangay)) = LOWER(%s)
+                            ELSE h.barangay ILIKE %s END
                 )
 
                 GROUP BY LOWER(BTRIM(h.barangay))
@@ -192,7 +194,9 @@ def get_reports_summary(
                     from_date,
                     to_date,
                     to_date,
-                    search_pattern,
+                    barangay_filter,
+                    exact_barangay,
+                    barangay_filter,
                     search_pattern,
                 ),
             )
