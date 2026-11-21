@@ -1310,43 +1310,49 @@ class _AdminDashboardState extends State<AdminDashboard> {
       children: List.generate(_recentActivity.length, (index) {
         final activity = _recentActivity[index];
         final type = activity['activity_type'] as String;
-        final description = activity['description'] as String;
+        final description = (activity['description'] as String).replaceFirst(
+          RegExp(r'\(apis2022-rf-caraga46-proxy-v1\)$'),
+          '(2022 Annual Poverty Indicators Survey - Caraga 46-feature Random Forest proxy model, version 1)',
+        );
         final occurredAt = activity['occurred_at'] as String;
 
         return Column(
           children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: AppColors.lightGreen,
-                child: Icon(
-                  _adminActivityIcon(type),
-                  color: AppColors.primaryGreen,
+            Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.lightGreen,
+                  child: Icon(
+                    _adminActivityIcon(type),
+                    color: AppColors.primaryGreen,
+                  ),
                 ),
-              ),
-              title: Text(
-                type,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.darkText,
+                title: Text(
+                  type,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkText,
+                  ),
                 ),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(description, style: const TextStyle(fontSize: 12)),
-                    const SizedBox(height: 5),
-                    Text(
-                      _adminActivityDate(occurredAt),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.greyText,
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(description, style: const TextStyle(fontSize: 12)),
+                      const SizedBox(height: 5),
+                      Text(
+                        _adminActivityDate(occurredAt),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.greyText,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
