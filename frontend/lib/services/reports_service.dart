@@ -38,6 +38,7 @@ class ReportsService {
 
     if (barangay != null && barangay.trim().isNotEmpty) {
       parameters['barangay'] = barangay.trim();
+      parameters['exact_barangay'] = 'true';
     }
 
     final uri = Uri.parse('${AuthService.baseUrl}/reports/summary')
