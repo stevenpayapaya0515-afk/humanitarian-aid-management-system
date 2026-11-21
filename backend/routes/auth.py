@@ -88,8 +88,14 @@ def login(data: LoginRequest, request: Request):
                 verify_password(data.password, DUMMY_HASH)
 
             elif not user["is_active"]:
-                # Deactivated accounts cannot log in.
-                verify_password(data.password, user["password_hash"])
+                if verify_password(data.password, user["password_hash"]):
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            "Your account has been deactivated. "
+                            "Please contact your LGU administrator to request reactivation."
+                        ),
+                    )
 
             elif (
                 user["locked_until"] is not None
