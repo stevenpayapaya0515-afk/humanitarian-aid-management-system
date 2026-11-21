@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -10,6 +11,10 @@ Future<Uint8List> buildReportPdf({
   required String analysis,
   required List<(String, String)> columns,
 }) async {
+  final logoData = await rootBundle.load('assets/images/aidtrack_symbol.png');
+  final reportLogo = pw.MemoryImage(
+    logoData.buffer.asUint8List(logoData.offsetInBytes, logoData.lengthInBytes),
+  );
   final document = pw.Document();
   final green = PdfColor.fromInt(0xff185c37);
 
@@ -34,16 +39,74 @@ Future<Uint8List> buildReportPdf({
 
   document.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4.landscape,
-    header: (_) => pw.Text('AidTrack  |  Household vulnerability and aid distribution',
-        style: pw.TextStyle(color: green)),
+    header: (context) {
+      if (context.pageNumber > 1) {
+        return pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          child: pw.Text(
+            'AidTrack | Household Vulnerability and Aid Distribution Report',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(fontSize: 10, color: green),
+          ),
+        );
+      }
+
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.only(bottom: 4),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Image(reportLogo, width: 26, height: 26, fit: pw.BoxFit.contain),
+                pw.SizedBox(width: 7),
+                pw.Text(
+                  'AidTrack',
+                  style: pw.TextStyle(
+                    fontSize: 15,
+                    fontWeight: pw.FontWeight.bold,
+                    color: green,
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 5),
+            pw.Text(
+              'Household Vulnerability and Aid Distribution Report',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                fontSize: 22,
+                fontWeight: pw.FontWeight.bold,
+                color: green,
+              ),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Text(
+              scope,
+              textAlign: pw.TextAlign.center,
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.SizedBox(height: 3),
+            pw.Text(
+              'Date range applies to household registration dates (Philippine time).',
+              textAlign: pw.TextAlign.center,
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Container(height: 1, width: double.infinity, color: green),
+          ],
+        ),
+      );
+    },
     footer: (context) => pw.Align(
       alignment: pw.Alignment.centerRight,
       child: pw.Text('Page ${context.pageNumber} of ${context.pagesCount}'),
     ),
     build: (_) => [
-      heading('Household report'),
-      pw.Text(scope),
-      pw.Text('Date range applies to household registration dates (Philippine time).'),
       heading('Household overview'),
       pw.TableHelper.fromTextArray(
         headers: [for (final field in columns.skip(1).take(4)) field.$1],
