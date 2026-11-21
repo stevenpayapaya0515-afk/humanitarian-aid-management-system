@@ -290,6 +290,24 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
   }
 
   String _detailValue(dynamic value, {String? fieldKey}) {
+    if (fieldKey == 'model_training_data_origin' && value == 'psa_apis2022') {
+      return 'Philippine Statistics Authority \u2014 '
+          '2022 Annual Poverty Indicators Survey';
+    }
+
+    if (fieldKey == 'model_version' && value == 'apis2022-rf-caraga46-proxy-v1') {
+      return '2022 Annual Poverty Indicators Survey - Caraga 46-feature Random Forest proxy model, version 1';
+    }
+    if (fieldKey == 'label_version' && value == 'apis2022-9-domain-experimental-v1') {
+      return '2022 Annual Poverty Indicators Survey - experimental nine-domain vulnerability labeling rules, version 1';
+    }
+    if (fieldKey == 'proxy_details' && value is Map &&
+        value['label_version'] == 'apis2022-9-domain-experimental-v1') {
+      final displayDetails = Map.of(value);
+      displayDetails['label_version'] =
+          _detailValue(value['label_version'], fieldKey: 'label_version');
+      return const JsonEncoder.withIndent('  ').convert(displayDetails);
+    }
     if (fieldKey == 'data_origin' || fieldKey == 'assessment_data_origin') {
       final source = value?.toString().trim().toLowerCase();
       if (source == 'synthetic') return 'Practice Record';
