@@ -983,28 +983,28 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     child: child,
   );
 
-  // Match the section heading and description used in Household Assessment.
-  Widget _buildSectionIntro({
-    required String title,
-    required String description,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  // Admin sees the same read-only monitoring notice as Assessment.
+  Widget _buildAdminMonitoringNotice() {
+    return AidTrackSectionCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF263238),
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
+          const Icon(
+            Icons.visibility_outlined,
+            color: AppColors.primaryGreen,
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Administrator monitoring only. Household registration, '
+              'editing and deletion actions belong to LGU Staff.',
+              style: TextStyle(color: AppColors.darkText, fontSize: 12),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            description,
-            style: const TextStyle(color: AppColors.greyText, fontSize: 13),
+          IconButton(
+            tooltip: 'Refresh records',
+            onPressed: _isLoading || _isSaving ? null : _loadHouseholds,
+            icon: const Icon(Icons.refresh, color: AppColors.primaryGreen),
           ),
         ],
       ),
@@ -1311,8 +1311,9 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
   Widget _recordsHeader() {
     const title = 'Registered Household Records';
-    const subtitle =
-        'Search, view, and manage registered household information.';
+    final subtitle = widget.readOnly
+        ? 'View registered household information and member records.'
+        : 'Search, view, and manage registered household information.';
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 600) {
@@ -1324,11 +1325,13 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                 subtitle: subtitle,
                 icon: Icons.list_alt_outlined,
               ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: _recordsRefreshButton(),
-              ),
+              if (!widget.readOnly) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _recordsRefreshButton(),
+                ),
+              ],
             ],
           );
         }
@@ -1342,8 +1345,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                 icon: Icons.list_alt_outlined,
               ),
             ),
-            const SizedBox(width: 16),
-            _recordsRefreshButton(),
+            if (!widget.readOnly) ...[
+              const SizedBox(width: 16),
+              _recordsRefreshButton(),
+            ],
           ],
         );
       },
@@ -1560,13 +1565,11 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // The StaffDashboard already supplies the page heading.
-        if (widget.readOnly)
-          _buildSectionIntro(
-            title: 'Household Records',
-            description:
-                'View registered household information and member records.',
-          ),
+        // Admin shares the monitoring-card layout used by Assessment.
+        if (widget.readOnly) ...[
+          _buildAdminMonitoringNotice(),
+          const SizedBox(height: 14),
+        ],
 
         // Show the registration form only in Staff mode.
         if (!widget.readOnly) ...[
