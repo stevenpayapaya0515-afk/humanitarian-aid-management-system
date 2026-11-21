@@ -84,6 +84,58 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
   final _formKey = GlobalKey<FormState>();
   final _headController = TextEditingController();
+  static const _cabadbaranBarangays = <String>[
+    'Barangay 1',
+    'Barangay 2',
+    'Barangay 3',
+    'Barangay 4',
+    'Barangay 5',
+    'Barangay 6',
+    'Barangay 7',
+    'Barangay 8',
+    'Barangay 9',
+    'Barangay 10',
+    'Barangay 11',
+    'Barangay 12',
+    'Antonio Luna',
+    'Bay-ang',
+    'Bayabas',
+    'Caasinan',
+    'Cabinet',
+    'Calamba',
+    'Calibunan',
+    'Comagascas',
+    'Concepcion',
+    'Del Pilar',
+    'Katugasan',
+    'Kauswagan',
+    'La Union',
+    'Mabini',
+    'Mahaba',
+    'Puting Bato',
+    'Sanghan',
+    'Soriano',
+    'Tolosa',
+  ];
+
+  int _barangayFieldVersion = 0;
+
+  String _editableBarangay(Map<String, dynamic> household) {
+    final province = '${household['province'] ?? ''}'.trim().toLowerCase();
+    final city = '${household['city_municipality'] ?? ''}'.trim().toLowerCase();
+    const cities = {'cabadbaran', 'cabadbaran city', 'city of cabadbaran'};
+    if (province != 'agusan del norte' || !cities.contains(city)) return '';
+
+    final name = '${household['barangay'] ?? ''}'.trim().toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceFirst(RegExp(r'^poblacion '), 'barangay ')
+        .replaceFirst(RegExp(r' \(pob\.\)$'), '');
+    return _cabadbaranBarangays.firstWhere(
+      (item) => item.toLowerCase() == name,
+      orElse: () => '',
+    );
+  }
+
   final _provinceController = TextEditingController();
   final _cityMunicipalityController = TextEditingController();
   final _barangayController = TextEditingController();
@@ -284,6 +336,7 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
 
   void _clearForm() {
     _formKey.currentState?.reset();
+    _barangayFieldVersion++;
 
     for (final controller in [
       _headController,
@@ -309,12 +362,11 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     if (_isSaving || _isLoading) return;
 
     _formKey.currentState?.reset();
+    _barangayFieldVersion++;
 
     _headController.text = '${household['household_head']}';
-    _provinceController.text = '${household['province'] ?? ''}';
-    _cityMunicipalityController.text =
-        '${household['city_municipality'] ?? ''}';
-    _barangayController.text = '${household['barangay']}';
+    _setDefaultLocation();
+    _barangayController.text = _editableBarangay(household);
     _purokController.text = '${household['purok'] ?? ''}';
 
     // Keep an old record's size; do not silently shrink it to one person.
@@ -1008,8 +1060,10 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
     required IconData icon,
     int? maxLength,
     bool optional = false,
+    bool readOnly = false,
   }) => TextFormField(
     controller: controller,
+    readOnly: readOnly,
     enabled: !_isSaving,
     maxLength: maxLength,
     decoration: InputDecoration(
@@ -1057,21 +1111,39 @@ class _HouseholdRegistrationState extends State<HouseholdRegistration> {
                 ),
                 _textField(
                   controller: _provinceController,
+                  readOnly: true,
                   label: 'Province',
                   icon: Icons.map_outlined,
                   maxLength: 100,
                 ),
                 _textField(
                   controller: _cityMunicipalityController,
+                  readOnly: true,
                   label: 'City / Municipality',
                   icon: Icons.location_city_outlined,
                   maxLength: 100,
                 ),
-                _textField(
-                  controller: _barangayController,
-                  label: 'Barangay',
-                  icon: Icons.place_outlined,
-                  maxLength: 100,
+                DropdownButtonFormField<String>(
+                  key: ValueKey(_barangayFieldVersion),
+                  initialValue: _barangayController.text.isEmpty
+                      ? null
+                      : _barangayController.text,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Barangay',
+                    hintText: 'Select barangay',
+                    prefixIcon: Icon(Icons.place_outlined),
+                  ),
+                  items: [
+                    for (final name in _cabadbaranBarangays)
+                      DropdownMenuItem<String>(value: name, child: Text(name)),
+                  ],
+                  onChanged: _isSaving
+                      ? null
+                      : (value) => _barangayController.text = value ?? '',
+                  validator: (value) => value == null || value.isEmpty
+                      ? 'Select a Cabadbaran City barangay.'
+                      : null,
                 ),
                 _textField(
                   controller: _purokController,
