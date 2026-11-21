@@ -1284,7 +1284,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
       children: List.generate(_recentActivity.length, (index) {
         final activity = _recentActivity[index];
         final type = activity['activity_type'] as String;
-        final description = activity['description'] as String;
+        final description = (activity['description'] as String).replaceFirst(
+          RegExp(r'\(apis2022-rf-caraga46-proxy-v1\)$'),
+          '(2022 Annual Poverty Indicators Survey - Caraga '
+          '46-feature Random Forest proxy model, version 1)',
+        );
         final date = activity['occurred_at'] as String;
         return Column(
           children: [
